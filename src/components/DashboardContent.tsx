@@ -43,8 +43,8 @@ export default function DashboardContent({
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f8fafc] text-zinc-800 selection:bg-blue-100 selection:text-blue-900 font-sans">
-      {/* Top Navbar */}
-      <Header />
+      {/* Top Navbar with compact stats ticker */}
+      <Header stats={stats} />
 
       {/* Main Workspace Dashboard - fluid full-width layout */}
       <main className="w-full flex-1 px-6 py-6 space-y-5">

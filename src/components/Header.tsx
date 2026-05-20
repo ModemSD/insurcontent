@@ -1,70 +1,105 @@
 import React from 'react';
-import { Sparkles, Cpu, Settings, Activity, Layers, HelpCircle } from 'lucide-react';
+import { 
+  Database, Zap, MessageSquare, Linkedin, Search, 
+  Sparkles, Layers, ShieldCheck 
+} from 'lucide-react';
 
-export default function Header() {
+interface HeaderProps {
+  stats: {
+    total: number;
+    avgViralScore: number;
+    reddit: number;
+    linkedin: number;
+    google: number;
+  };
+}
+
+export default function Header({ stats }: HeaderProps) {
+  // Calculate percentages
+  const total = stats.total || 0;
+  const avgScore = Math.round(stats.avgViralScore) || 0;
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-zinc-200/80 bg-white/80 backdrop-blur-md">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          {/* Left section - Branding */}
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2.5">
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-md shadow-indigo-500/20">
-                <Cpu className="h-5 w-5" />
-                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </span>
-              </div>
-              <div>
-                <span className="text-sm font-bold tracking-tight text-zinc-900 block">
-                  Insurvoice
-                </span>
-                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest block -mt-0.5">
-                  Intelligence Core
-                </span>
-              </div>
+    <header className="sticky top-0 z-40 w-full border-b border-zinc-200/60 bg-white/70 backdrop-blur-md">
+      <div className="w-full px-6">
+        <div className="flex h-14 items-center justify-between gap-4">
+          
+          {/* Left: Branding & Navigation Tab */}
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black tracking-wider text-zinc-950 uppercase">
+                Insurvoice
+              </span>
+              <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold text-zinc-400 font-mono">
+                v1.4
+              </span>
             </div>
-
-            {/* Separator */}
-            <span className="h-5 w-[1px] bg-zinc-200 hidden md:block" />
-
-            {/* Tab navigation - Linear Style */}
-            <nav className="hidden md:flex items-center gap-1">
-              <button className="flex items-center gap-1.5 rounded-lg bg-zinc-100/80 px-3 py-1.5 text-xs font-semibold text-zinc-900 transition-all">
-                <Layers className="h-3.5 w-3.5 text-zinc-500" />
-                <span>Signals Feed</span>
-              </button>
-              <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 transition-all">
-                <Activity className="h-3.5 w-3.5 text-zinc-400" />
-                <span>Pipeline Analytics</span>
-              </button>
-              <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 transition-all">
-                <Settings className="h-3.5 w-3.5 text-zinc-400" />
-                <span>Engine Settings</span>
-              </button>
-            </nav>
-          </div>
-
-          {/* Right section - Status & Profile */}
-          <div className="flex items-center gap-4">
-            {/* AI Status Badge */}
-            <div className="hidden items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50/50 px-3 py-1 text-xs font-medium text-emerald-800 lg:flex">
-              <Sparkles className="h-3 w-3 text-emerald-600 animate-pulse" />
-              <span>AI Agent: Listening</span>
-            </div>
-
-            {/* User profile / Actions */}
-            <div className="flex items-center gap-3">
-              <button className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-colors">
-                <HelpCircle className="h-4 w-4" />
-              </button>
-              <span className="h-4 w-[1px] bg-zinc-200" />
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 text-white font-bold text-xs shadow-sm cursor-pointer hover:bg-zinc-800 transition-colors">
-                AI
-              </div>
+            
+            <span className="h-4 w-[1px] bg-zinc-200" />
+            
+            <div className="flex items-center gap-1">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-600"></span>
+              <span className="text-xs font-bold text-zinc-900">Signals Feed</span>
             </div>
           </div>
+
+          {/* Center: Compact Stats Ticker (Linear-style Status bar) */}
+          <div className="hidden lg:flex items-center gap-5 rounded-full border border-zinc-200/80 bg-zinc-50/50 px-4 py-1.5 text-[10px] font-bold text-zinc-500">
+            {/* Total */}
+            <div className="flex items-center gap-1">
+              <Database className="h-3 w-3 text-zinc-400" />
+              <span>Total: <strong className="text-zinc-800">{total}</strong></span>
+            </div>
+            <span className="h-2.5 w-[1px] bg-zinc-200" />
+
+            {/* Reddit */}
+            <div className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-orange-500"></span>
+              <MessageSquare className="h-3 w-3 text-orange-500/70" />
+              <span>Reddit: <strong className="text-zinc-800">{stats.reddit}</strong></span>
+            </div>
+            <span className="h-2.5 w-[1px] bg-zinc-200" />
+
+            {/* LinkedIn */}
+            <div className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+              <Linkedin className="h-3 w-3 text-blue-500/70" />
+              <span>LinkedIn: <strong className="text-zinc-800">{stats.linkedin}</strong></span>
+            </div>
+            <span className="h-2.5 w-[1px] bg-zinc-200" />
+
+            {/* Google */}
+            <div className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-500"></span>
+              <Search className="h-3 w-3 text-cyan-500/70" />
+              <span>Google: <strong className="text-zinc-800">{stats.google}</strong></span>
+            </div>
+            <span className="h-2.5 w-[1px] bg-zinc-200" />
+
+            {/* Avg Engagement */}
+            <div className="flex items-center gap-1">
+              <Zap className="h-3 w-3 text-indigo-500" />
+              <span>Avg Viral: <strong className="text-indigo-600">{avgScore}%</strong></span>
+            </div>
+          </div>
+
+          {/* Right: AI Agent Status */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50/40 px-2.5 py-1 text-[10px] font-bold text-emerald-800">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+              </span>
+              <span>AI Core: Operational</span>
+            </div>
+            
+            <span className="h-4 w-[1px] bg-zinc-200" />
+            
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-950 text-white font-extrabold text-[10px]">
+              AI
+            </div>
+          </div>
+
         </div>
       </div>
     </header>

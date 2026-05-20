@@ -43,7 +43,7 @@ export default async function Page({ searchParams }: PageProps) {
   const viralScore = params.viral_score || 'all';
   const sort = params.sort || 'newest';
   const page = parseInt(params.page || '1', 10);
-  const pageSize = 5; // 5 items per page to make pagination testable with a small seed set
+  const pageSize = 25; // Standard convenient page size for data feed views
 
   let dbQuery = supabase
     .from('raw_content')
