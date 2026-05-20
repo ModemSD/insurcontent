@@ -15,16 +15,25 @@ export default function FilterBar() {
   const currentViralScore = searchParams.get('viral_score') || 'all';
   const currentSort = searchParams.get('sort') || 'newest';
 
-  // Debounce search
+  // Sync searchVal from URL search parameter if changed from outside (e.g. on Reset)
+  const urlSearch = searchParams.get('search') || '';
   useEffect(() => {
+    setSearchVal(urlSearch);
+  }, [urlSearch]);
+
+  // Debounce search input and update search params safely
+  useEffect(() => {
+    const currentUrlSearch = searchParams.get('search') || '';
+    if (searchVal.trim() === currentUrlSearch.trim()) return;
+
     const delayDebounce = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(window.location.search);
       if (searchVal.trim()) {
         params.set('search', searchVal.trim());
       } else {
         params.delete('search');
       }
-      params.delete('page');
+      params.delete('page'); // Reset page when typing a new search
 
       startTransition(() => {
         router.replace(`/?${params.toString()}`);
@@ -32,7 +41,7 @@ export default function FilterBar() {
     }, 400);
 
     return () => clearTimeout(delayDebounce);
-  }, [searchVal, router, searchParams]);
+  }, [searchVal, router]);
 
   const handleFilterChange = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
