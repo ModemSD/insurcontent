@@ -164,10 +164,10 @@ export default function SignalsTable({
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50/50 font-bold text-zinc-400 uppercase tracking-wider select-none text-[10px]">
               <th className="py-4 px-4 sm:px-6 w-[120px]">Source</th>
-              <th className="py-4 px-4 min-w-[280px]">Signal Title</th>
-              <th className="py-4 px-4 text-left w-[180px]">Engagement Score</th>
-              <th className="py-4 px-4 hidden md:table-cell max-w-[200px]">Core Pain Point</th>
-              <th className="py-4 px-4 hidden lg:table-cell w-[160px]">Topic Category</th>
+              <th className="py-4 px-4">Signal Title</th>
+              <th className="py-4 px-4 text-left w-[160px]">Engagement Score</th>
+              <th className="py-4 px-4 hidden md:table-cell w-[250px]">Core Pain Point</th>
+              <th className="py-4 px-4 hidden lg:table-cell w-[200px]">Topic Category</th>
               <th className="py-4 px-4 hidden sm:table-cell w-[110px]">Detected</th>
               <th className="py-4 px-4 text-center w-14">Link</th>
             </tr>
@@ -204,15 +204,15 @@ export default function SignalsTable({
                 </td>
                 
                 {/* Pain Point truncate */}
-                <td className="py-4.5 px-4 text-zinc-500 hidden md:table-cell max-w-[200px]">
+                <td className="py-4.5 px-4 text-zinc-500 hidden md:table-cell w-[250px] max-w-[250px]">
                   <p className="truncate font-medium">{signal.pain_point}</p>
                 </td>
                 
                 {/* Topic badge */}
-                <td className="py-4.5 px-4 text-zinc-600 hidden lg:table-cell whitespace-nowrap">
+                <td className="py-4.5 px-4 text-zinc-600 hidden lg:table-cell w-[200px] max-w-[200px]">
                   <div className="flex items-center gap-1.5 text-zinc-800">
                     <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
-                    <span className="font-bold text-zinc-700">{signal.topic}</span>
+                    <span className="font-bold text-zinc-700 truncate">{signal.topic}</span>
                   </div>
                 </td>
                 
