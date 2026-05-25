@@ -6,15 +6,16 @@ import {
   X, ExternalLink, Sparkles, AlertCircle, RefreshCw, Users, 
   FileText, Calendar, Tag, Hash, Link2, Copy, Check, EyeOff, Trash2, Loader2
 } from 'lucide-react';
-import { RawContent, updateSignalStatus, deleteSignal } from '@/app/actions';
+import { RawContent, updateSignalStatus, deleteSignal, sendRewriteWebhook } from '@/app/actions';
 import { formatUrl } from '@/lib/utils';
 
 interface SignalDetailModalProps {
   signal: RawContent | null;
   onClose: () => void;
+  isReview?: boolean;
 }
 
-export default function SignalDetailModal({ signal, onClose }: SignalDetailModalProps) {
+export default function SignalDetailModal({ signal, onClose, isReview = false }: SignalDetailModalProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | 'ai'>('overview');
   const [copied, setCopied] = useState(false);
@@ -47,6 +48,18 @@ export default function SignalDetailModal({ signal, onClose }: SignalDetailModal
       } else {
         alert('Failed to delete signal: ' + res.error);
       }
+    }
+  };
+
+  const handleRewriteClick = async (platform: string) => {
+    if (!signal) return;
+    setIsPending(true);
+    const res = await sendRewriteWebhook(signal, platform);
+    setIsPending(false);
+    if (res.success) {
+      alert(`Sent successfully to n8n for rewriting on ${platform}!`);
+    } else {
+      alert(`Failed to send to n8n: ${res.error}`);
     }
   };
 
@@ -286,47 +299,90 @@ export default function SignalDetailModal({ signal, onClose }: SignalDetailModal
         </div>
 
         {/* Footer actions */}
-        <div className="border-t border-zinc-200 p-6 bg-zinc-50/30 space-y-3">
-          {/* Status Mutation Actions */}
-          <div className="grid grid-cols-3 gap-2">
-            {signal.status !== 'approved' ? (
-              <button
-                onClick={() => handleStatusChange('approved')}
-                disabled={isPending}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-700 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
-              >
-                {isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Check className="h-3.5 w-3.5" />
-                )}
-                <span>Approve</span>
-              </button>
-            ) : (
-              <div className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-700 py-2.5 text-xs font-bold select-none">
-                <Check className="h-3.5 w-3.5 stroke-[3px]" />
-                <span>Approved</span>
+        <div className="border-t border-zinc-200 p-6 bg-zinc-50/30 space-y-4">
+          {isReview ? (
+            /* Rewrite Agent actions for Review Page */
+            <div>
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">
+                Send to AI Rewrite Agent (n8n)
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleRewriteClick('X.com')}
+                  disabled={isPending}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                  <span>X.com</span>
+                </button>
+                <button
+                  onClick={() => handleRewriteClick('Threads')}
+                  disabled={isPending}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                  <span>Threads</span>
+                </button>
+                <button
+                  onClick={() => handleRewriteClick('Instagram')}
+                  disabled={isPending}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                  <span>Instagram</span>
+                </button>
+                <button
+                  onClick={() => handleRewriteClick('LinkedIn')}
+                  disabled={isPending}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                  <span>LinkedIn</span>
+                </button>
               </div>
-            )}
+            </div>
+          ) : (
+            /* Status Mutation Actions for normal Feed Page */
+            <div className="grid grid-cols-3 gap-2">
+              {signal.status !== 'approved' ? (
+                <button
+                  onClick={() => handleStatusChange('approved')}
+                  disabled={isPending}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-700 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Check className="h-3.5 w-3.5" />
+                  )}
+                  <span>Approve</span>
+                </button>
+              ) : (
+                <div className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-700 py-2.5 text-xs font-bold select-none">
+                  <Check className="h-3.5 w-3.5 stroke-[3px]" />
+                  <span>Approved</span>
+                </div>
+              )}
 
-            <button
-              onClick={() => handleStatusChange('hidden')}
-              disabled={isPending}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
-            >
-              <EyeOff className="h-3.5 w-3.5" />
-              <span>Hide</span>
-            </button>
+              <button
+                onClick={() => handleStatusChange('hidden')}
+                disabled={isPending}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                <EyeOff className="h-3.5 w-3.5" />
+                <span>Hide</span>
+              </button>
 
-            <button
-              onClick={handleDelete}
-              disabled={isPending}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>Delete</span>
-            </button>
-          </div>
+              <button
+                onClick={handleDelete}
+                disabled={isPending}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete</span>
+              </button>
+            </div>
+          )}
 
           <a
             href={formatUrl(signal.url, signal.source)}

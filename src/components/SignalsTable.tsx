@@ -7,7 +7,7 @@ import {
   MessageSquare, Linkedin, Search, Calendar, Link2, Sparkles,
   Check, EyeOff, Trash2, Loader2
 } from 'lucide-react';
-import { RawContent, updateSignalStatus, deleteSignal } from '@/app/actions';
+import { RawContent, updateSignalStatus, deleteSignal, sendRewriteWebhook } from '@/app/actions';
 import { formatUrl } from '@/lib/utils';
 
 interface SignalsTableProps {
@@ -19,6 +19,7 @@ interface SignalsTableProps {
   isDbEmpty: boolean;
   onSeed: () => void;
   isSeeding: boolean;
+  isReview?: boolean;
 }
 
 export default function SignalsTable({
@@ -30,10 +31,22 @@ export default function SignalsTable({
   isDbEmpty,
   onSeed,
   isSeeding,
+  isReview = false,
 }: SignalsTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pendingActionId, setPendingActionId] = useState<string | number | null>(null);
+
+  const handleRewrite = async (signal: RawContent, platform: string) => {
+    setPendingActionId(signal.id!);
+    const res = await sendRewriteWebhook(signal, platform);
+    setPendingActionId(null);
+    if (res.success) {
+      alert(`Sent successfully to n8n for rewriting on ${platform}!`);
+    } else {
+      alert(`Failed to send to n8n: ${res.error}`);
+    }
+  };
 
   const handleStatusChange = async (id: string | number, status: 'approved' | 'hidden') => {
     setPendingActionId(id);
@@ -266,43 +279,78 @@ export default function SignalsTable({
                 
                 {/* Actions column */}
                 <td className="py-4.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                  <div className="inline-flex items-center gap-1.5">
-                    {signal.status !== 'approved' ? (
-                      <button
-                        onClick={() => handleStatusChange(signal.id!, 'approved')}
-                        disabled={pendingActionId === signal.id}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-emerald-100 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all bg-white shadow-sm cursor-pointer disabled:opacity-50"
-                        title="Approve Signal"
-                      >
+                  <div className="inline-flex items-center justify-center gap-1.5">
+                    {isReview ? (
+                      <div className="relative inline-block text-left">
                         {pendingActionId === signal.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <div className="flex h-7 items-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-600 animate-pulse select-none">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span>Sending...</span>
+                          </div>
                         ) : (
-                          <Check className="h-3.5 w-3.5" />
+                          <select
+                            onChange={async (e) => {
+                              const val = e.target.value;
+                              if (!val) return;
+                              await handleRewrite(signal, val);
+                              e.target.value = ''; // Reset select
+                            }}
+                            className="rounded-xl border border-indigo-200 bg-white px-2.5 py-1 text-xs font-bold text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 transition-all shadow-sm cursor-pointer outline-none select-none appearance-none pr-7 relative"
+                            style={{
+                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%234F46E5' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
+                              backgroundPosition: 'right 0.5rem center',
+                              backgroundSize: '1.25rem',
+                              backgroundRepeat: 'no-repeat'
+                            }}
+                          >
+                            <option value="">Rewrite...</option>
+                            <option value="X.com">X.com</option>
+                            <option value="Threads">Threads</option>
+                            <option value="Instagram">Instagram</option>
+                            <option value="LinkedIn">LinkedIn</option>
+                          </select>
                         )}
-                      </button>
-                    ) : (
-                      <div className="flex h-7 w-7 items-center justify-center text-emerald-600" title="Approved">
-                        <Check className="h-4 w-4 stroke-[3px]" />
                       </div>
+                    ) : (
+                      <>
+                        {signal.status !== 'approved' ? (
+                          <button
+                            onClick={() => handleStatusChange(signal.id!, 'approved')}
+                            disabled={pendingActionId === signal.id}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-emerald-100 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all bg-white shadow-sm cursor-pointer disabled:opacity-50"
+                            title="Approve Signal"
+                          >
+                            {pendingActionId === signal.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        ) : (
+                          <div className="flex h-7 w-7 items-center justify-center text-emerald-600" title="Approved">
+                            <Check className="h-4 w-4 stroke-[3px]" />
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => handleStatusChange(signal.id!, 'hidden')}
+                          disabled={pendingActionId === signal.id}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:border-zinc-300 hover:text-zinc-700 transition-all bg-white hover:bg-zinc-50 shadow-sm cursor-pointer disabled:opacity-50"
+                          title="Hide Signal"
+                        >
+                          <EyeOff className="h-3.5 w-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(signal.id!)}
+                          disabled={pendingActionId === signal.id}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-rose-100 text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-all bg-white shadow-sm cursor-pointer disabled:opacity-50"
+                          title="Delete Signal"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
                     )}
-
-                    <button
-                      onClick={() => handleStatusChange(signal.id!, 'hidden')}
-                      disabled={pendingActionId === signal.id}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:border-zinc-300 hover:text-zinc-700 transition-all bg-white hover:bg-zinc-50 shadow-sm cursor-pointer disabled:opacity-50"
-                      title="Hide Signal"
-                    >
-                      <EyeOff className="h-3.5 w-3.5" />
-                    </button>
-
-                    <button
-                      onClick={() => handleDelete(signal.id!)}
-                      disabled={pendingActionId === signal.id}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-rose-100 text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-all bg-white shadow-sm cursor-pointer disabled:opacity-50"
-                      title="Delete Signal"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
                   </div>
                 </td>
                 

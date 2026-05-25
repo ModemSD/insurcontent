@@ -88,6 +88,7 @@ export default function DashboardContent({
           isDbEmpty={isDbEmpty}
           onSeed={handleSeedData}
           isSeeding={isSeeding}
+          isReview={isReview}
         />
       </main>
 
@@ -95,6 +96,7 @@ export default function DashboardContent({
       <SignalDetailModal
         signal={selectedSignal}
         onClose={() => setSelectedSignal(null)}
+        isReview={isReview}
       />
 
       {/* Footer info */}

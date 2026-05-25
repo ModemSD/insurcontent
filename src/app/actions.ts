@@ -264,3 +264,36 @@ export async function deleteSignal(id: string | number) {
   }
 }
 
+export async function sendRewriteWebhook(signal: RawContent, platform: string) {
+  try {
+    const response = await fetch('https://n8n.srv1685912.hstgr.cloud/webhook/fdb5cc2d-d0e6-4827-b767-07b98023e269', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        signalId: signal.id,
+        title: signal.title,
+        content: signal.content,
+        topic: signal.topic,
+        painPoint: signal.pain_point,
+        emotionalTrigger: signal.emotional_trigger,
+        rewriteAngle: signal.rewrite_angle,
+        targetAudience: signal.target_audience,
+        url: signal.url,
+        source: signal.source,
+        targetPlatform: platform
+      })
+    });
+
+    if (!response.ok) {
+      return { success: false, error: `Webhook returned status ${response.status}` };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Network error occurred' };
+  }
+}
+
+
