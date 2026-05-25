@@ -12,9 +12,10 @@ interface HeaderProps {
     linkedin: number;
     google: number;
   };
+  title?: string;
 }
 
-export default function Header({ stats }: HeaderProps) {
+export default function Header({ stats, title = 'Signals Feed' }: HeaderProps) {
   // Calculate percentages
   const total = stats.total || 0;
   const avgScore = Math.round(stats.avgViralScore) || 0;
@@ -39,7 +40,7 @@ export default function Header({ stats }: HeaderProps) {
             
             <div className="flex items-center gap-1">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-600"></span>
-              <span className="text-xs font-bold text-zinc-900">Signals Feed</span>
+              <span className="text-xs font-bold text-zinc-900">{title}</span>
             </div>
           </div>
 

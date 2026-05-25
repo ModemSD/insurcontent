@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  Inbox, CheckSquare, ChevronLeft, ChevronRight
+  Inbox, CheckSquare, ChevronLeft, ChevronRight, SendHorizontal, BarChart3
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -25,6 +25,16 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
       name: 'On Review',
       href: '/on-review',
       icon: CheckSquare,
+    },
+    {
+      name: 'Ready to Post',
+      href: '/ready-to-post',
+      icon: SendHorizontal,
+    },
+    {
+      name: 'Statistics',
+      href: '/statistics',
+      icon: BarChart3,
     },
   ];
 
