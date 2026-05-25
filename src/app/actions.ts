@@ -17,8 +17,12 @@ export interface RawContent {
   target_audience: string;
   url: string;
   status?: 'new' | 'approved' | 'hidden';
+  sent_platforms?: string[];
   created_at?: string;
 }
+
+// Global seeding list and database seeding/clearing methods ...
+// (Skipping to sendRewriteWebhook...)
 
 const DEMO_SIGNALS: RawContent[] = [
   {
@@ -293,6 +297,28 @@ export async function sendRewriteWebhook(signal: RawContent, platform: string) {
       return { success: false, error: `Webhook returned status ${response.status}` };
     }
 
+    // Update database to add the platform to sent_platforms
+    if (signal.id) {
+      const { data, error: fetchError } = await supabase
+        .from('raw_content')
+        .select('sent_platforms')
+        .eq('id', signal.id)
+        .single();
+
+      if (!fetchError && data) {
+        const currentPlatforms: string[] = data.sent_platforms || [];
+        if (!currentPlatforms.includes(platform)) {
+          const updatedPlatforms = [...currentPlatforms, platform];
+          await supabase
+            .from('raw_content')
+            .update({ sent_platforms: updatedPlatforms })
+            .eq('id', signal.id);
+        }
+      }
+    }
+
+    revalidatePath('/');
+    revalidatePath('/on-review');
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message || 'Network error occurred' };

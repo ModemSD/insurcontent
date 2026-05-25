@@ -20,6 +20,7 @@ export default function SignalDetailModal({ signal, onClose, isReview = false }:
   const [activeTab, setActiveTab] = useState<'overview' | 'ai'>('overview');
   const [copied, setCopied] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleStatusChange = async (status: 'approved' | 'hidden') => {
     if (!signal?.id) return;
@@ -54,12 +55,13 @@ export default function SignalDetailModal({ signal, onClose, isReview = false }:
   const handleRewriteClick = async (platform: string) => {
     if (!signal) return;
     setIsPending(true);
+    setErrorMessage(null);
     const res = await sendRewriteWebhook(signal, platform);
     setIsPending(false);
     if (res.success) {
-      alert(`Sent successfully to n8n for rewriting on ${platform}!`);
+      router.refresh();
     } else {
-      alert(`Failed to send to n8n: ${res.error}`);
+      setErrorMessage(`Failed to send to n8n: ${res.error}`);
     }
   };
 
@@ -300,6 +302,13 @@ export default function SignalDetailModal({ signal, onClose, isReview = false }:
 
         {/* Footer actions */}
         <div className="border-t border-zinc-200 p-6 bg-zinc-50/30 space-y-4">
+          {errorMessage && (
+            <div className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-xs font-semibold text-rose-600 flex items-center justify-between shadow-sm animate-in fade-in duration-200">
+              <span>{errorMessage}</span>
+              <button onClick={() => setErrorMessage(null)} className="text-rose-400 hover:text-rose-600 font-bold text-sm">×</button>
+            </div>
+          )}
+
           {isReview ? (
             /* Rewrite Agent actions for Review Page */
             <div>
@@ -310,34 +319,86 @@ export default function SignalDetailModal({ signal, onClose, isReview = false }:
                 <button
                   onClick={() => handleRewriteClick('X.com')}
                   disabled={isPending}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                  className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
+                    signal.sent_platforms?.includes('X.com')
+                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
+                      : 'border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700'
+                  }`}
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>X.com</span>
+                  {signal.sent_platforms?.includes('X.com') ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3px]" />
+                      <span>✓ X.com (Sent)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                      <span>X.com</span>
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => handleRewriteClick('Threads')}
                   disabled={isPending}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                  className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
+                    signal.sent_platforms?.includes('Threads')
+                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
+                      : 'border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700'
+                  }`}
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>Threads</span>
+                  {signal.sent_platforms?.includes('Threads') ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3px]" />
+                      <span>✓ Threads (Sent)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                      <span>Threads</span>
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => handleRewriteClick('Instagram')}
                   disabled={isPending}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                  className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
+                    signal.sent_platforms?.includes('Instagram')
+                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
+                      : 'border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-pink-300 text-zinc-700 hover:text-pink-600'
+                  }`}
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>Instagram</span>
+                  {signal.sent_platforms?.includes('Instagram') ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3px]" />
+                      <span>✓ Insta (Sent)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                      <span>Instagram</span>
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => handleRewriteClick('LinkedIn')}
                   disabled={isPending}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                  className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
+                    signal.sent_platforms?.includes('LinkedIn')
+                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
+                      : 'border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-blue-300 text-zinc-700 hover:text-blue-600'
+                  }`}
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>LinkedIn</span>
+                  {signal.sent_platforms?.includes('LinkedIn') ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3px]" />
+                      <span>✓ LinkedIn (Sent)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+                      <span>LinkedIn</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

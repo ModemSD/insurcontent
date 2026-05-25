@@ -36,15 +36,17 @@ export default function SignalsTable({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pendingActionId, setPendingActionId] = useState<string | number | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleRewrite = async (signal: RawContent, platform: string) => {
     setPendingActionId(signal.id!);
+    setErrorMessage(null);
     const res = await sendRewriteWebhook(signal, platform);
     setPendingActionId(null);
-    if (res.success) {
-      alert(`Sent successfully to n8n for rewriting on ${platform}!`);
+    if (!res.success) {
+      setErrorMessage(`Failed to send to n8n: ${res.error}`);
     } else {
-      alert(`Failed to send to n8n: ${res.error}`);
+      router.refresh();
     }
   };
 
@@ -198,6 +200,21 @@ export default function SignalsTable({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Error alert toast */}
+      {errorMessage && (
+        <div className="flex items-center justify-between rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-600 shadow-sm animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+            <span>{errorMessage}</span>
+          </div>
+          <button 
+            onClick={() => setErrorMessage(null)} 
+            className="rounded-lg p-1 hover:bg-rose-150 text-rose-400 hover:text-rose-600 transition-colors cursor-pointer text-sm font-bold"
+          >
+            ×
+          </button>
+        </div>
+      )}
       {/* Premium modern Table Grid */}
       <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <table className="w-full border-collapse text-left text-xs text-zinc-700">
@@ -291,31 +308,51 @@ export default function SignalsTable({
                           <>
                             <button
                               onClick={() => handleRewrite(signal, 'X.com')}
-                              className="rounded-lg border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-bold text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 hover:bg-zinc-50 transition-all shadow-sm cursor-pointer"
-                              title="Rewrite for X.com"
+                              disabled={pendingActionId === signal.id}
+                              className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
+                                signal.sent_platforms?.includes('X.com')
+                                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
+                                  : 'border border-zinc-200 bg-white text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 hover:bg-zinc-50'
+                              }`}
+                              title={signal.sent_platforms?.includes('X.com') ? "Sent to X.com (Click to resend)" : "Send to X.com"}
                             >
-                              X.com
+                              {signal.sent_platforms?.includes('X.com') ? '✓ X.com' : 'X.com'}
                             </button>
                             <button
                               onClick={() => handleRewrite(signal, 'Threads')}
-                              className="rounded-lg border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-bold text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 hover:bg-zinc-50 transition-all shadow-sm cursor-pointer"
-                              title="Rewrite for Threads"
+                              disabled={pendingActionId === signal.id}
+                              className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
+                                signal.sent_platforms?.includes('Threads')
+                                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
+                                  : 'border border-zinc-200 bg-white text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 hover:bg-zinc-50'
+                              }`}
+                              title={signal.sent_platforms?.includes('Threads') ? "Sent to Threads (Click to resend)" : "Send to Threads"}
                             >
-                              Threads
+                              {signal.sent_platforms?.includes('Threads') ? '✓ Threads' : 'Threads'}
                             </button>
                             <button
                               onClick={() => handleRewrite(signal, 'Instagram')}
-                              className="rounded-lg border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-bold text-zinc-600 hover:border-pink-400 hover:text-pink-600 hover:bg-pink-50/20 transition-all shadow-sm cursor-pointer"
-                              title="Rewrite for Instagram"
+                              disabled={pendingActionId === signal.id}
+                              className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
+                                signal.sent_platforms?.includes('Instagram')
+                                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
+                                  : 'border border-zinc-200 bg-white text-zinc-600 hover:border-pink-400 hover:text-pink-600 hover:bg-pink-50/20'
+                              }`}
+                              title={signal.sent_platforms?.includes('Instagram') ? "Sent to Instagram (Click to resend)" : "Send to Instagram"}
                             >
-                              Insta
+                              {signal.sent_platforms?.includes('Instagram') ? '✓ Insta' : 'Insta'}
                             </button>
                             <button
                               onClick={() => handleRewrite(signal, 'LinkedIn')}
-                              className="rounded-lg border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-bold text-zinc-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/20 transition-all shadow-sm cursor-pointer"
-                              title="Rewrite for LinkedIn"
+                              disabled={pendingActionId === signal.id}
+                              className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
+                                signal.sent_platforms?.includes('LinkedIn')
+                                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
+                                  : 'border border-zinc-200 bg-white text-zinc-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/20'
+                              }`}
+                              title={signal.sent_platforms?.includes('LinkedIn') ? "Sent to LinkedIn (Click to resend)" : "Send to LinkedIn"}
                             >
-                              LinkedIn
+                              {signal.sent_platforms?.includes('LinkedIn') ? '✓ LinkedIn' : 'LinkedIn'}
                             </button>
                           </>
                         )}
