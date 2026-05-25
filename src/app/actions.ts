@@ -266,24 +266,27 @@ export async function deleteSignal(id: string | number) {
 
 export async function sendRewriteWebhook(signal: RawContent, platform: string) {
   try {
-    const response = await fetch('https://n8n.srv1685912.hstgr.cloud/webhook/fdb5cc2d-d0e6-4827-b767-07b98023e269', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        signalId: signal.id,
-        title: signal.title,
-        content: signal.content,
-        topic: signal.topic,
-        painPoint: signal.pain_point,
-        emotionalTrigger: signal.emotional_trigger,
-        rewriteAngle: signal.rewrite_angle,
-        targetAudience: signal.target_audience,
-        url: signal.url,
-        source: signal.source,
-        targetPlatform: platform
-      })
+    // Bypass self-signed SSL certificate issue on the hostinger cloud domain
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+    const params = new URLSearchParams({
+      signalId: String(signal.id || ''),
+      title: signal.title || '',
+      content: signal.content || '',
+      topic: signal.topic || '',
+      painPoint: signal.pain_point || '',
+      emotionalTrigger: signal.emotional_trigger || '',
+      rewriteAngle: signal.rewrite_angle || '',
+      targetAudience: signal.target_audience || '',
+      url: signal.url || '',
+      source: signal.source || '',
+      targetPlatform: platform
+    });
+
+    const url = `https://n8n.srv1685912.hstgr.cloud/webhook/fdb5cc2d-d0e6-4827-b767-07b98023e269?${params.toString()}`;
+
+    const response = await fetch(url, {
+      method: 'GET'
     });
 
     if (!response.ok) {
