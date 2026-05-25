@@ -209,7 +209,7 @@ export default function SignalsTable({
               <th className="py-4 px-4 hidden md:table-cell w-[250px]">Core Pain Point</th>
               <th className="py-4 px-4 hidden lg:table-cell w-[200px]">Topic Category</th>
               <th className="py-4 px-4 hidden sm:table-cell w-[110px]">Detected</th>
-              <th className="py-4 px-4 text-center w-[120px]">Actions</th>
+              <th className="py-4 px-4 text-center w-[280px]">Actions</th>
               <th className="py-4 px-4 text-center w-14">Link</th>
             </tr>
           </thead>
@@ -281,34 +281,43 @@ export default function SignalsTable({
                 <td className="py-4.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                   <div className="inline-flex items-center justify-center gap-1.5">
                     {isReview ? (
-                      <div className="relative inline-block text-left">
+                      <div className="flex items-center gap-1">
                         {pendingActionId === signal.id ? (
                           <div className="flex h-7 items-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-600 animate-pulse select-none">
                             <Loader2 className="h-3 w-3 animate-spin" />
                             <span>Sending...</span>
                           </div>
                         ) : (
-                          <select
-                            onChange={async (e) => {
-                              const val = e.target.value;
-                              if (!val) return;
-                              await handleRewrite(signal, val);
-                              e.target.value = ''; // Reset select
-                            }}
-                            className="rounded-xl border border-indigo-200 bg-white px-2.5 py-1 text-xs font-bold text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 transition-all shadow-sm cursor-pointer outline-none select-none appearance-none pr-7 relative"
-                            style={{
-                              backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%234F46E5' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E")`,
-                              backgroundPosition: 'right 0.5rem center',
-                              backgroundSize: '1.25rem',
-                              backgroundRepeat: 'no-repeat'
-                            }}
-                          >
-                            <option value="">Rewrite...</option>
-                            <option value="X.com">X.com</option>
-                            <option value="Threads">Threads</option>
-                            <option value="Instagram">Instagram</option>
-                            <option value="LinkedIn">LinkedIn</option>
-                          </select>
+                          <>
+                            <button
+                              onClick={() => handleRewrite(signal, 'X.com')}
+                              className="rounded-lg border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-bold text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 hover:bg-zinc-50 transition-all shadow-sm cursor-pointer"
+                              title="Rewrite for X.com"
+                            >
+                              X.com
+                            </button>
+                            <button
+                              onClick={() => handleRewrite(signal, 'Threads')}
+                              className="rounded-lg border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-bold text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 hover:bg-zinc-50 transition-all shadow-sm cursor-pointer"
+                              title="Rewrite for Threads"
+                            >
+                              Threads
+                            </button>
+                            <button
+                              onClick={() => handleRewrite(signal, 'Instagram')}
+                              className="rounded-lg border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-bold text-zinc-600 hover:border-pink-400 hover:text-pink-600 hover:bg-pink-50/20 transition-all shadow-sm cursor-pointer"
+                              title="Rewrite for Instagram"
+                            >
+                              Insta
+                            </button>
+                            <button
+                              onClick={() => handleRewrite(signal, 'LinkedIn')}
+                              className="rounded-lg border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-bold text-zinc-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/20 transition-all shadow-sm cursor-pointer"
+                              title="Rewrite for LinkedIn"
+                            >
+                              LinkedIn
+                            </button>
+                          </>
                         )}
                       </div>
                     ) : (
