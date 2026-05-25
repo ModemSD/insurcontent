@@ -16,6 +16,7 @@ export interface RawContent {
   rewrite_angle: string;
   target_audience: string;
   url: string;
+  status?: 'new' | 'approved' | 'hidden';
   created_at?: string;
 }
 
@@ -224,3 +225,42 @@ export async function clearAllData() {
     return { success: false, error: err.message || 'Unknown error occurred' };
   }
 }
+
+export async function updateSignalStatus(id: string | number, status: 'new' | 'approved' | 'hidden') {
+  try {
+    const { error } = await supabase
+      .from('raw_content')
+      .update({ status })
+      .eq('id', id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath('/');
+    revalidatePath('/on-review');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Unknown error occurred' };
+  }
+}
+
+export async function deleteSignal(id: string | number) {
+  try {
+    const { error } = await supabase
+      .from('raw_content')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath('/');
+    revalidatePath('/on-review');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Unknown error occurred' };
+  }
+}
+

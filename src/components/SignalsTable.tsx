@@ -1,12 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   ExternalLink, ChevronLeft, ChevronRight, Inbox, RefreshCcw, 
-  MessageSquare, Linkedin, Search, Calendar, Link2, Sparkles 
+  MessageSquare, Linkedin, Search, Calendar, Link2, Sparkles,
+  Check, EyeOff, Trash2, Loader2
 } from 'lucide-react';
-import { RawContent } from '@/app/actions';
+import { RawContent, updateSignalStatus, deleteSignal } from '@/app/actions';
+import { formatUrl } from '@/lib/utils';
 
 interface SignalsTableProps {
   signals: RawContent[];
@@ -31,6 +33,31 @@ export default function SignalsTable({
 }: SignalsTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [pendingActionId, setPendingActionId] = useState<string | number | null>(null);
+
+  const handleStatusChange = async (id: string | number, status: 'approved' | 'hidden') => {
+    setPendingActionId(id);
+    const res = await updateSignalStatus(id, status);
+    setPendingActionId(null);
+    if (res.success) {
+      router.refresh();
+    } else {
+      alert('Failed to update status: ' + res.error);
+    }
+  };
+
+  const handleDelete = async (id: string | number) => {
+    if (confirm('Are you sure you want to delete this signal from the database?')) {
+      setPendingActionId(id);
+      const res = await deleteSignal(id);
+      setPendingActionId(null);
+      if (res.success) {
+        router.refresh();
+      } else {
+        alert('Failed to delete signal: ' + res.error);
+      }
+    }
+  };
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -169,6 +196,7 @@ export default function SignalsTable({
               <th className="py-4 px-4 hidden md:table-cell w-[250px]">Core Pain Point</th>
               <th className="py-4 px-4 hidden lg:table-cell w-[200px]">Topic Category</th>
               <th className="py-4 px-4 hidden sm:table-cell w-[110px]">Detected</th>
+              <th className="py-4 px-4 text-center w-[120px]">Actions</th>
               <th className="py-4 px-4 text-center w-14">Link</th>
             </tr>
           </thead>
@@ -190,9 +218,19 @@ export default function SignalsTable({
                     {signal.title}
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-[10px] text-zinc-400">
-                    <span className="rounded bg-zinc-50 px-1.5 py-0.5 border border-zinc-200/50 font-mono">
+                    <span className="rounded bg-zinc-50 px-1.5 py-0.5 border border-zinc-200/50 font-mono font-medium">
                       #{signal.id}
                     </span>
+                    <span className="h-1 w-1 rounded-full bg-zinc-300"></span>
+                    {signal.status === 'approved' ? (
+                      <span className="rounded bg-emerald-50 px-1.5 py-0.5 border border-emerald-200/50 text-emerald-700 font-bold uppercase tracking-wider text-[9px] select-none">
+                        Approved
+                      </span>
+                    ) : (
+                      <span className="rounded bg-indigo-50 px-1.5 py-0.5 border border-indigo-200/50 text-indigo-700 font-bold uppercase tracking-wider text-[9px] select-none">
+                        New
+                      </span>
+                    )}
                     <span className="h-1 w-1 rounded-full bg-zinc-300"></span>
                     <span className="truncate max-w-[150px]">{signal.target_audience}</span>
                   </div>
@@ -226,10 +264,52 @@ export default function SignalsTable({
                     : 'N/A'}
                 </td>
                 
+                {/* Actions column */}
+                <td className="py-4.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                  <div className="inline-flex items-center gap-1.5">
+                    {signal.status !== 'approved' ? (
+                      <button
+                        onClick={() => handleStatusChange(signal.id!, 'approved')}
+                        disabled={pendingActionId === signal.id}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-emerald-100 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all bg-white shadow-sm cursor-pointer disabled:opacity-50"
+                        title="Approve Signal"
+                      >
+                        {pendingActionId === signal.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    ) : (
+                      <div className="flex h-7 w-7 items-center justify-center text-emerald-600" title="Approved">
+                        <Check className="h-4 w-4 stroke-[3px]" />
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => handleStatusChange(signal.id!, 'hidden')}
+                      disabled={pendingActionId === signal.id}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:border-zinc-300 hover:text-zinc-700 transition-all bg-white hover:bg-zinc-50 shadow-sm cursor-pointer disabled:opacity-50"
+                      title="Hide Signal"
+                    >
+                      <EyeOff className="h-3.5 w-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(signal.id!)}
+                      disabled={pendingActionId === signal.id}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-xl border border-rose-100 text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-all bg-white shadow-sm cursor-pointer disabled:opacity-50"
+                      title="Delete Signal"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </td>
+                
                 {/* External link action */}
                 <td className="py-4.5 px-4 text-center">
                   <a
-                    href={signal.url}
+                    href={formatUrl(signal.url, signal.source)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()} // Prevent open drawer

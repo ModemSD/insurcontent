@@ -14,17 +14,17 @@ interface PageProps {
   }>;
 }
 
-export default async function Page({ searchParams }: PageProps) {
+export default async function OnReviewPage({ searchParams }: PageProps) {
   const params = await searchParams;
 
-  // 1. Fetch Stats & Check if DB is Empty
+  // 1. Fetch Stats for Approved Signals
   const { data: allStatsData, error: statsError } = await supabase
     .from('raw_content')
     .select('source, viral_score')
-    .or('status.eq.new,status.eq.approved,status.is.null');
+    .eq('status', 'approved');
 
   if (statsError) {
-    console.error('Error fetching statistics:', statsError.message);
+    console.error('Error fetching statistics for review:', statsError.message);
   }
 
   const total = allStatsData?.length || 0;
@@ -44,12 +44,12 @@ export default async function Page({ searchParams }: PageProps) {
   const viralScore = params.viral_score || 'all';
   const sort = params.sort || 'newest';
   const page = parseInt(params.page || '1', 10);
-  const pageSize = 25; // Standard convenient page size for data feed views
+  const pageSize = 25; // Standard convenient page size
 
   let dbQuery = supabase
     .from('raw_content')
     .select('*', { count: 'exact' })
-    .or('status.eq.new,status.eq.approved,status.is.null');
+    .eq('status', 'approved');
 
   // Text search (matches title, content, topic, or pain point)
   if (search) {
@@ -58,7 +58,7 @@ export default async function Page({ searchParams }: PageProps) {
     );
   }
 
-  // Source filtering (case-insensitive to match both capitalized and lowercase sources)
+  // Source filtering
   if (source && source !== 'all') {
     dbQuery = dbQuery.ilike('source', source);
   }
@@ -78,11 +78,10 @@ export default async function Page({ searchParams }: PageProps) {
   if (sort === 'viral_highest') {
     dbQuery = dbQuery.order('viral_score', { ascending: false });
   } else {
-    // default: newest
     dbQuery = dbQuery.order('created_at', { ascending: false });
   }
 
-  // Pagination (range is inclusive: e.g. 0-4, 5-9)
+  // Pagination
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   dbQuery = dbQuery.range(from, to);
@@ -90,7 +89,7 @@ export default async function Page({ searchParams }: PageProps) {
   const { data: signals, count, error: queryError } = await dbQuery;
 
   if (queryError) {
-    console.error('Error fetching signals:', queryError.message);
+    console.error('Error fetching review signals:', queryError.message);
   }
 
   const safeSignals = signals || [];
@@ -104,6 +103,7 @@ export default async function Page({ searchParams }: PageProps) {
       pageSize={pageSize}
       stats={stats}
       isDbEmpty={isDbEmpty}
+      isReview={true}
     />
   );
 }

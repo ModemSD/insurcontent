@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   X, ExternalLink, Sparkles, AlertCircle, RefreshCw, Users, 
-  FileText, Calendar, Tag, Hash, Link2, Copy, Check 
+  FileText, Calendar, Tag, Hash, Link2, Copy, Check, EyeOff, Trash2, Loader2
 } from 'lucide-react';
-import { RawContent } from '@/app/actions';
+import { RawContent, updateSignalStatus, deleteSignal } from '@/app/actions';
+import { formatUrl } from '@/lib/utils';
 
 interface SignalDetailModalProps {
   signal: RawContent | null;
@@ -13,8 +15,40 @@ interface SignalDetailModalProps {
 }
 
 export default function SignalDetailModal({ signal, onClose }: SignalDetailModalProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | 'ai'>('overview');
   const [copied, setCopied] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+
+  const handleStatusChange = async (status: 'approved' | 'hidden') => {
+    if (!signal?.id) return;
+    setIsPending(true);
+    const res = await updateSignalStatus(signal.id, status);
+    setIsPending(false);
+    if (res.success) {
+      if (status === 'hidden') {
+        onClose();
+      }
+      router.refresh();
+    } else {
+      alert('Failed to update status: ' + res.error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!signal?.id) return;
+    if (confirm('Are you sure you want to delete this signal from the database?')) {
+      setIsPending(true);
+      const res = await deleteSignal(signal.id);
+      setIsPending(false);
+      if (res.success) {
+        onClose();
+        router.refresh();
+      } else {
+        alert('Failed to delete signal: ' + res.error);
+      }
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -80,7 +114,7 @@ export default function SignalDetailModal({ signal, onClose }: SignalDetailModal
           
           <div className="flex items-center gap-2">
             <a
-              href={signal.url}
+              href={formatUrl(signal.url, signal.source)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex h-8 items-center gap-1 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 transition-all shadow-sm"
@@ -131,7 +165,16 @@ export default function SignalDetailModal({ signal, onClose }: SignalDetailModal
           <div>
             <div className="flex items-center gap-2 mb-2">
               {getSourceBadge(signal.source)}
-              <span className="text-[10px] font-mono text-zinc-400 uppercase">Engagement: {signal.viral_score}%</span>
+              {signal.status === 'approved' ? (
+                <span className="inline-flex rounded-lg bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200/50 uppercase tracking-wider">
+                  Approved
+                </span>
+              ) : (
+                <span className="inline-flex rounded-lg bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-200/50 uppercase tracking-wider">
+                  New
+                </span>
+              )}
+              <span className="text-[10px] font-mono text-zinc-400 uppercase font-medium">Engagement: {signal.viral_score}%</span>
             </div>
             <h2 className="text-lg font-bold text-zinc-900 leading-snug">
               {signal.title}
@@ -243,9 +286,50 @@ export default function SignalDetailModal({ signal, onClose }: SignalDetailModal
         </div>
 
         {/* Footer actions */}
-        <div className="border-t border-zinc-200 p-6 bg-zinc-50/30">
+        <div className="border-t border-zinc-200 p-6 bg-zinc-50/30 space-y-3">
+          {/* Status Mutation Actions */}
+          <div className="grid grid-cols-3 gap-2">
+            {signal.status !== 'approved' ? (
+              <button
+                onClick={() => handleStatusChange('approved')}
+                disabled={isPending}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-700 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Check className="h-3.5 w-3.5" />
+                )}
+                <span>Approve</span>
+              </button>
+            ) : (
+              <div className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-700 py-2.5 text-xs font-bold select-none">
+                <Check className="h-3.5 w-3.5 stroke-[3px]" />
+                <span>Approved</span>
+              </div>
+            )}
+
+            <button
+              onClick={() => handleStatusChange('hidden')}
+              disabled={isPending}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+            >
+              <EyeOff className="h-3.5 w-3.5" />
+              <span>Hide</span>
+            </button>
+
+            <button
+              onClick={handleDelete}
+              disabled={isPending}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete</span>
+            </button>
+          </div>
+
           <a
-            href={signal.url}
+            href={formatUrl(signal.url, signal.source)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white transition-all hover:bg-indigo-700 shadow-md shadow-indigo-500/10 focus:outline-none"

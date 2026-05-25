@@ -21,6 +21,7 @@ interface DashboardContentProps {
     google: number;
   };
   isDbEmpty: boolean;
+  isReview?: boolean;
 }
 
 export default function DashboardContent({
@@ -30,6 +31,7 @@ export default function DashboardContent({
   pageSize,
   stats,
   isDbEmpty,
+  isReview = false,
 }: DashboardContentProps) {
   const [selectedSignal, setSelectedSignal] = useState<RawContent | null>(null);
   const [showStats, setShowStats] = useState(false);
@@ -53,10 +55,12 @@ export default function DashboardContent({
         <div className="flex items-center justify-between border-b border-zinc-200/60 pb-4">
           <div className="flex flex-col gap-0.5">
             <h1 className="text-xl font-extrabold tracking-tight text-zinc-900">
-              Insurvoice Intelligence Dashboard
+              {isReview ? 'On Review: Approved Signals' : 'Insurvoice Intelligence Dashboard'}
             </h1>
             <p className="text-[11px] text-zinc-400 font-medium">
-              Real-time monitoring of insurance market signals, patient and customer pain points, and copy ideas.
+              {isReview 
+                ? 'Approved signals selected for copywriting and further processing.'
+                : 'Real-time monitoring of insurance market signals, patient and customer pain points, and copy ideas.'}
             </p>
           </div>
         </div>
