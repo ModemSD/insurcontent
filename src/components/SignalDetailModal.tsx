@@ -315,74 +315,11 @@ export default function SignalDetailModal({ signal, onClose, isReview = false }:
               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">
                 Send to AI Rewrite Agent (n8n)
               </span>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handleRewriteClick('X.com')}
-                  disabled={isPending}
-                  className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
-                    signal.sent_platforms?.includes('X.com')
-                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
-                      : 'border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700'
-                  }`}
-                >
-                  {signal.sent_platforms?.includes('X.com') ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3px]" />
-                      <span>✓ X.com (Sent)</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                      <span>X.com</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => handleRewriteClick('Threads')}
-                  disabled={isPending}
-                  className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
-                    signal.sent_platforms?.includes('Threads')
-                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
-                      : 'border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300 text-zinc-700'
-                  }`}
-                >
-                  {signal.sent_platforms?.includes('Threads') ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3px]" />
-                      <span>✓ Threads (Sent)</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                      <span>Threads</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => handleRewriteClick('Instagram')}
-                  disabled={isPending}
-                  className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
-                    signal.sent_platforms?.includes('Instagram')
-                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
-                      : 'border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-pink-300 text-zinc-700 hover:text-pink-600'
-                  }`}
-                >
-                  {signal.sent_platforms?.includes('Instagram') ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3px]" />
-                      <span>✓ Insta (Sent)</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                      <span>Instagram</span>
-                    </>
-                  )}
-                </button>
+              <div className="w-full">
                 <button
                   onClick={() => handleRewriteClick('LinkedIn')}
                   disabled={isPending}
-                  className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
+                  className={`w-full flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
                     signal.sent_platforms?.includes('LinkedIn')
                       ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
                       : 'border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-blue-300 text-zinc-700 hover:text-blue-600'

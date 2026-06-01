@@ -4,43 +4,70 @@ import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { supabase } from '@/lib/supabase';
 import { 
-  getPosts, 
-  savePosts, 
-  Post, 
-  PlatformConfig,
-  updatePostPlatform 
-} from '@/lib/postingStore';
+  getRewrittenPosts, 
+  updateRewrittenPostText, 
+  deleteRewrittenPost,
+  updateRewrittenPostStatus,
+  regeneratePostText,
+  regeneratePostImage,
+  RewrittenPost 
+} from '@/app/actions';
 import { 
   Linkedin, 
   Send, 
-  Twitter, 
   Check, 
   AlertCircle, 
   Loader2, 
   Copy, 
-  Play, 
-  Image as ImageIcon, 
-  Video, 
   ExternalLink, 
-  RefreshCw, 
   Sparkles,
   CheckCircle2,
-  HelpCircle
+  Trash2,
+  Save,
+  ThumbsUp,
+  MessageSquare,
+  Share2,
+  ArrowRight,
+  TrendingUp,
+  RefreshCw,
+  Sparkle,
+  ChevronDown,
+  Clock,
+  XCircle,
+  Download
 } from 'lucide-react';
 
 export default function ReadyToPostPage() {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<RewrittenPost[]>([]);
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, avgViralScore: 0, reddit: 0, linkedin: 0, google: 0 });
-  const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
+  const [copiedStates, setCopiedStates] = useState<Record<string | number, boolean>>({});
   
-  // Dynamic loading indicators
-  const [publishing, setPublishing] = useState<Record<string, boolean>>({});
-  const [regeneratingText, setRegeneratingText] = useState<Record<string, boolean>>({});
-  const [regeneratingMedia, setRegeneratingMedia] = useState<Record<string, boolean>>({});
+  // Custom states for db-backed actions
+  const [savingStates, setSavingStates] = useState<Record<string | number, 'idle' | 'saving' | 'saved' | 'error'>>({});
+  const [publishingStates, setPublishingStates] = useState<Record<string | number, 'draft' | 'publishing' | 'published' | 'failed'>>({});
+  const [publishErrors, setPublishErrors] = useState<Record<string | number, string | null>>({});
+
+  // Custom modal delete state
+  const [postToDelete, setPostToDelete] = useState<string | number | null>(null);
+
+  // Dropdown open state
+  const [activeDropdownId, setActiveDropdownId] = useState<string | number | null>(null);
+
+  // Regeneration loader states
+  const [textRegenStates, setTextRegenStates] = useState<Record<string | number, 'idle' | 'loading' | 'success' | 'error'>>({});
+  const [imageRegenStates, setImageRegenStates] = useState<Record<string | number, 'idle' | 'loading' | 'success' | 'error'>>({});
 
   // 1. Initial Load of Posts and Database Statistics
   useEffect(() => {
-    setPosts(getPosts());
+    async function loadData() {
+      setLoading(true);
+      const res = await getRewrittenPosts();
+      if (res.success && res.data) {
+        setPosts(res.data);
+      }
+      setLoading(false);
+    }
     
     async function fetchStats() {
       try {
@@ -62,468 +89,579 @@ export default function ReadyToPostPage() {
       }
     }
     
+    loadData();
     fetchStats();
   }, []);
 
   // Helper to copy text to clipboard
-  const handleCopyText = (text: string, key: string) => {
+  const handleCopyText = (text: string, id: string | number) => {
     navigator.clipboard.writeText(text);
-    setCopiedStates(prev => ({ ...prev, [key]: true }));
+    setCopiedStates(prev => ({ ...prev, [id]: true }));
     setTimeout(() => {
-      setCopiedStates(prev => ({ ...prev, [key]: false }));
+      setCopiedStates(prev => ({ ...prev, [id]: false }));
     }, 2000);
   };
 
-  // Helper to handle text editing
-  const handleTextChange = (postId: string, platform: 'linkedin' | 'telegram' | 'twitter', val: string) => {
-    const updated = updatePostPlatform(postId, platform, (cfg) => {
-      // Also update current active index content in history
-      const history = [...cfg.textHistory];
-      history[cfg.activeTextIndex] = val;
-      return { text: val, textHistory: history };
-    });
-    setPosts(updated);
+  // Helper to handle text editing locally
+  const handleTextChange = (id: string | number, val: string) => {
+    setPosts(prev => prev.map(p => p.id === id ? { ...p, body: val } : p));
+    // Set saving state to idle (ready to save)
+    setSavingStates(prev => ({ ...prev, [id]: 'idle' as const }));
+  };
+
+  // Action: Save edited text to database
+  const handleSaveText = async (id: string | number, text: string) => {
+    setSavingStates(prev => ({ ...prev, [id]: 'saving' as const }));
+    const res = await updateRewrittenPostText(id, text);
+    if (res.success) {
+      setSavingStates(prev => ({ ...prev, [id]: 'saved' as const }));
+      setTimeout(() => {
+        setSavingStates(prev => ({ ...prev, [id]: 'idle' as const }));
+      }, 2000);
+    } else {
+      setSavingStates(prev => ({ ...prev, [id]: 'error' as const }));
+    }
   };
 
   // Action: Publish
-  const handlePublish = async (postId: string, platform: 'linkedin' | 'telegram' | 'twitter') => {
-    const key = `${postId}-${platform}`;
-    setPublishing(prev => ({ ...prev, [key]: true }));
-    
-    // Set status to publishing
-    let updated = updatePostPlatform(postId, platform, () => ({
-      status: 'publishing',
-      error: null
-    }));
-    setPosts(updated);
+  const handlePublish = async (id: string | number) => {
+    setPublishingStates(prev => ({ ...prev, [id]: 'publishing' as const }));
+    setPublishErrors(prev => ({ ...prev, [id]: null }));
 
-    // Simulate Network latency (2 seconds)
+    // Simulate Network API Call latency (2 seconds)
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Determine outcome: if failed previously or randomly, succeed.
-    // 85% success rate on clean runs
-    const isSuccess = Math.random() > 0.15;
+    // 90% success rate simulation
+    const isSuccess = Math.random() > 0.1;
     
-    updated = updatePostPlatform(postId, platform, (cfg) => {
-      if (isSuccess) {
-        return {
-          status: 'published',
-          publishedAt: new Date().toISOString(),
-          error: null,
-          metrics: {
-            views: Math.floor(Math.random() * 2000) + 300,
-            likes: Math.floor(Math.random() * 200) + 20,
-            comments: Math.floor(Math.random() * 30) + 2,
-            shares: Math.floor(Math.random() * 15) + 1
-          }
-        };
-      } else {
-        return {
-          status: 'failed',
-          publishedAt: null,
-          error: 'Ошибка интеграции API (401): Токен авторизации канала истек или недействителен.'
-        };
-      }
-    });
-
-    setPosts(updated);
-    setPublishing(prev => ({ ...prev, [key]: false }));
+    if (isSuccess) {
+      setPublishingStates(prev => ({ ...prev, [id]: 'published' as const }));
+    } else {
+      setPublishingStates(prev => ({ ...prev, [id]: 'failed' as const }));
+      setPublishErrors(prev => ({ ...prev, [id]: 'LinkedIn API Error (401): OAuth access token has expired or is invalid.' }));
+    }
   };
 
-  // Action: Regenerate Text
-  const handleRegenerateText = async (postId: string, platform: 'linkedin' | 'telegram' | 'twitter') => {
-    const key = `${postId}-${platform}`;
-    setRegeneratingText(prev => ({ ...prev, [key]: true }));
-
-    // Simulate AI LLM generation time (1.2 seconds)
-    await new Promise(resolve => setTimeout(resolve, 1200));
-
-    const updated = updatePostPlatform(postId, platform, (cfg) => {
-      const nextIndex = (cfg.activeTextIndex + 1) % cfg.textHistory.length;
-      return {
-        activeTextIndex: nextIndex,
-        text: cfg.textHistory[nextIndex]
-      };
-    });
-
-    setPosts(updated);
-    setRegeneratingText(prev => ({ ...prev, [key]: false }));
+  // Action: update status
+  const handleStatusChange = async (id: string | number, newStatus: string | null) => {
+    setSavingStates(prev => ({ ...prev, [id]: 'saving' as const }));
+    const res = await updateRewrittenPostStatus(id, newStatus);
+    if (res.success) {
+      setPosts(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
+      setSavingStates(prev => ({ ...prev, [id]: 'saved' as const }));
+      setTimeout(() => {
+        setSavingStates(prev => ({ ...prev, [id]: 'idle' as const }));
+      }, 2000);
+    } else {
+      setSavingStates(prev => ({ ...prev, [id]: 'error' as const }));
+      alert('Не удалось обновить статус: ' + res.error);
+    }
+    setActiveDropdownId(null);
   };
 
-  // Action: Switch Media (Image <-> Video)
-  const handleToggleMediaType = (postId: string, platform: 'linkedin' | 'telegram' | 'twitter') => {
-    const updated = updatePostPlatform(postId, platform, (cfg) => ({
-      mediaType: cfg.mediaType === 'image' ? 'video' : 'image'
-    }));
-    setPosts(updated);
+  // Action: Delete rewritten post from database (after confirmation)
+  const handleConfirmDelete = async () => {
+    if (!postToDelete) return;
+    const res = await deleteRewrittenPost(postToDelete);
+    if (res.success) {
+      setPosts(prev => prev.filter(p => p.id !== postToDelete));
+    } else {
+      alert('Не удалось удалить пост: ' + res.error);
+    }
+    setPostToDelete(null);
   };
 
-  // Action: Regenerate Media
-  const handleRegenerateMedia = async (postId: string, platform: 'linkedin' | 'telegram' | 'twitter') => {
-    const key = `${postId}-${platform}`;
-    setRegeneratingMedia(prev => ({ ...prev, [key]: true }));
+  // Action: Download image from Supabase storage / URL
+  const handleDownloadImage = async (imageUrl: string, id: string | number) => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `post-${id}-visual.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download image:', error);
+      // Fallback: open image in a new tab if download block/CORS triggers
+      window.open(imageUrl, '_blank');
+    }
+  };
 
-    // Simulate AI Diffusion/Video generation pipeline (1.5 seconds)
-    await new Promise(resolve => setTimeout(resolve, 1500));
+  // Action: Regenerate post text
+  const handleRegenerateText = async (post: RewrittenPost) => {
+    setTextRegenStates(prev => ({ ...prev, [post.id]: 'loading' }));
+    const res = await regeneratePostText(post);
+    if (res.success) {
+      setTextRegenStates(prev => ({ ...prev, [post.id]: 'success' }));
+      setTimeout(() => {
+        setTextRegenStates(prev => ({ ...prev, [post.id]: 'idle' }));
+      }, 3000);
+    } else {
+      setTextRegenStates(prev => ({ ...prev, [post.id]: 'error' }));
+      alert(`Не удалось запустить генерацию текста: ${res.error}`);
+      setTimeout(() => {
+        setTextRegenStates(prev => ({ ...prev, [post.id]: 'idle' }));
+      }, 3000);
+    }
+  };
 
-    // Force a minor update to trigger cache bust/simulate new generation
-    const updated = updatePostPlatform(postId, platform, (cfg) => {
-      const timestamp = Date.now();
-      if (cfg.mediaType === 'image') {
-        const base = cfg.imageUrl.split('?')[0];
-        return { imageUrl: `${base}?v=${timestamp}` };
-      } else {
-        const base = cfg.videoUrl.split('?')[0];
-        return { videoUrl: `${base}?v=${timestamp}` };
-      }
-    });
-
-    setPosts(updated);
-    setRegeneratingMedia(prev => ({ ...prev, [key]: false }));
+  // Action: Regenerate post image
+  const handleRegenerateImage = async (post: RewrittenPost) => {
+    setImageRegenStates(prev => ({ ...prev, [post.id]: 'loading' }));
+    const res = await regeneratePostImage(post);
+    if (res.success) {
+      setImageRegenStates(prev => ({ ...prev, [post.id]: 'success' }));
+      setTimeout(() => {
+        setImageRegenStates(prev => ({ ...prev, [post.id]: 'idle' }));
+      }, 3000);
+    } else {
+      setImageRegenStates(prev => ({ ...prev, [post.id]: 'error' }));
+      alert(`Не удалось запустить генерацию картинки: ${res.error}`);
+      setTimeout(() => {
+        setImageRegenStates(prev => ({ ...prev, [post.id]: 'idle' }));
+      }, 3000);
+    }
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f8fafc] text-zinc-800 selection:bg-blue-100 selection:text-blue-900 font-sans">
-      <Header stats={stats} title="Готовый контент" />
+      <Header stats={stats} title="Готовый контент (LinkedIn)" />
 
       <main className="w-full flex-1 px-6 py-6 space-y-6">
         {/* Page title and description */}
         <div className="flex items-center justify-between border-b border-zinc-200/60 pb-4">
           <div className="flex flex-col gap-0.5">
-            <h1 className="text-xl font-extrabold tracking-tight text-zinc-900">
-              Готовый контент к постингу
+            <h1 className="text-xl font-extrabold tracking-tight text-zinc-900 flex items-center gap-2">
+              <Linkedin className="h-5 w-5 text-blue-600" />
+              <span>LinkedIn Конвейер Публикаций</span>
             </h1>
             <p className="text-[11px] text-zinc-400 font-medium">
-              Проверяйте сгенерированные тексты под каждую соцсеть, меняйте форматы медиа и запускайте публикации.
+              Управляйте готовыми LinkedIn-постами, сгенерированными с помощью n8n. Редактируйте тексты, оценивайте визуал и публикуйте напрямую.
             </p>
           </div>
         </div>
 
-        {posts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white p-12 text-center shadow-sm">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white p-16 text-center shadow-sm">
             <div className="rounded-full bg-zinc-50 p-4 text-zinc-400">
-              <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
             </div>
-            <h3 className="mt-4 text-sm font-bold text-zinc-900">Инициализация контента...</h3>
+            <h3 className="mt-4 text-sm font-bold text-zinc-900">Загрузка постов...</h3>
             <p className="mt-1 text-xs text-zinc-400 max-w-sm">
-              Подождите, пока система подгрузит тестовые посты и интегрирует их с панелью управления.
+              Подгружаем готовый контент из таблицы <code className="font-mono bg-zinc-100 px-1 py-0.5 rounded text-indigo-600">rewritten_content</code> в Supabase.
+            </p>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white p-16 text-center shadow-sm">
+            <div className="rounded-full bg-zinc-50 p-4 text-zinc-400 border border-zinc-150">
+              <Sparkles className="h-8 w-8 text-zinc-400" />
+            </div>
+            <h3 className="mt-4 text-sm font-bold text-zinc-900">Нет готовых постов</h3>
+            <p className="mt-2 text-xs text-zinc-400 max-w-md leading-relaxed">
+              Таблица <code className="font-mono bg-zinc-100 px-1 py-0.5 rounded text-indigo-600">rewritten_content</code> пуста. Отправьте любой сигнал из вкладки ревью на переписывание, чтобы n8n обработал его и сохранил сюда.
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {posts.map((post) => (
-              <div 
-                key={post.id} 
-                className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md"
-              >
-                {/* Post Header Card */}
-                <div className="border-b border-zinc-100 bg-zinc-50/70 px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-sm font-extrabold text-zinc-950 flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-indigo-500" />
-                      {post.title}
-                    </h2>
-                    <p className="text-[10px] text-zinc-400 font-medium mt-1">
-                      Первоисточник сигнала: <span className="font-semibold text-zinc-500">{post.source}</span> (Виральность: {post.viralScore}%)
-                    </p>
-                  </div>
-                  
-                  <div className="rounded-lg bg-zinc-100/80 border border-zinc-200/60 px-3 py-1.5 max-w-xs md:max-w-md">
-                    <p className="text-[9px] text-zinc-400 uppercase font-black tracking-wider leading-none">Исходный инсайт</p>
-                    <p className="text-[10px] text-zinc-500 font-semibold truncate mt-1" title={post.originalSignal}>
-                      "{post.originalSignal}"
-                    </p>
-                  </div>
-                </div>
+          <div className="space-y-8">
+            {posts.map((post) => {
+              const savingStatus = savingStates[post.id] || 'idle';
+              const publishStatus = publishingStates[post.id] || 'draft';
+              const publishError = publishErrors[post.id] || null;
+              const textRegenStatus = textRegenStates[post.id] || 'idle';
+              const imageRegenStatus = imageRegenStates[post.id] || 'idle';
 
-                {/* Sub-list of platforms (Rows) */}
-                <div className="divide-y divide-zinc-100">
-                  {(['linkedin', 'telegram', 'twitter'] as const).map((platform) => {
-                    const cfg = post.platforms[platform];
-                    const rowKey = `${post.id}-${platform}`;
+              const displayId = String(post.id).length > 8 ? `${String(post.id).slice(0, 8)}...` : String(post.id);
+              const displaySignalId = post.raw_content_id ? (String(post.raw_content_id).length > 8 ? `${String(post.raw_content_id).slice(0, 8)}...` : String(post.raw_content_id)) : 'N/A';
+              const displaySource = post.raw_content?.source || post.platform || 'LinkedIn';
+              const displayEngagement = post.engagement_score || post.raw_content?.viral_score;
+
+              return (
+                <div 
+                  key={post.id} 
+                  className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200"
+                >
+                  {/* LEFT: Meta & Editor Panel (cols: 7) */}
+                  <div className="lg:col-span-7 p-6 space-y-5 flex flex-col justify-between">
                     
-                    // Style config per platform
-                    const platformMeta = {
-                      linkedin: {
-                        name: 'LinkedIn',
-                        icon: Linkedin,
-                        color: 'bg-blue-600 text-white',
-                        accentText: 'text-blue-600',
-                        badgeStyle: 'bg-blue-50 text-blue-700 border-blue-100'
-                      },
-                      telegram: {
-                        name: 'Telegram',
-                        icon: Send,
-                        color: 'bg-sky-500 text-white',
-                        accentText: 'text-sky-500',
-                        badgeStyle: 'bg-sky-50 text-sky-700 border-sky-100'
-                      },
-                      twitter: {
-                        name: 'Twitter (X)',
-                        icon: Twitter,
-                        color: 'bg-zinc-950 text-white',
-                        accentText: 'text-zinc-900',
-                        badgeStyle: 'bg-zinc-100 text-zinc-800 border-zinc-200'
-                      }
-                    }[platform];
-
-                    const IconComponent = platformMeta.icon;
-
-                    return (
-                      <div key={platform} className="p-5 flex flex-col xl:flex-row gap-5 hover:bg-zinc-50/30 transition-colors">
-                        
-                        {/* 1. Platform Info Column */}
-                        <div className="w-full xl:w-48 flex-shrink-0 flex xl:flex-col items-center xl:items-start justify-between xl:justify-start gap-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className={`p-2 rounded-xl ${platformMeta.color}`}>
-                              <IconComponent className="h-4.5 w-4.5" />
-                            </div>
-                            <div>
-                              <p className="text-xs font-black text-zinc-900">{platformMeta.name}</p>
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border mt-0.5 inline-block ${platformMeta.badgeStyle}`}>
-                                {platform === 'twitter' ? '280 символов' : platform === 'telegram' ? 'Канал' : 'Проф. сеть'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Dynamic Status Badge */}
-                          <div className="xl:mt-4">
-                            {cfg.status === 'draft' && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 border border-zinc-200 px-2.5 py-0.5 text-[10px] font-bold text-zinc-500">
-                                <span className="h-1.5 w-1.5 rounded-full bg-zinc-400"></span>
-                                Черновик
-                              </span>
-                            )}
-                            {cfg.status === 'publishing' && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[10px] font-bold text-blue-600 animate-pulse">
-                                <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
-                                Публикация...
-                              </span>
-                            )}
-                            {cfg.status === 'published' && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold text-emerald-600">
-                                <Check className="h-3 w-3 text-emerald-500" />
-                                Опубликовано
-                              </span>
-                            )}
-                            {cfg.status === 'failed' && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[10px] font-bold text-rose-600">
-                                <AlertCircle className="h-3 w-3 text-rose-500" />
-                                Ошибка
-                              </span>
-                            )}
-                          </div>
+                    {/* Header: Signal Reference */}
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="rounded bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 font-mono" title={post.id}>
+                            ID: #{displayId}
+                          </span>
+                          <span className="text-[10px] font-medium text-zinc-400" title={post.raw_content_id}>
+                            Сигнал: #{displaySignalId}
+                          </span>
                         </div>
-
-                        {/* 2. Text Content & Editor Column */}
-                        <div className="flex-1 flex flex-col gap-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                              Текст публикации (Вариант {cfg.activeTextIndex + 1} из {cfg.textHistory.length})
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-zinc-400 capitalize bg-zinc-50 border border-zinc-200 px-2 py-0.5 rounded-lg font-bold">
+                            Источник: {displaySource}
+                          </span>
+                          {displayEngagement && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                              <TrendingUp className="h-3 w-3" />
+                              Score: {displayEngagement}%
                             </span>
-                            <div className="flex items-center gap-2">
-                              <button 
-                                onClick={() => handleCopyText(cfg.text, rowKey)}
-                                className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-bold text-zinc-500 hover:bg-zinc-50 transition-all cursor-pointer"
-                                title="Копировать текст"
-                              >
-                                {copiedStates[rowKey] ? (
-                                  <>
-                                    <Check className="h-3 w-3 text-emerald-500" />
-                                    <span className="text-emerald-600">Скопировано!</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy className="h-3 w-3" />
-                                    <span>Копировать</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Original Content Accordion / Preview */}
+                      <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4">
+                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-wider block">
+                          Тема / Заголовок:
+                        </span>
+                        <h4 className="text-xs font-bold text-zinc-800 leading-snug mt-1">
+                          {post.raw_content?.title || post.hook || 'LinkedIn Публикация'}
+                        </h4>
+                        
+                        {(post.raw_content?.content || post.body) && (
+                          <div className="mt-3">
+                            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-wider block">
+                              Исходный инсайт / Контент:
+                            </span>
+                            <p className="text-[10px] text-zinc-500 font-semibold leading-relaxed mt-1 line-clamp-3 hover:line-clamp-none transition-all duration-300">
+                              "{post.raw_content?.content || (post.body.length > 200 ? post.body.slice(0, 200) + '...' : post.body)}"
+                            </p>
                           </div>
+                        )}
+                      </div>
+                    </div>
 
-                          <textarea
-                            value={cfg.text}
-                            onChange={(e) => handleTextChange(post.id, platform, e.target.value)}
-                            disabled={cfg.status === 'publishing'}
-                            className="w-full h-32 rounded-xl border border-zinc-200 px-4 py-3 text-xs leading-relaxed font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white disabled:bg-zinc-50/50 disabled:text-zinc-500 resize-none"
-                          />
-
-                          {cfg.error && (
-                            <div className="rounded-lg bg-rose-50 border border-rose-100 p-2.5 text-[10px] font-bold text-rose-700 flex items-start gap-1.5">
-                              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-rose-500" />
-                              <span>{cfg.error}</span>
-                            </div>
+                    {/* Editor Area */}
+                    <div className="space-y-2 flex-1 pt-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Linkedin className="h-3.5 w-3.5 text-blue-600" />
+                          <span>Текст поста для LinkedIn</span>
+                        </label>
+                        
+                        {/* Auto-Save & Manual Save indicator */}
+                        <div className="flex items-center gap-2">
+                          {savingStatus === 'saving' && (
+                            <span className="text-[10px] font-bold text-indigo-600 flex items-center gap-1">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Сохранение...
+                            </span>
+                          )}
+                          {savingStatus === 'saved' && (
+                            <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                              <Check className="h-3 w-3" />
+                              Сохранено в БД
+                            </span>
+                          )}
+                          {savingStatus === 'error' && (
+                            <span className="text-[10px] font-bold text-rose-600 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              Ошибка записи
+                            </span>
                           )}
                           
-                          {cfg.status === 'published' && cfg.publishedAt && (
-                            <div className="rounded-lg bg-emerald-50/40 border border-emerald-100 p-2.5 text-[10px] font-bold text-emerald-800 flex items-center justify-between">
-                              <span className="flex items-center gap-1.5">
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                                Опубликовано: {new Date(cfg.publishedAt).toLocaleTimeString()} ({new Date(cfg.publishedAt).toLocaleDateString()})
-                              </span>
-                              <a 
-                                href="#" 
-                                onClick={(e) => e.preventDefault()}
-                                className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 hover:underline"
-                              >
-                                Посмотреть пост <ExternalLink className="h-3 w-3" />
-                              </a>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 3. Media Panel Column */}
-                        <div className="w-full sm:w-64 xl:w-72 flex-shrink-0 flex flex-col gap-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                              Медиа: {cfg.mediaType === 'image' ? 'Изображение' : 'Видео'}
-                            </span>
-                            <button
-                              onClick={() => handleToggleMediaType(post.id, platform)}
-                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-1 cursor-pointer"
-                            >
-                              {cfg.mediaType === 'image' ? (
-                                <>
-                                  <Video className="h-3 w-3" />
-                                  <span>Заменить на видео</span>
-                                </>
-                              ) : (
-                                <>
-                                  <ImageIcon className="h-3 w-3" />
-                                  <span>Заменить на картинку</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-
-                          {/* Media Container */}
-                          <div className="relative h-36 rounded-xl border border-zinc-200/80 bg-zinc-50 overflow-hidden flex items-center justify-center group">
-                            {regeneratingMedia[rowKey] ? (
-                              <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-1.5">
-                                <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
-                                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">Генерация...</span>
-                              </div>
-                            ) : null}
-
-                            {cfg.mediaType === 'image' ? (
-                              <>
-                                <img
-                                  src={cfg.imageUrl}
-                                  alt="Generated Post Visual"
-                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                />
-                                <div className="absolute bottom-2 left-2 rounded bg-black/60 backdrop-blur-md px-1.5 py-0.5 text-[8px] font-bold text-white uppercase tracking-wider">
-                                  PNG • 1024x1024
-                                </div>
-                              </>
-                            ) : (
-                              // Video Player Mockup
-                              <div className="absolute inset-0 bg-zinc-950 flex flex-col justify-between p-3 text-white overflow-hidden">
-                                {/* Simulated glowing soundwave representation */}
-                                <div className="absolute inset-0 opacity-20 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 animate-pulse" />
-                                
-                                <div className="z-10 flex items-center justify-between w-full">
-                                  <span className="rounded bg-indigo-600 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider">
-                                    AI VIDEO
-                                  </span>
-                                  <span className="text-[9px] font-mono font-bold text-zinc-400">
-                                    00:15
-                                  </span>
-                                </div>
-
-                                <div className="z-10 mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/20 transition-all cursor-pointer shadow-lg">
-                                  <Play className="h-4.5 w-4.5 fill-white text-white ml-0.5" />
-                                </div>
-
-                                <div className="z-10 w-full space-y-1">
-                                  {/* Waveform graphic */}
-                                  <div className="flex items-end gap-[2px] h-3 px-1">
-                                    <div className="h-1 flex-1 bg-white/30 rounded-t animate-pulse"></div>
-                                    <div className="h-2 flex-1 bg-white/40 rounded-t"></div>
-                                    <div className="h-3 flex-1 bg-indigo-500 rounded-t"></div>
-                                    <div className="h-1.5 flex-1 bg-white/40 rounded-t"></div>
-                                    <div className="h-2.5 flex-1 bg-white/30 rounded-t"></div>
-                                    <div className="h-1 flex-1 bg-indigo-500 rounded-t animate-pulse"></div>
-                                    <div className="h-3 flex-1 bg-white/50 rounded-t"></div>
-                                    <div className="h-2 flex-1 bg-white/30 rounded-t"></div>
-                                  </div>
-                                  <div className="h-1 w-full rounded-full bg-white/20 overflow-hidden">
-                                    <div className="h-full w-1/3 bg-indigo-500 rounded-full" />
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* 4. Controls Actions Column */}
-                        <div className="w-full xl:w-44 flex-shrink-0 flex flex-row xl:flex-col justify-end xl:justify-center gap-2 border-t xl:border-t-0 xl:border-l border-zinc-100 pt-4 xl:pt-0 xl:pl-4">
                           <button
-                            onClick={() => handlePublish(post.id, platform)}
-                            disabled={cfg.status === 'publishing'}
-                            className={`flex-1 xl:flex-initial flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-bold transition-all shadow-sm cursor-pointer ${
-                              cfg.status === 'published'
-                                ? 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700'
-                                : 'bg-indigo-600 border-indigo-700 text-white hover:bg-indigo-700 active:scale-[0.98]'
+                            onClick={() => handleRegenerateText(post)}
+                            disabled={textRegenStatus === 'loading'}
+                            className="flex items-center gap-1.5 rounded bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-0.5 text-[10px] font-bold text-indigo-700 transition-all cursor-pointer disabled:opacity-50"
+                            title="Перегенерировать текст через n8n"
+                          >
+                            {textRegenStatus === 'loading' ? (
+                              <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3 text-indigo-500" />
+                            )}
+                            <span>{textRegenStatus === 'loading' ? 'Генерация...' : 'Перегенерировать текст'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleSaveText(post.id, post.body)}
+                            disabled={savingStatus === 'saving'}
+                            className="flex items-center gap-1 rounded bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 px-2 py-0.5 text-[10px] font-bold text-zinc-600 transition-all cursor-pointer"
+                          >
+                            <Save className="h-3 w-3" />
+                            Сохранить
+                          </button>
+                        </div>
+                      </div>
+
+                      <textarea
+                        value={post.body}
+                        onChange={(e) => handleTextChange(post.id, e.target.value)}
+                        className="w-full h-64 rounded-xl border border-zinc-250 px-4 py-3 text-xs leading-relaxed font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white resize-none"
+                        placeholder="Напишите текст поста..."
+                      />
+                    </div>
+
+                    {/* Metadata Badges from AI (Tone, CTA, Hook) */}
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {post.tone && (
+                        <div className="rounded-lg bg-zinc-100 px-2 py-1 text-[10px] font-bold text-zinc-600 border border-zinc-200">
+                          Тон: <span className="text-zinc-800">{post.tone}</span>
+                        </div>
+                      )}
+                      {post.cta && (
+                        <div className="rounded-lg bg-zinc-100 px-2 py-1 text-[10px] font-bold text-zinc-600 border border-zinc-200">
+                          Призыв: <span className="text-zinc-800">{post.cta}</span>
+                        </div>
+                      )}
+                      {post.hook && (
+                        <div className="rounded-lg bg-indigo-50/50 px-2 py-1 text-[10px] font-bold text-indigo-700 border border-indigo-100 max-w-full truncate" title={post.hook}>
+                          Хук: <span className="text-indigo-900 font-semibold">"{post.hook}"</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="pt-4 border-t border-zinc-100 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        {/* Status Dropdown Selector */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setActiveDropdownId(activeDropdownId === post.id ? null : post.id)}
+                            className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-[0.98] ${
+                              post.status === 'published'
+                                ? 'bg-emerald-50 border-emerald-255 text-emerald-750 hover:bg-emerald-100/60'
+                                : post.status === 'cancelled'
+                                ? 'bg-amber-50 border-amber-250 text-amber-750 hover:bg-amber-100/60'
+                                : post.status === 'deleted'
+                                ? 'bg-rose-50 border-rose-250 text-rose-750 hover:bg-rose-100/60'
+                                : 'bg-blue-50 border-blue-250 text-blue-750 hover:bg-blue-100/60' // Default: in_progress
                             }`}
                           >
-                            {publishing[rowKey] ? (
-                              <>
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                <span>Публикация...</span>
-                              </>
-                            ) : cfg.status === 'published' ? (
-                              <>
-                                <RefreshCw className="h-3.5 w-3.5" />
-                                <span>Обновить пост</span>
-                              </>
-                            ) : cfg.status === 'failed' ? (
-                              <>
-                                <AlertCircle className="h-3.5 w-3.5" />
-                                <span>Повторить</span>
-                              </>
+                            {post.status === 'published' ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                            ) : post.status === 'cancelled' ? (
+                              <XCircle className="h-3.5 w-3.5 text-amber-500" />
+                            ) : post.status === 'deleted' ? (
+                              <Trash2 className="h-3.5 w-3.5 text-rose-500" />
                             ) : (
-                              <>
-                                <Send className="h-3.5 w-3.5" />
-                                <span>Опубликовать</span>
-                              </>
+                              <Clock className="h-3.5 w-3.5 text-blue-500 animate-[pulse_1.5s_infinite]" />
                             )}
+                            <span>
+                              {post.status === 'published'
+                                ? 'Опубликовано'
+                                : post.status === 'cancelled'
+                                ? 'Отменено'
+                                : post.status === 'deleted'
+                                ? 'Удалено'
+                                : 'В процессе'}
+                            </span>
+                            <ChevronDown className="h-3 w-3 opacity-60 ml-0.5" />
                           </button>
 
-                          <button
-                            onClick={() => handleRegenerateText(post.id, platform)}
-                            disabled={cfg.status === 'publishing' || regeneratingText[rowKey]}
-                            className="flex-1 xl:flex-initial flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-50 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
-                          >
-                            {regeneratingText[rowKey] ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                            )}
-                            <span>Рерайт текста</span>
-                          </button>
+                          {activeDropdownId === post.id && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-40" 
+                                onClick={() => setActiveDropdownId(null)}
+                              />
+                              <div className="absolute left-0 bottom-full mb-2 z-50 w-44 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-150">
+                                <button
+                                  onClick={() => handleStatusChange(post.id, 'in_progress')}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold text-blue-700 hover:bg-blue-50 cursor-pointer transition-colors"
+                                >
+                                  <Clock className="h-3.5 w-3.5" />
+                                  <span>В процессе</span>
+                                </button>
+                                <button
+                                  onClick={() => handleStatusChange(post.id, 'published')}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold text-emerald-700 hover:bg-emerald-50 cursor-pointer transition-colors"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  <span>Опубликовано</span>
+                                </button>
+                                <button
+                                  onClick={() => handleStatusChange(post.id, 'cancelled')}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold text-amber-700 hover:bg-amber-50 cursor-pointer transition-colors"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                  <span>Отменено</span>
+                                </button>
+                                <div className="my-1 border-t border-zinc-105" />
+                                <button
+                                  onClick={() => handleStatusChange(post.id, 'deleted')}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <span>Удалено</span>
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        
+                        <button
+                          onClick={() => handleCopyText(post.body, post.id)}
+                          className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 px-3.5 py-2 text-xs font-bold text-zinc-600 transition-all cursor-pointer"
+                          title="Скопировать в буфер"
+                        >
+                          {copiedStates[post.id] ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 text-emerald-500" />
+                              <span className="text-emerald-600">Скопировано</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5" />
+                              <span>Копировать</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
 
-                          <button
-                            onClick={() => handleRegenerateMedia(post.id, platform)}
-                            disabled={cfg.status === 'publishing' || regeneratingMedia[rowKey]}
-                            className="flex-1 xl:flex-initial flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-50 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
-                          >
-                            {regeneratingMedia[rowKey] ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <RefreshCw className="h-3.5 w-3.5 text-zinc-400" />
-                            )}
-                            <span>Обновить медиа</span>
-                          </button>
+                      <button
+                        onClick={() => setPostToDelete(post.id)}
+                        className="flex items-center justify-center p-2 rounded-xl border border-rose-100 bg-white hover:bg-rose-50 text-rose-500 hover:text-rose-600 transition-all shadow-sm cursor-pointer"
+                        title="Удалить пост"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    {publishError && (
+                      <div className="rounded-lg bg-rose-50 border border-rose-100 p-2.5 text-[10px] font-bold text-rose-700 flex items-start gap-1.5">
+                        <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-rose-500" />
+                        <span>{publishError}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RIGHT: LinkedIn Live Feed Mockup Simulator (cols: 5) */}
+                  <div className="lg:col-span-5 p-6 bg-zinc-50/50 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider block mb-3">
+                        Симулятор LinkedIn Ленты (Live View)
+                      </span>
+                      
+                      {/* LinkedIn Mockup Card */}
+                      <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden text-left max-w-sm mx-auto">
+                        
+                        {/* Mockup Header */}
+                        <div className="p-3.5 flex items-start gap-2.5">
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-[12px] shadow-sm flex-shrink-0">
+                            IV
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-zinc-900 hover:text-blue-600 hover:underline cursor-pointer">
+                                Insurvoice AI Agent
+                              </span>
+                              <span className="text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-1 rounded flex items-center gap-0.5">
+                                <Sparkle className="h-2 w-2 fill-blue-500" />
+                                AI
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-zinc-400 block leading-tight">
+                              Automated Insurance Analyst & Copywriter
+                            </span>
+                            <span className="text-[9px] text-zinc-400 block mt-0.5">
+                              Just now • 🌐
+                            </span>
+                          </div>
                         </div>
 
+                        {/* Mockup Body Content */}
+                        <div className="px-3.5 pb-3 text-[11px] leading-relaxed text-zinc-800 whitespace-pre-wrap font-sans font-medium break-words border-t border-b border-zinc-50 bg-zinc-50/20 py-2">
+                          {post.body || 'Текст поста пуст. Введите текст в редакторе слева, чтобы увидеть превью...'}
+                        </div>
+
+                        {/* Mockup Media Image */}
+                        {post.image_url ? (
+                          <div className="relative border-b border-zinc-100 overflow-hidden bg-zinc-50 max-h-48 group/img">
+                            <img 
+                              src={post.image_url} 
+                              alt="Post preview visual" 
+                              className="w-full h-full object-cover"
+                            />
+                            
+                            {/* Regenerate Image Button */}
+                            <button
+                              onClick={() => handleRegenerateImage(post)}
+                              disabled={imageRegenStatus === 'loading'}
+                              className="absolute top-2.5 left-2.5 flex items-center gap-1 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-md px-2 py-1 text-[10px] font-bold text-white shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all opacity-90 group-hover/img:opacity-100 disabled:opacity-50"
+                              title="Перегенерировать изображение через n8n"
+                            >
+                              {imageRegenStatus === 'loading' ? (
+                                <Loader2 className="h-3 w-3 animate-spin text-indigo-400" />
+                              ) : (
+                                <Sparkles className="h-3 w-3 text-indigo-400" />
+                              )}
+                              <span>{imageRegenStatus === 'loading' ? 'Генерация...' : 'Перегенерировать'}</span>
+                            </button>
+
+                            {/* Download Button */}
+                            <button
+                              onClick={() => handleDownloadImage(post.image_url!, post.id)}
+                              className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-md px-2 py-1 text-[10px] font-bold text-white shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all opacity-90 group-hover/img:opacity-100"
+                              title="Скачать изображение"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              <span>Скачать</span>
+                            </button>
+
+                            <div className="absolute bottom-2 left-2 rounded bg-black/60 backdrop-blur-md px-1.5 py-0.5 text-[8px] font-bold text-white uppercase tracking-wider">
+                              Visual Attachment
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-5 border-b border-zinc-100 bg-gradient-to-br from-indigo-50/20 to-blue-50/30 flex flex-col items-center justify-center text-center h-36 border-t border-zinc-50 relative group/no-img">
+                            <ImageIcon className="h-6 w-6 text-zinc-300" />
+                            <span className="text-[9px] text-zinc-400 font-semibold mt-1">
+                              Визуальное вложение отсутствует
+                            </span>
+                            <button
+                              onClick={() => handleRegenerateImage(post)}
+                              disabled={imageRegenStatus === 'loading'}
+                              className="mt-2 flex items-center gap-1 rounded-xl bg-indigo-600 hover:bg-indigo-750 px-3 py-1.5 text-[10px] font-bold text-white shadow-sm cursor-pointer transition-all active:scale-[0.98] disabled:opacity-50"
+                            >
+                              {imageRegenStatus === 'loading' ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                              ) : (
+                                <Sparkles className="h-3.5 w-3.5" />
+                              )}
+                              <span>{imageRegenStatus === 'loading' ? 'Генерация...' : 'Сгенерировать картинку'}</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Mockup Action Footer */}
+                        <div className="px-2 py-1 flex items-center justify-between border-t border-zinc-100 bg-zinc-50/30">
+                          <button className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded hover:bg-zinc-100 text-zinc-500 font-bold text-[10px] transition-colors cursor-pointer">
+                            <ThumbsUp className="h-3 w-3" />
+                            <span>Like</span>
+                          </button>
+                          <button className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded hover:bg-zinc-100 text-zinc-500 font-bold text-[10px] transition-colors cursor-pointer">
+                            <MessageSquare className="h-3 w-3" />
+                            <span>Comment</span>
+                          </button>
+                          <button className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded hover:bg-zinc-100 text-zinc-500 font-bold text-[10px] transition-colors cursor-pointer">
+                            <Share2 className="h-3 w-3" />
+                            <span>Share</span>
+                          </button>
+                        </div>
                       </div>
-                    );
-                  })}
+                    </div>
+
+                    {/* Image generation prompt detail */}
+                    {post.image_prompt && (
+                      <div className="mt-4 p-3 bg-white border border-zinc-200 rounded-xl">
+                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-wider block">
+                          AI Image Generation Prompt (Midjourney / DALL-E)
+                        </span>
+                        <p className="text-[10px] text-zinc-500 italic mt-1 leading-relaxed line-clamp-3 hover:line-clamp-none transition-all duration-300">
+                          "{post.image_prompt}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
@@ -533,6 +671,75 @@ export default function ReadyToPostPage() {
           &copy; {new Date().getFullYear()} Insurvoice Intelligence. Premium Data Workspace.
         </div>
       </footer>
+
+      {/* Custom Delete Confirmation Modal */}
+      {postToDelete !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-zinc-950/40 backdrop-blur-[3px] transition-opacity" 
+            onClick={() => setPostToDelete(null)}
+          />
+          
+          {/* Modal Content */}
+          <div className="relative z-10 w-full max-w-sm transform overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl transition-all animate-in zoom-in-95 duration-200 text-left">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-zinc-950">
+                  Подтвердите удаление
+                </h3>
+                <p className="text-[9px] text-zinc-400 font-medium">
+                  Это действие удалит пост из базы данных.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-xs text-zinc-600 leading-relaxed font-semibold">
+                Вы уверены, что хотите удалить этот готовый пост? Он будет безвозвратно удален из таблицы <code className="font-mono bg-zinc-50 px-1 py-0.5 rounded text-rose-600">rewritten_content</code>.
+              </p>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setPostToDelete(null)}
+                className="rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 px-4 py-2 text-xs font-bold text-zinc-600 transition-all cursor-pointer shadow-sm"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="rounded-xl bg-rose-600 border border-rose-700 hover:bg-rose-700 px-4 py-2 text-xs font-bold text-white transition-all cursor-pointer shadow-sm active:scale-[0.98]"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Icon helper since lucide-react Image can conflict with next/image
+function ImageIcon({ className }: { className?: string }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+      <circle cx="9" cy="9" r="2"/>
+      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+    </svg>
   );
 }

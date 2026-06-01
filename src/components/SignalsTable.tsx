@@ -307,42 +307,6 @@ export default function SignalsTable({
                         ) : (
                           <>
                             <button
-                              onClick={() => handleRewrite(signal, 'X.com')}
-                              disabled={pendingActionId === signal.id}
-                              className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
-                                signal.sent_platforms?.includes('X.com')
-                                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
-                                  : 'border border-zinc-200 bg-white text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 hover:bg-zinc-50'
-                              }`}
-                              title={signal.sent_platforms?.includes('X.com') ? "Sent to X.com (Click to resend)" : "Send to X.com"}
-                            >
-                              {signal.sent_platforms?.includes('X.com') ? '✓ X.com' : 'X.com'}
-                            </button>
-                            <button
-                              onClick={() => handleRewrite(signal, 'Threads')}
-                              disabled={pendingActionId === signal.id}
-                              className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
-                                signal.sent_platforms?.includes('Threads')
-                                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
-                                  : 'border border-zinc-200 bg-white text-zinc-600 hover:border-zinc-900 hover:text-zinc-900 hover:bg-zinc-50'
-                              }`}
-                              title={signal.sent_platforms?.includes('Threads') ? "Sent to Threads (Click to resend)" : "Send to Threads"}
-                            >
-                              {signal.sent_platforms?.includes('Threads') ? '✓ Threads' : 'Threads'}
-                            </button>
-                            <button
-                              onClick={() => handleRewrite(signal, 'Instagram')}
-                              disabled={pendingActionId === signal.id}
-                              className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${
-                                signal.sent_platforms?.includes('Instagram')
-                                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50'
-                                  : 'border border-zinc-200 bg-white text-zinc-600 hover:border-pink-400 hover:text-pink-600 hover:bg-pink-50/20'
-                              }`}
-                              title={signal.sent_platforms?.includes('Instagram') ? "Sent to Instagram (Click to resend)" : "Send to Instagram"}
-                            >
-                              {signal.sent_platforms?.includes('Instagram') ? '✓ Insta' : 'Insta'}
-                            </button>
-                            <button
                               onClick={() => handleRewrite(signal, 'LinkedIn')}
                               disabled={pendingActionId === signal.id}
                               className={`rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 ${

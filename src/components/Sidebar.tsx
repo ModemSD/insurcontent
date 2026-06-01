@@ -2,18 +2,31 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
-  Inbox, CheckSquare, ChevronLeft, ChevronRight, SendHorizontal, BarChart3
+  Inbox, CheckSquare, ChevronLeft, ChevronRight, SendHorizontal, BarChart3, LogOut
 } from 'lucide-react';
+import { logoutAction } from '@/app/actions';
 
 interface SidebarProps {
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
+  onNavigateStart?: () => void;
 }
 
-export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
+export default function Sidebar({ collapsed, setCollapsed, onNavigateStart }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const res = await logoutAction();
+    if (res.success) {
+      router.refresh();
+      router.push('/login');
+    } else {
+      alert('Ошибка при выходе: ' + res.error);
+    }
+  };
 
   const menuItems = [
     {
@@ -67,11 +80,36 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
+          const isDisabled = item.name === 'Statistics';
+
+          if (isDisabled) {
+            return (
+              <div
+                key={item.name}
+                className={`group flex items-center rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-400 opacity-50 cursor-not-allowed select-none`}
+                title="Раздел в разработке"
+              >
+                <Icon className={`h-4 w-4 flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`} />
+                {!collapsed && (
+                  <span className="truncate flex items-center gap-1.5">
+                    <span>{item.name}</span>
+                    <span className="rounded bg-zinc-100 text-[8px] font-black uppercase text-zinc-500 px-1 py-0.5 border border-zinc-250">
+                      Soon
+                    </span>
+                  </span>
+                )}
+              </div>
+            );
+          }
 
           return (
             <Link
               key={item.name}
               href={item.href}
+              onClick={(e) => {
+                if (pathname === item.href || e.metaKey || e.ctrlKey) return;
+                onNavigateStart?.();
+              }}
               className={`group flex items-center rounded-xl px-3 py-2.5 text-xs font-bold transition-all ${
                 isActive
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/10'
@@ -86,6 +124,18 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* Logout Button */}
+      <div className="px-3 pb-2">
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center rounded-xl px-3 py-2.5 text-xs font-bold text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-all cursor-pointer"
+          title="Выйти из системы"
+        >
+          <LogOut className={`h-4 w-4 flex-shrink-0 ${collapsed ? 'mx-auto' : 'mr-3'}`} />
+          {!collapsed && <span>Выйти</span>}
+        </button>
+      </div>
 
       {/* Sidebar Toggle Collapse Button */}
       <div className="p-3 border-t border-zinc-100">

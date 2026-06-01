@@ -1,64 +1,90 @@
 import React from 'react';
+import { Loader2, Sparkles } from 'lucide-react';
 
 export default function Loading() {
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100 animate-pulse">
+    <div className="flex min-h-screen flex-col bg-[#f8fafc] text-zinc-800 select-none animate-pulse">
       {/* Header Skeleton */}
-      <header className="sticky top-0 z-40 w-full border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-zinc-800" />
-            <div className="flex flex-col gap-1">
-              <div className="h-4 w-32 rounded bg-zinc-800" />
-              <div className="h-2.5 w-16 rounded bg-zinc-900" />
+      <header className="sticky top-0 z-40 w-full border-b border-zinc-200/60 bg-white/70 backdrop-blur-md">
+        <div className="w-full px-6">
+          <div className="flex h-14 items-center justify-between gap-4">
+            {/* Left: Branding */}
+            <div className="flex items-center gap-5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black tracking-wider text-zinc-950 uppercase">
+                  Insurvoice
+                </span>
+                <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold text-zinc-400 font-mono">
+                  v1.4
+                </span>
+              </div>
+              <span className="h-4 w-[1px] bg-zinc-200" />
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500/80 animate-ping" />
+                <div className="h-3 w-16 rounded bg-zinc-200" />
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden h-7 w-28 rounded-full bg-zinc-900 sm:block" />
-            <div className="h-6 w-20 rounded-full bg-zinc-900" />
+
+            {/* Center: Compact Stats Ticker Skeleton */}
+            <div className="hidden lg:flex items-center gap-4 rounded-full border border-zinc-200/80 bg-zinc-50/50 px-4 py-1.5">
+              <div className="h-3 w-12 rounded bg-zinc-200" />
+              <span className="h-2.5 w-[1px] bg-zinc-200" />
+              <div className="h-3 w-14 rounded bg-zinc-200" />
+              <span className="h-2.5 w-[1px] bg-zinc-200" />
+              <div className="h-3 w-14 rounded bg-zinc-200" />
+              <span className="h-2.5 w-[1px] bg-zinc-200" />
+              <div className="h-3 w-16 rounded bg-zinc-200" />
+            </div>
+
+            {/* Right: AI Agent Status Skeleton */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-bold">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                <span>Загрузка данных...</span>
+              </div>
+              <span className="h-4 w-[1px] bg-zinc-200" />
+              <div className="h-7 w-7 rounded-lg bg-zinc-200" />
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Workspace Content Skeleton */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+      <main className="w-full flex-1 px-6 py-6 space-y-6">
         {/* Title Skeleton */}
-        <div className="flex flex-col gap-2 border-l-2 border-zinc-800 pl-4">
-          <div className="h-7 w-64 rounded bg-zinc-800" />
-          <div className="h-4 w-96 rounded bg-zinc-900" />
+        <div className="flex flex-col gap-1 border-b border-zinc-200/60 pb-4">
+          <div className="h-6 w-48 rounded bg-zinc-200" />
+          <div className="h-3 w-80 rounded bg-zinc-100 mt-1" />
         </div>
 
         {/* Stats Cards Skeleton */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="hidden lg:flex items-center gap-4 p-4 rounded-2xl border border-zinc-200 bg-white shadow-sm">
           {Array.from({ length: 5 }).map((_, idx) => (
-            <div key={idx} className="rounded-xl border border-zinc-900 bg-zinc-900/20 p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="h-3 w-16 rounded bg-zinc-800" />
-                <div className="h-7 w-7 rounded-lg bg-zinc-950" />
-              </div>
-              <div className="h-7 w-12 rounded bg-zinc-800" />
-              <div className="h-2.5 w-24 rounded bg-zinc-900" />
+            <div key={idx} className="flex-1 space-y-2">
+              <div className="h-3 w-16 rounded bg-zinc-100" />
+              <div className="h-5 w-8 rounded bg-zinc-200" />
             </div>
           ))}
         </div>
 
-        {/* Seeding Panel Skeleton */}
-        <div className="h-20 rounded-xl border border-zinc-900 bg-zinc-900/10 p-5" />
+        {/* Filter Bar / Controls Skeleton */}
+        <div className="h-12 rounded-2xl border border-zinc-200 bg-white p-3 flex items-center justify-between shadow-sm">
+          <div className="h-6 w-32 rounded bg-zinc-200" />
+          <div className="h-6 w-48 rounded bg-zinc-100" />
+        </div>
 
-        {/* Filter Bar Skeleton */}
-        <div className="h-14 rounded-xl border border-zinc-900 bg-zinc-900/10 p-4" />
-
-        {/* Table Skeleton */}
-        <div className="overflow-hidden rounded-xl border border-zinc-900 bg-zinc-900/10">
-          <div className="h-12 bg-zinc-950/80 border-b border-zinc-900" />
-          <div className="divide-y divide-zinc-900">
-            {Array.from({ length: 5 }).map((_, idx) => (
-              <div key={idx} className="flex items-center justify-between p-4 py-5">
-                <div className="flex items-center gap-4">
-                  <div className="h-5 w-14 rounded bg-zinc-800" />
-                  <div className="h-5 w-48 rounded bg-zinc-800" />
+        {/* Main Content Card Skeleton */}
+        <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <div className="h-10 bg-zinc-50 border-b border-zinc-100" />
+          <div className="divide-y divide-zinc-100 p-4 space-y-4">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0">
+                <div className="flex items-center justify-between">
+                  <div className="h-4.5 w-1/4 rounded bg-zinc-200" />
+                  <div className="h-4.5 w-20 rounded bg-zinc-100" />
                 </div>
-                <div className="h-5 w-10 rounded bg-zinc-800" />
+                <div className="h-3.5 w-full rounded bg-zinc-100" />
+                <div className="h-3.5 w-5/6 rounded bg-zinc-100" />
               </div>
             ))}
           </div>
@@ -66,9 +92,9 @@ export default function Loading() {
       </main>
 
       {/* Footer Skeleton */}
-      <footer className="border-t border-zinc-900 bg-zinc-950 py-6">
-        <div className="mx-auto max-w-7xl px-4 flex justify-center sm:px-6 lg:px-8">
-          <div className="h-3 w-40 rounded bg-zinc-900" />
+      <footer className="border-t border-zinc-200 bg-white py-5 mt-10">
+        <div className="mx-auto w-full px-6 flex justify-center">
+          <div className="h-3 w-48 rounded bg-zinc-100" />
         </div>
       </footer>
     </div>

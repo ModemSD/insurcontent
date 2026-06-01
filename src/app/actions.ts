@@ -2,6 +2,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 
 export interface RawContent {
   id?: string | number;
@@ -273,8 +274,11 @@ export async function sendRewriteWebhook(signal: RawContent, platform: string) {
     // Bypass self-signed SSL certificate issue on the hostinger cloud domain
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-    const params = new URLSearchParams({
-      signalId: String(signal.id || ''),
+    const webhookType = process.env.NEXT_PUBLIC_N8N_WEBHOOK_TYPE || 'webhook'; // 'webhook' or 'webhook-test'
+    const url = `https://n8n.srv1685912.hstgr.cloud/${webhookType}/36b26179-26a4-4e9d-8c82-ece5d3fd1835`;
+
+    const body = {
+      signalId: signal.id ? String(signal.id) : '',
       title: signal.title || '',
       content: signal.content || '',
       topic: signal.topic || '',
@@ -285,12 +289,14 @@ export async function sendRewriteWebhook(signal: RawContent, platform: string) {
       url: signal.url || '',
       source: signal.source || '',
       targetPlatform: platform
-    });
-
-    const url = `https://n8n.srv1685912.hstgr.cloud/webhook/fdb5cc2d-d0e6-4827-b767-07b98023e269?${params.toString()}`;
+    };
 
     const response = await fetch(url, {
-      method: 'GET'
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {
@@ -324,5 +330,242 @@ export async function sendRewriteWebhook(signal: RawContent, platform: string) {
     return { success: false, error: err.message || 'Network error occurred' };
   }
 }
+
+export interface RewrittenPost {
+  id: string;
+  raw_content_id?: string;
+  platform?: string;
+  hook?: string;
+  body: string; // actual DB column
+  cta?: string;
+  tone?: string;
+  status?: string | null; // DB column
+  engagement_score?: number;
+  image_prompt?: string;
+  image_id?: string;
+  image_file?: string;
+  image_url?: string;
+  created_at?: string;
+  // Join fields
+  raw_content?: {
+    title: string;
+    content: string;
+    source: string;
+    viral_score: number;
+  };
+}
+
+export async function getRewrittenPosts() {
+  try {
+    const { data: posts, error } = await supabase
+      .from('rewritten_content')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    // Robustly fetch related raw_content details if raw_content_id is present
+    const postsWithSignals = await Promise.all((posts || []).map(async (post) => {
+      if (post.raw_content_id) {
+        // Try parsing as integer first
+        const numericId = parseInt(post.raw_content_id, 10);
+        if (!isNaN(numericId)) {
+          const { data: raw } = await supabase
+            .from('raw_content')
+            .select('title, content, source, viral_score')
+            .eq('id', numericId)
+            .single();
+          if (raw) {
+            return {
+              ...post,
+              raw_content: raw
+            };
+          }
+        }
+        
+        // Fallback for UUID/string IDs
+        const { data: raw } = await supabase
+          .from('raw_content')
+          .select('title, content, source, viral_score')
+          .eq('id', post.raw_content_id)
+          .single();
+        if (raw) {
+          return {
+            ...post,
+            raw_content: raw
+          };
+        }
+      }
+      return post;
+    }));
+
+    return { success: true, data: postsWithSignals as RewrittenPost[] };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to fetch rewritten posts' };
+  }
+}
+
+export async function updateRewrittenPostText(id: string | number, text: string) {
+  try {
+    const { error } = await supabase
+      .from('rewritten_content')
+      .update({ body: text }) // update 'body' column
+      .eq('id', id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    revalidatePath('/ready-to-post');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to update rewritten post' };
+  }
+}
+
+export async function deleteRewrittenPost(id: string | number) {
+  try {
+    const { error } = await supabase
+      .from('rewritten_content')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    revalidatePath('/ready-to-post');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to delete rewritten post' };
+  }
+}
+
+export async function updateRewrittenPostStatus(id: string | number, status: string | null) {
+  try {
+    const { error } = await supabase
+      .from('rewritten_content')
+      .update({ status })
+      .eq('id', id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    revalidatePath('/ready-to-post');
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to update rewritten post status' };
+  }
+}
+
+export async function regeneratePostText(post: RewrittenPost) {
+  try {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    const url = `https://n8n.srv1685912.hstgr.cloud/webhook/f36d7e24-1412-4d10-854a-1da3cfc5a39a`;
+
+    const body = {
+      id: post.id
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      return { success: false, error: `Webhook returned status ${response.status}` };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Network error occurred' };
+  }
+}
+
+export async function regeneratePostImage(post: RewrittenPost) {
+  try {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    const url = `https://n8n.srv1685912.hstgr.cloud/webhook/bc517aea-bc64-4e13-b158-8339d4a189ee`;
+
+    const body = {
+      id: post.id
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      return { success: false, error: `Webhook returned status ${response.status}` };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Network error occurred' };
+  }
+}
+
+export async function loginAction(formData: FormData) {
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+
+  if (!email || !password) {
+    return { success: false, error: 'Email and password are required' };
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    if (data.session) {
+      const cookieStore = await cookies();
+      cookieStore.set('sb-access-token', data.session.access_token, {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+      cookieStore.set('sb-refresh-token', data.session.refresh_token, {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+      return { success: true };
+    }
+
+    return { success: false, error: 'No session returned' };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'An error occurred during sign in' };
+  }
+}
+
+export async function logoutAction() {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete('sb-access-token');
+    cookieStore.delete('sb-refresh-token');
+    await supabase.auth.signOut();
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to logout' };
+  }
+}
+
 
 
