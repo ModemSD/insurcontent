@@ -2,7 +2,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 async function testFetch() {
   const webhookType = 'webhook-test';
-  const url = `https://n8n.srv1685912.hstgr.cloud/${webhookType}/36b26179-26a4-4e9d-8c82-ece5d3fd1835`;
+  const url = `https://n8n.insurcontent.online/${webhookType}/36b26179-26a4-4e9d-8c82-ece5d3fd1835`;
 
   const body = {
     signalId: 'test-id',

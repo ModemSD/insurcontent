@@ -274,8 +274,9 @@ export async function sendRewriteWebhook(signal: RawContent, platform: string) {
     // Bypass self-signed SSL certificate issue on the hostinger cloud domain
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
+    const n8nHost = process.env.NEXT_PUBLIC_N8N_HOST || 'https://n8n.insurcontent.online';
     const webhookType = process.env.NEXT_PUBLIC_N8N_WEBHOOK_TYPE || 'webhook'; // 'webhook' or 'webhook-test'
-    const url = `https://n8n.srv1685912.hstgr.cloud/${webhookType}/36b26179-26a4-4e9d-8c82-ece5d3fd1835`;
+    const url = `${n8nHost}/${webhookType}/36b26179-26a4-4e9d-8c82-ece5d3fd1835`;
 
     const body = {
       signalId: signal.id ? String(signal.id) : '',
@@ -461,7 +462,9 @@ export async function updateRewrittenPostStatus(id: string | number, status: str
 export async function regeneratePostText(post: RewrittenPost) {
   try {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-    const url = `https://n8n.srv1685912.hstgr.cloud/webhook/f36d7e24-1412-4d10-854a-1da3cfc5a39a`;
+    const n8nHost = process.env.NEXT_PUBLIC_N8N_HOST || 'https://n8n.insurcontent.online';
+    const webhookType = process.env.NEXT_PUBLIC_N8N_WEBHOOK_TYPE || 'webhook';
+    const url = `${n8nHost}/${webhookType}/f36d7e24-1412-4d10-854a-1da3cfc5a39a`;
 
     const body = {
       id: post.id
@@ -488,7 +491,9 @@ export async function regeneratePostText(post: RewrittenPost) {
 export async function regeneratePostImage(post: RewrittenPost) {
   try {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-    const url = `https://n8n.srv1685912.hstgr.cloud/webhook/bc517aea-bc64-4e13-b158-8339d4a189ee`;
+    const n8nHost = process.env.NEXT_PUBLIC_N8N_HOST || 'https://n8n.insurcontent.online';
+    const webhookType = process.env.NEXT_PUBLIC_N8N_WEBHOOK_TYPE || 'webhook';
+    const url = `${n8nHost}/${webhookType}/bc517aea-bc64-4e13-b158-8339d4a189ee`;
 
     const body = {
       id: post.id
