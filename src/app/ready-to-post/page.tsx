@@ -36,6 +36,7 @@ import {
   XCircle,
   Download
 } from 'lucide-react';
+import { normalizeScore } from '@/lib/utils';
 
 export default function ReadyToPostPage() {
   const [posts, setPosts] = useState<RewrittenPost[]>([]);
@@ -78,7 +79,7 @@ export default function ReadyToPostPage() {
         
         if (!error && data) {
           const total = data.length;
-          const avgViralScore = total > 0 ? data.reduce((sum, item) => sum + item.viral_score, 0) / total : 0;
+          const avgViralScore = total > 0 ? data.reduce((sum, item) => sum + normalizeScore(item.viral_score), 0) / total : 0;
           const reddit = data.filter(item => item.source.toLowerCase() === 'reddit').length;
           const linkedin = data.filter(item => item.source.toLowerCase() === 'linkedin').length;
           const google = data.filter(item => item.source.toLowerCase() === 'google').length;
@@ -277,7 +278,7 @@ export default function ReadyToPostPage() {
               const displayId = String(post.id).length > 8 ? `${String(post.id).slice(0, 8)}...` : String(post.id);
               const displaySignalId = post.raw_content_id ? (String(post.raw_content_id).length > 8 ? `${String(post.raw_content_id).slice(0, 8)}...` : String(post.raw_content_id)) : 'N/A';
               const displaySource = post.raw_content?.source || post.platform || 'LinkedIn';
-              const displayEngagement = post.engagement_score || post.raw_content?.viral_score;
+              const displayEngagement = normalizeScore(post.engagement_score || post.raw_content?.viral_score);
 
               return (
                 <div 

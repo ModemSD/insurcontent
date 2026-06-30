@@ -8,7 +8,7 @@ import {
   Check, EyeOff, Trash2, Loader2
 } from 'lucide-react';
 import { RawContent, updateSignalStatus, deleteSignal, sendRewriteWebhook } from '@/app/actions';
-import { formatUrl } from '@/lib/utils';
+import { formatUrl, normalizeScore } from '@/lib/utils';
 
 interface SignalsTableProps {
   signals: RawContent[];
@@ -84,8 +84,9 @@ export default function SignalsTable({
   };
 
   const getViralScoreWidget = (score: number) => {
-    const isHigh = score >= 70;
-    const isMed = score >= 40 && score < 70;
+    const normalized = normalizeScore(score);
+    const isHigh = normalized >= 70;
+    const isMed = normalized >= 40 && normalized < 70;
     
     let colorClass = 'bg-rose-500';
     let textClass = 'text-rose-600 bg-rose-50';
@@ -100,10 +101,10 @@ export default function SignalsTable({
     return (
       <div className="flex items-center gap-2">
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${textClass}`}>
-          {score}%
+          {normalized}%
         </span>
         <div className="hidden h-1.5 w-12 rounded-full bg-zinc-100 overflow-hidden sm:block">
-          <div className={`h-full rounded-full ${colorClass}`} style={{ width: `${score}%` }} />
+          <div className={`h-full rounded-full ${colorClass}`} style={{ width: `${normalized}%` }} />
         </div>
       </div>
     );

@@ -29,3 +29,17 @@ export function formatUrl(url: string, source?: string): string {
 
   return trimmedUrl;
 }
+
+/**
+ * Normalizes a score (viral_score or engagement_score) to a percentage (0-100).
+ * If the score is between 1 and 10, it scales it up by multiplying by 10.
+ * In any other case, it returns the score as is.
+ */
+export function normalizeScore(score: number | null | undefined): number {
+  if (score === null || score === undefined) return 0;
+  if (score > 0 && score <= 10) {
+    return score * 10;
+  }
+  return score;
+}
+

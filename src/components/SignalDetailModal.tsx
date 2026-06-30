@@ -7,7 +7,7 @@ import {
   FileText, Calendar, Tag, Hash, Link2, Copy, Check, EyeOff, Trash2, Loader2
 } from 'lucide-react';
 import { RawContent, updateSignalStatus, deleteSignal, sendRewriteWebhook } from '@/app/actions';
-import { formatUrl } from '@/lib/utils';
+import { formatUrl, normalizeScore } from '@/lib/utils';
 
 interface SignalDetailModalProps {
   signal: RawContent | null;
@@ -189,7 +189,7 @@ export default function SignalDetailModal({ signal, onClose, isReview = false }:
                   New
                 </span>
               )}
-              <span className="text-[10px] font-mono text-zinc-400 uppercase font-medium">Engagement: {signal.viral_score}%</span>
+              <span className="text-[10px] font-mono text-zinc-400 uppercase font-medium">Engagement: {normalizeScore(signal.viral_score)}%</span>
             </div>
             <h2 className="text-lg font-bold text-zinc-900 leading-snug">
               {signal.title}
