@@ -25,6 +25,7 @@ interface ChannelMonthState {
   cr3: number;
   cr4: number;
   cr5: number;
+  muted?: boolean;
 }
 
 type PlanState = ChannelMonthState[][];
@@ -192,6 +193,20 @@ export default function MediaPlanDashboard({
       return next;
     });
     triggerFlash(`✕ канал обнулён на ${MONTHS[curMonth]} ✓`);
+  };
+
+  // Toggle channel muting globally (for all months)
+  const handleToggleMute = (ci: number) => {
+    setPlanState(prev => {
+      const isCurrentlyMuted = prev[ci][curMonth]?.muted || false;
+      const next = prev.map((ch, cIndex) => {
+        if (cIndex !== ci) return ch;
+        return ch.map(m => ({ ...m, muted: !isCurrentlyMuted }));
+      });
+      return next;
+    });
+    const isMutedNow = !(planState[ci][curMonth]?.muted || false);
+    triggerFlash(`Линейка канала ${isMutedNow ? 'приглушена' : 'активирована'} ✓`);
   };
 
   // Export to JSON
@@ -541,6 +556,11 @@ export default function MediaPlanDashboard({
         .mediaplan-container .mp-in.pct { width: 56px; }
         .mediaplan-container .mp-zero { background: var(--chip); border: 1px solid var(--line); color: var(--mut); border-radius: 6px; padding: 5px 9px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 150ms; }
         .mediaplan-container .mp-zero:hover { border-color: var(--bad); color: var(--bad); background: rgba(248,113,113,.06); }
+        .mediaplan-container tr.row-muted { opacity: 0.3; filter: grayscale(85%); transition: opacity 200ms; }
+        .mediaplan-container tr.row-muted:hover { opacity: 0.85; }
+        .mediaplan-container .mp-mute { background: var(--chip); border: 1px solid var(--line); color: var(--mut); border-radius: 6px; padding: 5px 8px; font-size: 11.5px; cursor: pointer; transition: all 150ms; display: inline-flex; align-items: center; justify-content: center; }
+        .mediaplan-container .mp-mute:hover { border-color: var(--brand2); color: var(--brand2); background: rgba(34,211,238,.06); }
+        .mediaplan-container .mp-mute.active { background: #22304f; color: var(--brand2); border-color: var(--brand2); }
         .mediaplan-container td.calc-cell { color: var(--brand2); font-variant-numeric: tabular-nums; }
         .mediaplan-container td.money { font-variant-numeric: tabular-nums; }
         .mediaplan-container .legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--mut); font-size: 12px; margin: 8px 0 0; }
@@ -1526,7 +1546,7 @@ export default function MediaPlanDashboard({
               </thead>
               <tbody>
                 {monthRows.map((row, idx) => (
-                  <tr key={idx}>
+                  <tr key={idx} className={row.s.muted ? 'row-muted' : ''}>
                     <td>{row.name}</td>
                     
                     {/* Uncontrolled Inputs keyed to current month and channel to avoid decimal typing issues */}
@@ -1622,13 +1642,22 @@ export default function MediaPlanDashboard({
                     
                     <td className="calc-cell" style={{ color: 'var(--good)', fontWeight: 700 }}>{fmt(row.r.signed)}</td>
                     <td>
-                      <button
-                        className="mp-zero"
-                        onClick={() => handleZeroChannel(row.ci)}
-                        title={`Обнулить бюджет и показы этого канала в ${MONTHS[curMonth]}`}
-                      >
-                        ✕ 0
-                      </button>
+                      <div style={{ display: 'flex', gap: '5px', alignItems: 'center', justifyContent: 'flex-end' }}>
+                        <button
+                          className={`mp-mute ${row.s.muted ? 'active' : ''}`}
+                          onClick={() => handleToggleMute(row.ci)}
+                          title={row.s.muted ? "Активировать канал (сделать ярким)" : "Приглушить канал (сделать серым)"}
+                        >
+                          👁
+                        </button>
+                        <button
+                          className="mp-zero"
+                          onClick={() => handleZeroChannel(row.ci)}
+                          title={`Обнулить бюджет этого канала в ${MONTHS[curMonth]}`}
+                        >
+                          ✕ 0
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
