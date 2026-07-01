@@ -219,6 +219,7 @@ export default function MediaPlanDashboard({
   // Math Helper for Channel Calculations
   const computeChannelMetrics = (s: ChannelMonthState) => {
     const clicks = s.impr * s.cr1;
+    const cpc = clicks > 0 ? s.budget / clicks : 0;
     const leads = clicks * s.crL;
     const cpl = leads > 0 ? s.budget / leads : 0;
     const booked = leads * s.cr2;
@@ -227,7 +228,7 @@ export default function MediaPlanDashboard({
     const cpa2 = completed > 0 ? s.budget / completed : 0;
     const sent = completed * s.cr4;
     const signed = sent * s.cr5;
-    return { clicks, leads, cpl, booked, cpa, completed, cpa2, sent, signed };
+    return { clicks, cpc, leads, cpl, booked, cpa, completed, cpa2, sent, signed };
   };
 
   // 1. Economics Calculations
@@ -315,6 +316,7 @@ export default function MediaPlanDashboard({
   });
 
   const bCR1 = curMonthImpr > 0 ? curMonthClicks / curMonthImpr : 0;
+  const bCPC = curMonthClicks > 0 ? curMonthBudget / curMonthClicks : 0;
   const bCRL = curMonthClicks > 0 ? curMonthLeads / curMonthClicks : 0;
   const bCPL = curMonthLeads > 0 ? curMonthBudget / curMonthLeads : 0;
   const bCR2 = curMonthLeads > 0 ? curMonthBooked / curMonthLeads : 0;
@@ -1485,8 +1487,9 @@ export default function MediaPlanDashboard({
                   <th>Канал</th>
                   <th>Бюджет $</th>
                   <th>Показы</th>
-                  <th>CR1</th>
+                  <th>CTR (CR1)</th>
                   <th>Клики</th>
+                  <th>CPC $</th>
                   <th>CRл</th>
                   <th>Лиды</th>
                   <th>CPL $</th>
@@ -1536,6 +1539,9 @@ export default function MediaPlanDashboard({
                     </td>
                     
                     <td className="calc-cell">{fmt(row.r.clicks)}</td>
+                    <td className="calc-cell">
+                      {row.r.cpc > 0 ? `$${row.r.cpc.toFixed(2)}` : '$0.00'}
+                    </td>
                     
                     <td>
                       <input
@@ -1618,6 +1624,7 @@ export default function MediaPlanDashboard({
                   <td>{fmt(curMonthImpr)}</td>
                   <td>{pctv(bCR1)}%</td>
                   <td>{fmt(curMonthClicks)}</td>
+                  <td>{bCPC > 0 ? `$${bCPC.toFixed(2)}` : '$0.00'}</td>
                   <td>{pctv(bCRL)}%</td>
                   <td>{fmt(curMonthLeads)}</td>
                   <td>${fmt(bCPL)}</td>
@@ -1637,7 +1644,7 @@ export default function MediaPlanDashboard({
             </table>
           </div>
           <p className="note">
-            В строке ИТОГО проценты (CR) и стоимости (CPL/CPA) — <b>взвешенные</b> по всем каналам, а не сумма. CPL считается на лиды, не на клики: <b>${fmt(bCPL)}</b> за лид. Blended CPA демо: <b>${fmt(blendedCpa)}</b> · Blended CAC (канальный бюджет ÷ подписания): <b>${fmt(blendedCac)}</b>.
+            В строке ИТОГО проценты (CR) и стоимости (CPC/CPL/CPA) — <b>взвешенные</b> по всем каналам, а не сумма. Blended CPC: <b>{bCPC > 0 ? `$${bCPC.toFixed(2)}` : '$0.00'}</b> · CPL считается на лиды, не на клики: <b>${fmt(bCPL)}</b> за лид. Blended CPA демо: <b>${fmt(blendedCpa)}</b> · Blended CAC (канальный бюджет ÷ подписания): <b>${fmt(blendedCac)}</b>.
           </p>
 
           <h2>Сводка по месяцам</h2>
