@@ -1512,7 +1512,7 @@ export default function MediaPlanDashboard({
                     <td>
                       <input
                         className="mp-in"
-                        key={`b-${row.ci}-${curMonth}`}
+                        key={`b-${row.ci}-${curMonth}-${row.s.budget}`}
                         defaultValue={row.s.budget}
                         onBlur={(e) => handleCellBlur(row.ci, 'budget', e.target.value)}
                       />
@@ -1520,7 +1520,7 @@ export default function MediaPlanDashboard({
                     <td>
                       <input
                         className="mp-in"
-                        key={`im-${row.ci}-${curMonth}`}
+                        key={`im-${row.ci}-${curMonth}-${row.s.impr}`}
                         defaultValue={row.s.impr}
                         onBlur={(e) => handleCellBlur(row.ci, 'impr', e.target.value)}
                       />
@@ -1528,7 +1528,7 @@ export default function MediaPlanDashboard({
                     <td>
                       <input
                         className="mp-in pct"
-                        key={`cr1-${row.ci}-${curMonth}`}
+                        key={`cr1-${row.ci}-${curMonth}-${row.s.cr1}`}
                         defaultValue={pctv(row.s.cr1)}
                         onBlur={(e) => handleCellBlur(row.ci, 'cr1', e.target.value)}
                       />
@@ -1540,7 +1540,7 @@ export default function MediaPlanDashboard({
                     <td>
                       <input
                         className="mp-in pct"
-                        key={`crl-${row.ci}-${curMonth}`}
+                        key={`crl-${row.ci}-${curMonth}-${row.s.crL}`}
                         defaultValue={pctv(row.s.crL)}
                         onBlur={(e) => handleCellBlur(row.ci, 'crL', e.target.value)}
                       />
@@ -1553,7 +1553,7 @@ export default function MediaPlanDashboard({
                     <td>
                       <input
                         className="mp-in pct"
-                        key={`cr2-${row.ci}-${curMonth}`}
+                        key={`cr2-${row.ci}-${curMonth}-${row.s.cr2}`}
                         defaultValue={pctv(row.s.cr2)}
                         onBlur={(e) => handleCellBlur(row.ci, 'cr2', e.target.value)}
                       />
@@ -1566,7 +1566,7 @@ export default function MediaPlanDashboard({
                     <td>
                       <input
                         className="mp-in pct"
-                        key={`cr3-${row.ci}-${curMonth}`}
+                        key={`cr3-${row.ci}-${curMonth}-${row.s.cr3}`}
                         defaultValue={pctv(row.s.cr3)}
                         onBlur={(e) => handleCellBlur(row.ci, 'cr3', e.target.value)}
                       />
@@ -1579,7 +1579,7 @@ export default function MediaPlanDashboard({
                     <td>
                       <input
                         className="mp-in pct"
-                        key={`cr4-${row.ci}-${curMonth}`}
+                        key={`cr4-${row.ci}-${curMonth}-${row.s.cr4}`}
                         defaultValue={pctv(row.s.cr4)}
                         onBlur={(e) => handleCellBlur(row.ci, 'cr4', e.target.value)}
                       />
@@ -1591,7 +1591,7 @@ export default function MediaPlanDashboard({
                     <td>
                       <input
                         className="mp-in pct"
-                        key={`cr5-${row.ci}-${curMonth}`}
+                        key={`cr5-${row.ci}-${curMonth}-${row.s.cr5}`}
                         defaultValue={pctv(row.s.cr5)}
                         onBlur={(e) => handleCellBlur(row.ci, 'cr5', e.target.value)}
                       />
