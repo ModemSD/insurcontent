@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  Inbox, CheckSquare, ChevronLeft, ChevronRight, SendHorizontal, BarChart3, LogOut
+  Inbox, CheckSquare, ChevronLeft, ChevronRight, SendHorizontal, BarChart3, LogOut, Calendar
 } from 'lucide-react';
 import { logoutAction } from '@/app/actions';
 
@@ -43,6 +43,11 @@ export default function Sidebar({ collapsed, setCollapsed, onNavigateStart }: Si
       name: 'Ready to Post',
       href: '/ready-to-post',
       icon: SendHorizontal,
+    },
+    {
+      name: 'Media Plan',
+      href: '/mediaplan',
+      icon: Calendar,
     },
     {
       name: 'Statistics',

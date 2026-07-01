@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InsurVoice.ai — Стратегия выхода на рынок 2026</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#121a30; --panel2:#0f1730; --line:#22304f;
+    --ink:#e8edf7; --mut:#93a2c4; --brand:#4f7cff; --brand2:#22d3ee;
+    --good:#34d399; --warn:#fbbf24; --bad:#f87171; --orig:#7c8db5; --imp:#34d399;
+    --chip:#1a2440;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.5}
+  a{color:var(--brand2)}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+  header.top{position:sticky;top:0;z-index:50;background:rgba(11,16,32,.86);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .topbar{display:flex;align-items:center;gap:18px;height:62px}
+  .logo{font-weight:800;letter-spacing:.3px;font-size:18px;display:flex;align-items:center;gap:9px}
+  .logo .dot{width:11px;height:11px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand2));box-shadow:0 0 14px var(--brand2)}
+  nav.tabs{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+  nav.tabs button{background:transparent;border:1px solid transparent;color:var(--mut);
+    padding:8px 13px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:600}
+  nav.tabs button:hover{color:var(--ink);background:var(--chip)}
+  nav.tabs button.active{color:#fff;background:linear-gradient(135deg,var(--brand),#3b63e0);border-color:#3b63e0}
+  section.page{display:none;padding:34px 0 80px}
+  section.page.active{display:block;animation:fade .3s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h1{font-size:34px;margin:0 0 8px;letter-spacing:-.5px}
+  h2{font-size:23px;margin:34px 0 14px;letter-spacing:-.3px}
+  h3{font-size:16px;margin:0 0 8px}
+  .sub{color:var(--mut);font-size:15px;max-width:820px}
+  .hero{background:radial-gradient(1200px 400px at 15% -20%,rgba(79,124,255,.22),transparent),
+    radial-gradient(900px 400px at 100% 0%,rgba(34,211,238,.14),transparent);
+    border:1px solid var(--line);border-radius:20px;padding:38px 34px;margin-bottom:8px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .kpi .n{font-size:27px;font-weight:800;letter-spacing:-.5px}
+  .kpi .l{color:var(--mut);font-size:12.5px;margin-top:3px}
+  .grid{display:grid;gap:16px}
+  .cols-3{grid-template-columns:repeat(3,1fr)}
+  .cols-2{grid-template-columns:repeat(2,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .card h3{display:flex;align-items:center;gap:8px}
+  .card p{color:var(--mut);font-size:14px;margin:6px 0}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;
+    background:var(--chip);color:var(--mut);border:1px solid var(--line)}
+  .tag.good{color:var(--good);border-color:#1f5641;background:#0f2a20}
+  .tag.warn{color:var(--warn);border-color:#5a4a17;background:#2a2310}
+  .tag.bad{color:var(--bad);border-color:#5a2323;background:#2a1414}
+  ul.clean{margin:8px 0 0;padding-left:18px;color:var(--mut);font-size:14px}
+  ul.clean li{margin:5px 0}
+  .funnel{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .frow{display:flex;align-items:center;gap:14px}
+  .fbar{height:44px;border-radius:9px;display:flex;align-items:center;padding:0 16px;
+    font-weight:700;color:#04122a;background:linear-gradient(90deg,var(--brand2),var(--brand));white-space:nowrap}
+  .fmeta{color:var(--mut);font-size:13px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{color:var(--mut);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;background:var(--panel2)}
+  tbody tr:hover{background:#0e1830}
+  tfoot td{font-weight:800;border-top:2px solid var(--line);background:#0e1830}
+  .tblwrap{overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .cmp .col{padding:20px}
+  .cmp .col.orig{background:var(--panel2)}
+  .cmp .col.imp{background:linear-gradient(180deg,rgba(52,211,153,.06),transparent)}
+  .cmp .hd{display:flex;align-items:center;gap:9px;font-weight:800;margin-bottom:6px;font-size:15px}
+  .cmp .hd.orig{color:var(--orig)}
+  .cmp .hd.imp{color:var(--imp)}
+  .issue{border:1px solid var(--line);border-radius:12px;padding:15px 17px;margin:12px 0;background:var(--panel)}
+  .issue .h{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+  .issue .sev{font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px}
+  .sev.crit{background:#2a1414;color:var(--bad);border:1px solid #5a2323}
+  .sev.med{background:#2a2310;color:var(--warn);border:1px solid #5a4a17}
+  .issue .body{color:var(--mut);font-size:14px;margin-top:8px}
+  .issue .fix{margin-top:10px;font-size:13.5px;color:var(--ink);background:#0f2a20;border:1px solid #1f5641;border-radius:9px;padding:10px 12px}
+  .fix b{color:var(--good)}
+  .calc{display:grid;grid-template-columns:340px 1fr;gap:18px}
+  .controls .row{margin:0 0 15px}
+  .controls label{display:flex;justify-content:space-between;font-size:13px;color:var(--mut);margin-bottom:6px}
+  .controls label b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .hint{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;
+    background:var(--chip);border:1px solid var(--line);color:var(--mut);font-size:10px;font-weight:700;
+    margin-left:5px;cursor:help;flex-shrink:0}
+  .hint:hover{color:#fff;border-color:var(--brand)}
+  .lbltxt{display:inline-flex;align-items:center}
+  input[type=range]{width:100%;accent-color:var(--brand)}
+  input.num{width:100%;background:#0b1224;border:1px solid var(--line);color:var(--ink);
+    border-radius:8px;padding:8px 10px;font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+  .out{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .out .o{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}
+  .out .o .n{font-size:25px;font-weight:800;letter-spacing:-.5px}
+  .out .o .l{color:var(--mut);font-size:12px;margin-top:2px}
+  .verdict{margin-top:14px;padding:13px 15px;border-radius:11px;font-size:14px;font-weight:600}
+  .monthtabs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px}
+  .monthtabs button{background:var(--chip);border:1px solid var(--line);color:var(--mut);
+    padding:7px 14px;border-radius:9px;cursor:pointer;font-weight:700;font-size:13px}
+  .monthtabs button.active{background:linear-gradient(135deg,var(--brand),#3b63e0);color:#fff;border-color:#3b63e0}
+  .mp-in{width:74px;background:#0b1224;border:1px solid var(--line);color:var(--ink);
+    border-radius:6px;padding:5px 6px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+  .mp-in.pct{width:56px}
+  .mp-zero{background:var(--chip);border:1px solid var(--line);color:var(--mut);border-radius:6px;
+    padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .mp-zero:hover{border-color:var(--bad);color:var(--bad)}
+  td.calc-cell{color:var(--brand2);font-variant-numeric:tabular-nums}
+  td.money{font-variant-numeric:tabular-nums}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--mut);font-size:12px;margin:8px 0 0}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .note{color:var(--mut);font-size:12.5px;margin-top:10px;font-style:italic}
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 4px}
+  .toolbar .saved{font-size:12.5px;color:var(--good);display:inline-flex;align-items:center;gap:6px}
+  .toolbar .saved.flash{color:var(--brand2)}
+  .tbtn{background:var(--chip);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+    padding:6px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .tbtn:hover{border-color:var(--brand);color:#fff}
+  .tbtn.warnb:hover{border-color:var(--bad);color:var(--bad)}
+  .toolbar label.tbtn{margin:0}
+  .roadmap{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:10px}
+  .rm{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px}
+  .rm .m{font-weight:800;color:var(--brand2);font-size:14px}
+  .rm .g{font-size:12px;color:var(--mut);margin-top:5px}
+  .rm .t{font-size:22px;font-weight:800;margin-top:8px}
+  .pill{font-size:11px;color:var(--mut)}
+  @media(max-width:980px){.kpis,.cols-3,.cols-2,.out{grid-template-columns:1fr 1fr}
+    .calc,.cmp{grid-template-columns:1fr}.roadmap{grid-template-columns:1fr 1fr 1fr}}
+  @media(max-width:640px){.kpis,.out{grid-template-columns:1fr 1fr}.cols-3,.cols-2{grid-template-columns:1fr}}
+  @media print{nav.tabs,header.top{position:static}section.page{display:block!important;page-break-after:always}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap topbar">
+    <div class="logo"><span class="dot"></span> InsurVoice<span style="color:var(--mut);font-weight:600">.ai</span></div>
+    <nav class="tabs">
+      <button data-tab="overview" class="active">Обзор</button>
+      <button data-tab="original">Стратегия (оригинал)</button>
+      <button data-tab="improved">Стратегия v2 (с правками)</button>
+      <button data-tab="v3">Стратегия v3 (финал)</button>
+      <button data-tab="calc">Калькулятор экономики</button>
+      <button data-tab="media">Медиаплан VII–XII</button>
+    </nav>
+  </div>
+</header>
+
+<!-- ================= OVERVIEW ================= -->
+<section class="page active" id="overview">
+<div class="wrap">
+  <div class="hero">
+    <span class="tag">GTM-стратегия · Рынок США · 2026</span>
+    <h1 style="margin-top:14px">Голосовой AI для независимых страховых агентств</h1>
+    <p class="sub">Цель — <b style="color:#fff">50 платящих агентств до конца 2026</b> и закрепление в статусе специализированного AI Voice-решения для независимых страховых агентств США. Модель роста — founder-led: прямые продажи, personalized outbound и продукт, который продаёт себя через живой звонок.</p>
+    <div class="kpis">
+      <div class="kpi"><div class="n">50</div><div class="l">агентств до конца года</div></div>
+      <div class="kpi"><div class="n">~300</div><div class="l">назначенных демо (вся воронка)</div></div>
+      <div class="kpi"><div class="n">$95–111K</div><div class="l">GTM-бюджет за период</div></div>
+      <div class="kpi"><div class="n">$600</div><div class="l">целевой ARPU / мес</div></div>
+    </div>
+  </div>
+
+  <div class="grid cols-3" style="margin-top:22px">
+    <div class="card"><h3>🎯 Позиционирование</h3><p>«Каждый пропущенный звонок — это клиент, который уже говорит с вашим конкурентом.» AI отвечает 24/7 и превращает входящие в назначенные встречи без найма персонала.</p></div>
+    <div class="card"><h3>📞 Продукт продаёт себя</h3><p>Публичный номер: позвони, поговори с AI, за 2 минуты оцени качество. Демо = реклама + квалификация + снятие возражения «звучит как робот».</p></div>
+    <div class="card"><h3>🚀 Каналы роста</h3><p>Стартуем с прямого outbound, по мере появления кейсов смещаемся к повторяемым каналам, а в Q4 — к дистрибуции через партнёров и события. Бюджет каждую неделю перетекает в канал с лучшей ценой демо.</p></div>
+  </div>
+
+  <h2>Каналы по фазам</h2>
+  <p class="sub" style="margin-bottom:14px">Каналы <b style="color:var(--ink)">накапливаются</b>: каждая следующая фаза сохраняет работающие каналы предыдущей (и масштабирует их), а сверху добавляет новые. Ниже — что <b style="color:var(--ink)">добавляется</b> на каждой фазе.</p>
+  <div class="grid cols-3">
+    <div class="card"><span class="tag good">Фаза 1 · старт продаж</span>
+      <ul class="clean" style="margin-top:10px">
+        <li><b style="color:var(--ink)">Meta (Paid Social)</b> — уже даёт лиды, масштабируем по CPL</li>
+        <li><b style="color:var(--ink)">Cold email</b> — ядро, привязка к реальному пропущенному звонку</li>
+        <li><b style="color:var(--ink)">LinkedIn Ads</b> — повторный тест таргета + founder-led органика</li>
+        <li><b style="color:var(--ink)">Тёплая сеть</b> — рекомендации, интро, прямые звонки</li>
+        <li><b style="color:var(--ink)">Google Search</b> — высокоинтентные запросы</li>
+        <li><b style="color:var(--ink)">Демо-номер</b> — как самостоятельный канал</li>
+      </ul></div>
+    <div class="card"><span class="tag">Фаза 2 · повторяемость</span>
+      <ul class="clean" style="margin-top:10px">
+        <li style="list-style:none;margin-left:-18px;color:var(--good)"><b>↑ Всё из Фазы 1 продолжает работать и масштабируется</b></li>
+        <li><b style="color:var(--ink)">＋ Ретаргетинг</b> и похожие аудитории</li>
+        <li><b style="color:var(--ink)">＋ Вебинары</b> и живые демонстрации</li>
+        <li><b style="color:var(--ink)">＋ Подкасты и отраслевые медиа</b></li>
+        <li><b style="color:var(--ink)">＋ Профессиональные сообщества</b></li>
+        <li><b style="color:var(--ink)">＋ Старт переговоров</b> с партнёрами и AMS-вендорами</li>
+      </ul></div>
+    <div class="card"><span class="tag">Фаза 3 · дистрибуция</span>
+      <ul class="clean" style="margin-top:10px">
+        <li style="list-style:none;margin-left:-18px;color:var(--good)"><b>↑ Всё из Фаз 1–2 работает и масштабируется</b></li>
+        <li><b style="color:var(--ink)">＋ Партнёрства</b> — кластеры, сети, AMS/CRM</li>
+        <li><b style="color:var(--ink)">＋ Отраслевые события</b> — живое демо с AI</li>
+        <li><b style="color:var(--ink)">＋ Реферальная программа</b> и видео-кейсы</li>
+        <li><b style="color:var(--ink)">＋ Medicare AEP</b> — сезонный спрос (окт–дек)</li>
+      </ul></div>
+  </div>
+  <p class="note">По мере накопления данных бюджет каждую неделю перетекает в каналы с лучшей ценой демо. Не в приоритете до 50 клиентов: широкие имиджевые кампании, TV/CTV, массовый direct mail, SEO как основной источник спроса.</p>
+
+  <h2>Дорожная карта: путь к 50</h2>
+  <div class="roadmap">
+    <div class="rm"><div class="m">Июль</div><div class="g">Первые клиенты</div><div class="t">10</div><div class="pill">outbound + founder-led</div></div>
+    <div class="rm"><div class="m">Август</div><div class="g">Повторяемость</div><div class="t">18</div><div class="pill">ретаргетинг, вебинары</div></div>
+    <div class="rm"><div class="m">Сентябрь</div><div class="g">Юнит-экономика</div><div class="t">25</div><div class="pill">кейсы, лучшие каналы</div></div>
+    <div class="rm"><div class="m">Октябрь</div><div class="g">Партнёрства + AEP</div><div class="t">34</div><div class="pill">события, Medicare</div></div>
+    <div class="rm"><div class="m">Ноябрь</div><div class="g">Дистрибуция</div><div class="t">42</div><div class="pill">реферралы, партнёры</div></div>
+    <div class="rm"><div class="m">Декабрь</div><div class="g">Цель года</div><div class="t">50</div><div class="pill">срочность конца года</div></div>
+  </div>
+
+  <div class="card" style="margin-top:22px;border-color:#5a4a17;background:linear-gradient(180deg,rgba(251,191,36,.06),transparent)">
+    <h3>⚠️ Три версии стратегии перед вами</h3>
+    <p>Вкладка <b style="color:var(--orig)">«Стратегия (оригинал)»</b> — ваша исходная стратегия в презентационном виде. Вкладка <b style="color:var(--imp)">«Стратегия v2»</b> — разбор правок side-by-side (честная юнит-экономика, разрешённое TCPA-противоречие, ёмкость продаж, retention, конкуренты, pricing). Вкладка <b style="color:var(--imp)">«Стратегия v3 (финал)»</b> — единая чистая версия с уже встроенными правками, готовая к показу клиенту. Калькулятор и медиаплан — интерактивные и редактируемые.</p>
+  </div>
+</div>
+</section>
+
+<!-- ================= ORIGINAL ================= -->
+<section class="page" id="original">
+<div class="wrap">
+  <h1>Стратегия <span style="color:var(--orig)">— оригинальная версия</span></h1>
+  <p class="sub">Презентационное представление вашего документа «как есть». Готово показывать клиенту.</p>
+
+  <h2>1. Воронка роста</h2>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Фаза</th><th>Период</th><th>Цель (накоп.)</th><th>Новые</th><th>Сост. демо</th><th>Назнач. демо</th></tr></thead>
+      <tbody>
+        <tr><td>Фаза 1 · Product-Market Fit</td><td>23 июн – 31 июл</td><td>10</td><td>+10</td><td>~40</td><td>~60</td></tr>
+        <tr><td>Фаза 2 · Повторяемая система</td><td>Авг – сен</td><td>25</td><td>+15</td><td>~60</td><td>~90</td></tr>
+        <tr><td>Фаза 3 · Масштабирование</td><td>Окт – дек</td><td>50</td><td>+25</td><td>~100</td><td>~150</td></tr>
+      </tbody>
+      <tfoot><tr><td>Итого</td><td>Июнь–Декабрь</td><td>50</td><td>+50</td><td>~200</td><td>~300</td></tr></tfoot>
+    </table>
+  </div>
+  <p class="note">Конверсии: назначенное демо → состоявшееся ≈ 65%; состоявшееся → клиент ≈ 25%.</p>
+
+  <h3 style="margin-top:24px;font-size:18px">Описание фаз</h3>
+  <div class="grid cols-3" style="margin-top:8px">
+    <div class="card"><span class="tag good">Фаза 1</span>
+      <h3 style="margin-top:8px">Product-Market Fit</h3>
+      <p class="pill">23 июня – 31 июля · цель 10 клиентов</p>
+      <p>Главное ограничение — не спрос, а скорость поиска работающего канала и первых кейсов. Ставка на прямой outbound и личные продажи, максимальная плотность разговоров с рынком. Платный трафик — вспомогательный: тест гипотез, перехват спроса, сбор аудиторий для ретаргетинга.</p></div>
+    <div class="card"><span class="tag">Фаза 2</span>
+      <h3 style="margin-top:8px">Повторяемая система продаж</h3>
+      <p class="pill">Август – сентябрь · цель 25</p>
+      <p>Переход от первых клиентов к предсказуемости. Первые кейсы включаются в маркетинг; запускаются ретаргетинг, вебинары, медиа/подкасты, работа в сообществах; стартуют переговоры с партнёрами. Задача — найти каналы с приемлемой стоимостью демо и подтверждённой юнит-экономикой.</p></div>
+    <div class="card"><span class="tag">Фаза 3</span>
+      <h3 style="margin-top:8px">Масштабирование</h3>
+      <p class="pill">Октябрь – декабрь · цель 50</p>
+      <p>Рывок за счёт дистрибуции: партнёрства и агентские кластеры, отраслевые события, сезонный спрос (Medicare AEP), реферальная программа. Бюджет диверсифицируется, инвестиции идут в подтверждённые каналы и партнёров с доступом к сотням агентств.</p></div>
+  </div>
+
+  <h3 style="margin-top:24px;font-size:18px">Помесячный план</h3>
+  <div class="grid cols-2" style="margin-top:8px">
+    <div class="card"><h3>Июнь · Фундамент <span class="pill">Фаза 1</span></h3>
+      <ul class="clean">
+        <li>Публичный номер, по которому любой может поговорить с AI</li>
+        <li>3 лендинга под ключевые сценарии (after-hours, speed-to-lead, renewals)</li>
+        <li>ICP-базы и сегментация; настройка и прогрев email-доменов</li>
+        <li>Запуск поисковых кампаний по высокоинтентным запросам</li>
+        <li>Сценарий демо и материалы для продаж</li>
+      </ul></div>
+    <div class="card"><h3>Июль · Первые 10 клиентов <span class="pill">Фаза 1</span></h3>
+      <ul class="clean">
+        <li>Масштабный холодный outbound + ежедневный LinkedIn</li>
+        <li>Работа с тёплой сетью и рекомендациями</li>
+        <li>Персональные демонстрации, быстрый сбор обратной связи</li>
+        <li>Результат: 10 клиентов + первые дизайн-партнёры и кейсы</li>
+      </ul></div>
+    <div class="card"><h3>Август · Повторяемость <span class="pill">Фаза 2</span></h3>
+      <ul class="clean">
+        <li>Ретаргетинг и тест похожих аудиторий</li>
+        <li>Первый открытый вебинар; медиа и подкасты</li>
+        <li>Работа в профессиональных сообществах</li>
+        <li>Старт переговоров с партнёрами и AMS-вендорами → 17–18 клиентов</li>
+      </ul></div>
+    <div class="card"><h3>Сентябрь · 25 клиентов <span class="pill">Фаза 2</span></h3>
+      <ul class="clean">
+        <li>Первые кейсы и отзывы в маркетинговых материалах</li>
+        <li>Второй вебинар; больше инвестиций в лучший по цене демо канал</li>
+        <li>Подготовка к событиям Q4; формирование партнёрского пайплайна</li>
+        <li>Результат: ~25 клиентов и подтверждённая юнит-экономика</li>
+      </ul></div>
+    <div class="card"><h3>Октябрь · Ускорение + партнёры <span class="pill">Фаза 3</span></h3>
+      <ul class="clean">
+        <li>Участие в крупных отраслевых событиях, живое демо с AI</li>
+        <li>Кампании для Medicare в период AEP</li>
+        <li>Первые партнёрские соглашения; масштабирование каналов</li>
+      </ul></div>
+    <div class="card"><h3>Ноябрь · Дистрибуция <span class="pill">Фаза 3</span></h3>
+      <ul class="clean">
+        <li>Запуск реферальной программы</li>
+        <li>Развитие партнёрской дистрибуции; видео-кейсы</li>
+        <li>Больше инвестиций в 1–2 самых эффективных канала</li>
+      </ul></div>
+    <div class="card"><h3>Декабрь · Цель 50 <span class="pill">Фаза 3</span></h3>
+      <ul class="clean">
+        <li>Работа с агентствами, откладывавшими решение</li>
+        <li>Кейсы и рекомендации существующих клиентов</li>
+        <li>Активизация партнёрского пайплайна; сценарии продлений</li>
+        <li>Результат: 50 клиентов и предсказуемая модель роста</li>
+      </ul></div>
+    <div class="card" style="border-color:#3b63e0;background:linear-gradient(180deg,rgba(79,124,255,.06),transparent)">
+      <h3>Логика дорожной карты</h3>
+      <p>Июнь — инфраструктура · Июль — первые 10 и кейсы · Август–сентябрь — повторяемая система и 25 · Октябрь–декабрь — масштабирование через партнёрства, сезонный спрос и подтверждённые каналы до 50.</p></div>
+  </div>
+
+  <h2>2. ICP — приоритетные сегменты</h2>
+  <div class="grid cols-2">
+    <div class="card"><h3><span class="tag good">Tier 1</span> Независимые P&amp;C (Personal Lines), 2–15 чел.</h3>
+      <ul class="clean">
+        <li>Авто/дом-страхование, большой поток входящих и интернет-лидов</li>
+        <li>Активно закупают лиды / инвестируют в рекламу — чувствительны к скорости</li>
+        <li>Быстрорастущие и новые агентства без ресепшн-покрытия</li>
+        <li>Владелец лично отвечает на звонки — боль ощущается ежедневно</li>
+      </ul></div>
+    <div class="card"><h3><span class="tag">Tier 2</span> Для масштабирования</h3>
+      <ul class="clean">
+        <li>Medicare / Health — пик в AEP (15 окт – 7 дек)</li>
+        <li>Commercial Lines — длиннее цикл, меньше входящих</li>
+        <li>Многоофисные — высокий LTV, долгое принятие решений</li>
+      </ul></div>
+  </div>
+
+  <h2>3. Позиционирование</h2>
+  <div class="grid cols-3">
+    <div class="card"><h3>Потерянные звонки = потерянная выручка</h3><p>Пропущенное обращение — финансовая, а не операционная проблема. Особенно у тех, кто покупает лиды.</p></div>
+    <div class="card"><h3>Голос должен звучать естественно</h3><p>Главное возражение — «робот». Снимается не описанием, а живым звонком с AI.</p></div>
+    <div class="card"><h3>Усиливает команду, а не заменяет</h3><p>Нерабочее время, пики, ситуации когда не успевают ответить. Дополнительный слой покрытия.</p></div>
+  </div>
+
+  <h2>4. Каналы привлечения (приоритеты тестирования)</h2>
+  <div class="grid cols-2">
+    <div class="card"><h3>#1 Cold Email <span class="tag">ядро</span></h3><p>~2 000 писем/нед → 300–500/день с прогретых доменов. Привязка к реальному пропущенному звонку. KPI: reply &gt;5%, письмо→демо &gt;0,7%.</p></div>
+    <div class="card"><h3>#2 Founder-led LinkedIn</h3><p>Точечные приглашения + личные сообщения + контент с реальными разговорами AI. KPI: accept &gt;25%, →демо &gt;5%.</p></div>
+    <div class="card"><h3>#3 Демо как канал</h3><p>Публичный номер во всех точках контакта. KPI: доля позвонивших, записавшихся на полноценное демо.</p></div>
+    <div class="card"><h3>#4 Google Search</h3><p>«AI receptionist for insurance», «after-hours answering service». KPI: стоимость демо &lt;$300.</p></div>
+  </div>
+  <p class="note">Q3 (авг–сен): ретаргетинг, вебинары, подкасты, сообщества. Q4: партнёрства (кластеры, AMS), отраслевые события, реферальная программа.</p>
+
+  <h2>5. Бюджет по фазам</h2>
+  <div class="tblwrap" id="budgetTable-original"></div>
+  <p class="note" id="budgetNote-original"></p>
+  <p class="note" style="font-style:normal"><b style="color:var(--ink)">Факт сегодня:</b> Meta уже приносит лиды при тестовом спенде ~$100 — это первый канал на масштабирование, как только подтвердится CPL и стоимость назначенного демо. <b style="color:var(--ink)">LinkedIn Ads (таргет)</b> возвращается в план отдельной строкой как повторный тест, параллельно с органическим founder-led LinkedIn.</p>
+
+  <h2>6. Целевые метрики</h2>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Уровень</th><th>Метрика</th><th>Цель</th></tr></thead>
+      <tbody>
+        <tr><td>Лидген</td><td>Email Reply Rate</td><td>&gt;5%</td></tr>
+        <tr><td>Лидген</td><td>Cost per Booked Demo (Paid)</td><td>&lt;$300–400</td></tr>
+        <tr><td>Продажи</td><td>Booked → Completed Demo</td><td>&gt;65%</td></tr>
+        <tr><td>Продажи</td><td>Completed → Closed Won</td><td>&gt;25%</td></tr>
+        <tr><td>Юнит-эк.</td><td>Blended CAC</td><td>&lt;$2 500</td></tr>
+        <tr><td>Удержание</td><td>Monthly Logo Churn</td><td>&lt;3%</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- ================= IMPROVED ================= -->
+<section class="page" id="improved">
+<div class="wrap">
+  <h1>Стратегия <span style="color:var(--imp)">v2 — с правками</span></h1>
+  <p class="sub">Та же стратегия, но с закрытыми пробелами. Слева — как было, справа — как усилить. Ниже — 5 критических правок и достроенные разделы, которых в оригинале не было.</p>
+
+  <h2>Оригинал → v2: ключевые сдвиги</h2>
+
+  <div class="cmp">
+    <div class="col orig"><div class="hd orig">● Оригинал</div>
+      <b>CAC $2–2,5K, экономика «устойчива»</b>
+      <p style="color:var(--mut);font-size:14px">CAC = только GTM-бюджет ($105K/50), <u>без зарплаты продавца</u>, который ведёт все сделки и онбординг.</p></div>
+    <div class="col imp"><div class="hd imp">✔ v2</div>
+      <b>CAC с зарплатой sales-менеджера</b>
+      <p style="color:var(--mut);font-size:14px">Добавляем стоимость продавца (его подписываем как фаундера, но это оплачиваемая позиция). Это умеренная, но реальная статья CAC — см. калькулятор.</p></div>
+  </div>
+  <div class="cmp" style="margin-top:14px">
+    <div class="col orig"><div class="hd orig">● Оригинал</div>
+      <b>Churn &lt;3%/мес — заявлен как цель</b>
+      <p style="color:var(--mut);font-size:14px">На этой цифре висит весь LTV, но retention не является рабочим потоком: только «онбординг для Founding 10».</p></div>
+    <div class="col imp"><div class="hd imp">✔ v2</div>
+      <b>Retention = отдельный поток + сценарии</b>
+      <p style="color:var(--mut);font-size:14px">Планируем при 3/5/7%. Метрики активации (звонки принято, лиды пойманы, $ возвращено), time-to-value, разбор оттока. Ранний SMB-churn обычно 4–6%.</p></div>
+  </div>
+  <div class="cmp" style="margin-top:14px">
+    <div class="col orig"><div class="hd orig">● Оригинал</div>
+      <b>Позиционируемся как inbound / after-hours</b>
+      <p style="color:var(--mut);font-size:14px">Но самые сильные ROI-сценарии — speed-to-lead по купленным лидам, продления, ночные claim — это <u>исходящие</u> звонки.</p></div>
+    <div class="col imp"><div class="hd imp">✔ v2</div>
+      <b>TCPA-развилка решена явно</b>
+      <p style="color:var(--mut);font-size:14px">FCC 2024: AI-голос = «artificial voice», для звонков на мобильные нужен prior express consent. Inbound-first + отдельный consent-flow для speed-to-lead, иначе теряем сильнейшую историю ценности.</p></div>
+  </div>
+  <div class="cmp" style="margin-top:14px">
+    <div class="col orig"><div class="hd orig">● Оригинал</div>
+      <b>Всё на одном продавце до конца года</b>
+      <p style="color:var(--mut);font-size:14px">50 сделок = ~200 демо = ~1,5 демо/день + онбординг 50 SMB + outbound + партнёрства. Один sales-менеджер это не вывезет.</p></div>
+    <div class="col imp"><div class="hd imp">✔ v2</div>
+      <b>Второй продавец / SDR заложен рано</b>
+      <p style="color:var(--mut);font-size:14px">SDR на генерацию демо + второй закрывающий/помощь по онбордингу уже в августе — до того как ёмкость продаж станет узким горлышком.</p></div>
+  </div>
+  <div class="cmp" style="margin-top:14px">
+    <div class="col orig"><div class="hd orig">● Оригинал</div>
+      <b>Цель 50 back-loaded на Q4</b>
+      <p style="color:var(--mut);font-size:14px">Последние +25 держатся на партнёрствах, реферралах и одном событии — самых длинных и непроверенных каналах.</p></div>
+    <div class="col imp"><div class="hd imp">✔ v2</div>
+      <b>Партнёрства стартуют в июле, буфер +15%</b>
+      <p style="color:var(--mut);font-size:14px">Переговоры с AMS/кластерами начинаем сразу (цикл — месяцы). Медиаплан строим с запасом ~57–60 подписаний, чтобы 50 были базой, а не потолком.</p></div>
+  </div>
+
+  <h2>Критические проблемы (приоритет)</h2>
+
+  <div class="issue"><div class="h"><span class="sev crit">CRIT 1</span> CAC занижен — в нём нет зарплаты продавца</div>
+    <div class="body">Заявленный CAC $2–2,5K учитывает только GTM-бюджет и <b>не включает зарплату sales-менеджера</b>, который ведёт все сделки (его подписываете как фаундера, но это оплачиваемая позиция, а не бесплатное время). Это реальная статья затрат: при загрузке продавца CAC растёт, и её нужно закладывать сразу, чтобы «экономика масштабируема» была честным выводом.</div>
+    <div class="fix"><b>Фикс:</b> добавить стоимость продаж в CAC (GTM + зарплата продавца/AE, разнесённая на сделки). В калькуляторе — две цифры: «без стоимости продаж» и «с зарплатой продавца».</div>
+  </div>
+
+  <div class="issue"><div class="h"><span class="sev crit">CRIT 2</span> Churn &lt;3% — допущение, а не план; на нём держится весь LTV</div>
+    <div class="body">Вся LTV (~$20K) висит на одной непроверенной цифре. Для нового продукта, продаваемого несведущим SMB-владельцам, ранний месячный churn обычно 4–6%+. При 5% срок жизни падает с 33 до 20 мес, LTV — на ~40%. Retention в стратегии почти не адресован.</div>
+    <div class="fix"><b>Фикс:</b> retention как отдельный поток. Метрики активации (звонков принято, лидов поймано, $ возвращено на клиента), time-to-value, разбор драйверов оттока. Планировать при 3/5/7%.</div>
+  </div>
+
+  <div class="issue"><div class="h"><span class="sev crit">CRIT 3</span> Противоречие TCPA: позиционирование inbound, а ценность — в outbound</div>
+    <div class="body">Комплаенс советует inbound / after-hours. Но сильнейшие ROI-сценарии (speed-to-lead по купленным интернет-лидам, продления, ночные claim) — исходящие звонки. По FCC 2024 AI-голос требует prior express consent для звонков на мобильные. Противоречие не разрешено и бьёт по value prop.</div>
+    <div class="fix"><b>Фикс:</b> либо inbound-only (переписать сценарии ценности), либо строить consent-flow для outbound speed-to-lead. Решить явно — это влияет на весь оффер.</div>
+  </div>
+
+  <div class="issue"><div class="h"><span class="sev crit">CRIT 4</span> Ёмкость продаж — один менеджер не закроет 50 сделок</div>
+    <div class="body">50 сделок = ~200 состоявшихся демо = ~1,5 демо каждый рабочий день + онбординг 50 SMB + outbound + партнёрства + контент. Всё это на одном продавце (которого подписываем как фаундера) не помещается. Ёмкость продаж — связывающее ограничение, и второй человек в плане недофинансирован.</div>
+    <div class="fix"><b>Фикс:</b> заложить SDR (генерация демо) и второго закрывающего/помощь по онбордингу с августа. Определить, при каком числе демо/нед первый продавец перестаёт справляться.</div>
+  </div>
+
+  <div class="issue"><div class="h"><span class="sev crit">CRIT 5</span> Цель 50 back-loaded на самые недоказанные каналы</div>
+    <div class="body">Последние +25 в Q4 держатся на партнёрствах (цикл — месяцы), реферралах (нужны довольные удержанные клиенты) и одном событии. Если партнёрства сдвинутся, Q4 падает на тот же outbound, который дал 10–25.</div>
+    <div class="fix"><b>Фикс:</b> партнёрские переговоры с июля. Медиаплан с буфером. Не ставить всю Q4 на один ивент.</div>
+  </div>
+
+  <h2>Разделы, которых не было в оригинале</h2>
+  <div class="grid cols-2">
+    <div class="issue"><div class="h"><span class="sev med">GAP</span> Конкурентный анализ</div>
+      <div class="body">Ни слова, почему InsurVoice, а не горизонтальный AI-ресепшн, не фича AMS-вендора, не answering service за $200–400/мес, не «ничего не делать». Реальный конкурент маленького агентства — сервис за $15/час.</div>
+      <div class="fix"><b>Добавить:</b> раздел competitive + «why us / why now», позиционирование против альтернатив.</div></div>
+    <div class="issue"><div class="h"><span class="sev med">GAP</span> Pricing и глубина продукта</div>
+      <div class="body">$600 ARPU — допущение без модели (за место? минуту? звонок? flat?). У голосового AI переменный COGS (телефония + LLM/мин) — от модели зависит маржа. Без интеграции с AMS (Applied Epic, EZLynx, HawkSoft, AMS360) продукт = дорогой автоответчик → драйвер оттока.</div>
+      <div class="fix"><b>Добавить:</b> модель ценообразования + маржинальность; AMS-интеграция как продуктовое требование, а не только канал.</div></div>
+    <div class="issue"><div class="h"><span class="sev med">GAP</span> Метрики доставки ценности</div>
+      <div class="body">Воронка измеряет путь до продажи, но не то, доставляет ли продукт ценность после. Нет метрик: звонков принято, лидов поймано, $ возвращено на клиента — а это и раннее выявление оттока, и топливо для кейсов и ROI-калькулятора.</div>
+      <div class="fix"><b>Добавить:</b> продуктовые KPI пост-продажи в еженедельный обзор.</div></div>
+    <div class="issue"><div class="h"><span class="sev med">GAP</span> Fit продавца (которого подписываем как фаундера)</div>
+      <div class="body">Вся «owner-to-owner» / warm-network механика держится на том, что продавец — US-based, native English, с credibility в страховании и убедительно выступает как владелец. Это несущее допущение, которое надо проверить при найме.</div>
+      <div class="fix"><b>Проверить:</b> нанимать US-based продавца с отраслевым бэкграундом; если такого fit нет — усиливать партнёрский заход, где доверие даёт партнёр, а не «фаундер».</div></div>
+  </div>
+
+  <div class="card" style="margin-top:20px;border-color:#1f5641;background:linear-gradient(180deg,rgba(52,211,153,.06),transparent)">
+    <h3>Итог v2</h3>
+    <p>Оригинал силён как план привлечения спроса на Phase 1. Как «стратегия» он неполон: нет retention, pricing, продукта/интеграций, конкурентов и модели ёмкости. Три правки в первую очередь: <b style="color:var(--good)">(1)</b> добавить зарплату продавца в CAC + стресс-тест churn, <b style="color:var(--good)">(2)</b> разрешить inbound/outbound в TCPA и синхронизировать с value prop, <b style="color:var(--good)">(3)</b> заложить второго продавца/SDR до того, как ёмкость станет горлышком.</p>
+  </div>
+</div>
+</section>
+
+<!-- ================= V3 FINAL ================= -->
+<section class="page" id="v3">
+<div class="wrap">
+  <div class="hero" style="margin-bottom:22px">
+    <span class="tag">Рынок США · Независимые страховые агентства · 2026</span>
+    <h1 style="margin-top:14px">InsurVoice.ai — путь к <span style="color:var(--imp)">50 агентствам</span></h1>
+    <p class="sub">Голосовой AI отвечает на звонки агентства 24/7 и превращает пропущенные обращения в назначенные встречи. Дальше — как за шесть месяцев дойти до 50 платящих независимых агентств в США: сегменты, каналы, экономика и помесячный план.</p>
+  </div>
+
+  <h2>1. Стратегический фокус</h2>
+  <div class="card">
+    <p style="color:var(--mut);font-size:15px;margin:0">Цель — <b style="color:#fff">50 платящих агентств до конца 2026</b> и статус специализированного AI Voice-решения для независимых страховых агентств США. Главное ограничение на старте — не спрос, а скорость поиска работающего канала и первых кейсов. Поэтому основа — прямые продажи и personalized outbound, а продукт продаёт себя через живой звонок с AI. Ключевой принцип коммуникации: <b style="color:var(--ink)">«не рассказывать о продукте, а давать его попробовать»</b>.</p>
+  </div>
+
+  <h2>2. Воронка и фазы роста</h2>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Фаза</th><th>Период</th><th>Цель (накоп.)</th><th>Новые</th><th>Сост. демо</th><th>Назнач. демо</th></tr></thead>
+      <tbody>
+        <tr><td>Фаза 1 · Product-Market Fit</td><td>Июль</td><td>10</td><td>+10</td><td>~40</td><td>~60</td></tr>
+        <tr><td>Фаза 2 · Повторяемая система</td><td>Авг – сен</td><td>25</td><td>+15</td><td>~60</td><td>~90</td></tr>
+        <tr><td>Фаза 3 · Масштабирование</td><td>Окт – дек</td><td>50</td><td>+25</td><td>~100</td><td>~150</td></tr>
+      </tbody>
+      <tfoot><tr><td>Итого</td><td>Июль–Декабрь</td><td>50</td><td>+50</td><td>~200</td><td>~300</td></tr></tfoot>
+    </table>
+  </div>
+  <div class="grid cols-3" style="margin-top:14px">
+    <div class="card"><span class="tag good">Фаза 1</span><h3 style="margin-top:8px">Product-Market Fit</h3>
+      <p>Прямой outbound + Meta (уже даёт лиды) + личные продажи. Максимум разговоров с рынком, первые кейсы и дизайн-партнёры.</p></div>
+    <div class="card"><span class="tag">Фаза 2</span><h3 style="margin-top:8px">Повторяемая система</h3>
+      <p>Кейсы в маркетинг; ретаргетинг, вебинары, медиа, сообщества; старт партнёрств. <b style="color:var(--imp)">Нанимаем SDR/2-го продавца</b>, пока ёмкость не стала горлышком.</p></div>
+    <div class="card"><span class="tag">Фаза 3</span><h3 style="margin-top:8px">Масштабирование</h3>
+      <p>Дистрибуция: партнёрства/кластеры, события, Medicare AEP, реферралы. Масштабируем подтверждённые платные каналы.</p></div>
+  </div>
+
+  <h2>3. ICP — приоритетные сегменты</h2>
+  <div class="grid cols-2">
+    <div class="card"><h3><span class="tag good">Tier 1</span> Независимые P&amp;C (Personal Lines), 2–15 чел.</h3>
+      <ul class="clean">
+        <li>Большой поток входящих и интернет-лидов; скорость ответа = продажа</li>
+        <li>Закупают лиды / инвестируют в рекламу — чувствительны к скорости</li>
+        <li>Новые и быстрорастущие агентства без ресепшн-покрытия</li>
+        <li>Владелец лично отвечает на звонки — боль ощущается ежедневно</li>
+      </ul></div>
+    <div class="card"><h3><span class="tag">Tier 2</span> Для масштабирования</h3>
+      <ul class="clean">
+        <li>Medicare / Health — пик в AEP (15 окт – 7 дек)</li>
+        <li>Commercial Lines — длиннее цикл, меньше входящих</li>
+        <li>Многоофисные — высокий LTV, долгое принятие решений</li>
+      </ul></div>
+  </div>
+
+  <h2>4. Позиционирование, конкуренты, оффер</h2>
+  <div class="grid cols-3">
+    <div class="card"><h3>Потерянные звонки = потерянная выручка</h3><p>Пропущенное обращение — финансовая, а не операционная проблема. Особенно у тех, кто покупает лиды.</p></div>
+    <div class="card"><h3>Голос должен звучать естественно</h3><p>Главное возражение — «робот». Снимается не описанием, а живым звонком с AI.</p></div>
+    <div class="card"><h3>Усиливает команду, а не заменяет</h3><p>Нерабочее время, пики, ситуации когда не успевают ответить. Дополнительный слой покрытия.</p></div>
+  </div>
+  <div class="card" style="margin-top:14px;border-color:#3b63e0">
+    <h3>Почему InsurVoice, а не альтернативы</h3>
+    <p>Реальные конкуренты маленького агентства — не другой стартап, а <b style="color:var(--ink)">answering service за $200–400/мес, оффшорный VA, голосовая почта или «ничего»</b>, а также горизонтальные AI-ресепшены и будущая фича AMS-вендора. Наш угол: <b style="color:var(--ink)">специализация на страховании</b> (сценарии котировок, продлений, claim), качество голоса, которое слышно в первом же звонке, и запуск за 48 часов. Против AMS-вендоров — скорость и глубина сценариев; интеграцию с AMS (Applied Epic, EZLynx, HawkSoft, AMS360) закладываем в продукт.</p>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>Ценообразование</h3>
+    <p>Базовый ARPU ≈ $600/мес. Модель — <b style="color:var(--ink)">фикс за тариф + лимит минут/звонков</b>, сверх лимита — по цене за минуту (покрывает переменные затраты: телефония + LLM). Так маржа предсказуема при росте объёма звонков. Для первых клиентов — спец-условия в обмен на отзыв и кейс.</p>
+  </div>
+
+  <h2>5. Каналы привлечения</h2>
+  <div class="grid cols-3">
+    <div class="card"><span class="tag good">Работает сейчас</span><h3 style="margin-top:8px">Meta (Paid Social)</h3><p>Уже приносит лиды при тестовом спенде ~$100. Первый канал на масштабирование по мере подтверждения CPL и цены демо. Креативы: аудио реальных разговоров AI, before/after, ROI.</p></div>
+    <div class="card"><span class="tag">Повторный тест</span><h3 style="margin-top:8px">LinkedIn Ads (таргет)</h3><p>Возвращаем таргетинг по должностям Agency Owner/Principal — параллельно с органическим founder-led LinkedIn.</p></div>
+    <div class="card"><span class="tag">Ядро outbound</span><h3 style="margin-top:8px">Cold Email</h3><p>Персонализация + привязка к реальному пропущенному звонку. KPI: reply &gt;5%, письмо→демо &gt;0,7%.</p></div>
+    <div class="card"><h3>Демо-номер как канал</h3><p>Публичный номер во всех точках контакта: реклама + квалификация + снятие возражения одним звонком.</p></div>
+    <div class="card"><h3>Google Search</h3><p>«AI receptionist for insurance», «after-hours answering service». KPI: цена демо &lt;$300.</p></div>
+    <div class="card"><h3>Тёплая сеть + Q3/Q4</h3><p>Рекомендации, интро; далее вебинары, подкасты, сообщества → партнёрства, события, реферралы, Medicare AEP.</p></div>
+  </div>
+
+  <h2>6. Юнит-экономика и удержание</h2>
+  <div class="grid cols-2">
+    <div class="card"><h3>Полный CAC — с учётом продаж</h3>
+      <p>Продажи ведёт sales-менеджер — оплачиваемая позиция, и её стоимость входит в полный CAC. Считаем две цифры: только по каналам (~$2 100) и полный, с продажами и прочими расходами (~$2 660). Всё пересчитывается на вкладке «Калькулятор экономики».</p></div>
+    <div class="card"><h3>Удержание — отдельный приоритет</h3>
+      <p>Весь LTV зависит от churn, поэтому планируем при <b style="color:var(--ink)">3 / 5 / 7% в месяц</b> и меряем не только воронку до продажи, но и пользу для клиента: сколько звонков принято, лидов поймано, денег возвращено, как быстро клиент видит результат. Эти же цифры идут в кейсы.</p></div>
+    <div class="card"><h3>Ёмкость продаж</h3>
+      <p>50 сделок ≈ 200 демо плюс онбординг каждого клиента. Одному продавцу это не потянуть — <b style="color:var(--ink)">SDR и второй закрывающий с августа</b>. Объём лидов растим синхронно с тем, сколько успеваем обработать.</p></div>
+    <div class="card"><h3>Целевые ориентиры</h3>
+      <p>LTV/CAC ≥ 3, окупаемость ≤ 12 мес. При ARPU $600, марже ~72% и churn 4% модель здорова даже с учётом продаж. Опасная зона начинается при churn ≥ 6% — поэтому удержание так важно.</p></div>
+  </div>
+
+  <h2>7. Бюджет по фазам</h2>
+  <div class="tblwrap" id="budgetTable-v3"></div>
+  <p class="note" id="budgetNote-v3"></p>
+
+  <h2>8. Метрики и система решений</h2>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Уровень</th><th>Метрика</th><th>Цель</th></tr></thead>
+      <tbody>
+        <tr><td>Лидген</td><td>Email Reply Rate</td><td>&gt;5%</td></tr>
+        <tr><td>Лидген</td><td>Cost per Booked Demo (Paid)</td><td>&lt;$300–400</td></tr>
+        <tr><td>Продажи</td><td>Booked → Completed Demo</td><td>&gt;65%</td></tr>
+        <tr><td>Продажи</td><td>Completed → Closed Won</td><td>&gt;25%</td></tr>
+        <tr><td>Юнит-эк.</td><td>CAC с зарплатой продавца</td><td>&lt;$2 700</td></tr>
+        <tr><td>Удержание</td><td>Monthly Logo Churn</td><td>&lt;4%</td></tr>
+        <tr><td><b style="color:var(--imp)">Ценность (v3)</b></td><td>Звонков принято / лидов поймано / $ возвращено</td><td>трек по каждому клиенту</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">North Star: число назначенных квалифицированных демо в неделю и сделок на их основе. Правило остановки: нет ни одного демо за 2 недели после тестового бюджета → канал на паузу.</p>
+
+  <h2>9. Комплаенс и риски</h2>
+  <div class="grid cols-2">
+    <div class="card"><h3>TCPA и исходящие звонки</h3>
+      <p><b style="color:var(--ink)">Начинаем с входящих:</b> приём звонков, after-hours, пропущенные обращения — низкий риск. Для сценария <b style="color:var(--ink)">быстрого ответа на купленные лиды</b> (это уже исходящие звонки, а FCC с 2024 требует явного согласия для AI-голоса на мобильные) делаем отдельный сбор согласия. Регулярно сверяемся с Do-Not-Call и правилами конкретных штатов.</p></div>
+    <div class="card"><h3>Прочие риски</h3>
+      <ul class="clean">
+        <li><b style="color:var(--ink)">Ёмкость продавца</b> — демо растут быстрее, чем их успевают обрабатывать → найм заранее</li>
+        <li><b style="color:var(--ink)">Длинные партнёрские циклы</b> — переговоры с июля</li>
+        <li><b style="color:var(--ink)">Сезонность</b> — Medicare AEP планируем заранее</li>
+        <li><b style="color:var(--ink)">Fit продавца</b> — US-based, native English, отраслевой бэкграунд</li>
+      </ul></div>
+  </div>
+</div>
+</section>
+
+<!-- ================= CALCULATOR ================= -->
+<section class="page" id="calc">
+<div class="wrap">
+  <h1>Калькулятор юнит-экономики</h1>
+  <p class="sub">Двигайте ползунки — экономика пересчитывается вживую. Отдельно заложены продавцы и другие расходы, чтобы видеть <b style="color:var(--imp)">полный CAC</b>, а не только стоимость каналов. Ниже — чувствительность к churn.</p>
+  <div class="toolbar">
+    <span class="saved" id="calcSaved">💾 значения сохраняются автоматически в этом браузере</span>
+    <button class="tbtn warnb" id="calcReset">Сбросить к базовым</button>
+  </div>
+
+  <div class="calc" style="margin-top:18px">
+    <div class="controls card">
+      <div class="row"><label><span class="lbltxt">ARPU, $/мес<span class="hint" title="Средний доход с одного клиента в месяц (Average Revenue Per User). Влияет на LTV и на срок окупаемости.">?</span></span><b id="v_arpu">600</b></label><input type="range" id="arpu" min="200" max="1200" step="25" value="600"></div>
+      <div class="row"><label><span class="lbltxt">Валовая маржа, %<span class="hint" title="Доля выручки, которая остаётся после переменных расходов (телефония, LLM/минуты). Чем выше маржа, тем больше LTV с той же выручки.">?</span></span><b id="v_gm">72</b></label><input type="range" id="gm" min="40" max="90" step="1" value="72"></div>
+      <div class="row"><label><span class="lbltxt">Месячный logo churn, %<span class="hint" title="Доля клиентов, отваливающихся каждый месяц. Ключевой параметр: чем выше churn, тем короче срок жизни клиента и меньше LTV — от него зависит вся экономика.">?</span></span><b id="v_churn">4</b></label><input type="range" id="churn" min="1" max="10" step="0.5" value="4"></div>
+      <div class="row"><label><span class="lbltxt">Бюджет на каналы за период, $<span class="hint" title="Сколько тратим на рекламу и лидогенерацию (Meta, LinkedIn, email, Google и т.д.) за весь период — без зарплат и прочих расходов.">?</span></span><b id="v_gtm">105 000</b></label><input type="range" id="gtm" min="60000" max="160000" step="5000" value="105000"></div>
+      <div class="row"><label><span class="lbltxt">Клиентов привлечено<span class="hint" title="Сколько новых платящих агентств планируем привлечь за этот период. На это число делится весь бюджет и все расходы при расчёте CAC.">?</span></span><b id="v_cust">50</b></label><input type="range" id="cust" min="30" max="70" step="1" value="50"></div>
+      <hr style="border-color:var(--line)">
+      <div class="row"><label><span class="lbltxt">Продавцов, чел<span class="hint" title="Сколько человек занимается продажами и онбордингом клиентов в этот период. Их зарплата — реальная статья расходов, которая обычно не попадает в GTM-бюджет, но должна быть в CAC.">?</span></span><b id="v_sellers">1</b></label><input type="range" id="sellers" min="0" max="6" step="1" value="1"></div>
+      <div class="row"><label><span class="lbltxt">Зарплата продавца, $/мес<span class="hint" title="Полная стоимость одного продавца в месяц (оклад + налоги/бонусы, по вашей оценке).">?</span></span><b id="v_salary">4 500</b></label><input type="range" id="salary" min="0" max="12000" step="250" value="4500"></div>
+      <div class="row"><label><span class="lbltxt">Период, мес<span class="hint" title="За сколько месяцев считаем расходы на продавцов (обычно совпадает с периодом, за который привлекаются «Клиентов привлечено»).">?</span></span><b id="v_months">6</b></label><input type="range" id="months" min="1" max="12" step="1" value="6"></div>
+      <div class="row"><label><span class="lbltxt">Другие расходы за период, $<span class="hint" title="Любые расходы, которых нет выше: инструменты, аналитика, подрядчики, юрист/комплаенс и т.п. — просто добавляются в полный CAC.">?</span></span><b id="v_other">0</b></label><input type="range" id="other" min="0" max="80000" step="1000" value="0"></div>
+      <p class="note">Полный CAC = (бюджет на каналы + продавцы × зарплата × период + другие расходы) ÷ клиентов. Поставьте продавцов или зарплату в 0, чтобы увидеть CAC только по каналам.</p>
+    </div>
+
+    <div>
+      <div class="out">
+        <div class="o"><div class="n" id="o_cac_sub" style="color:var(--orig)">—</div><div class="l">CAC только по каналам</div></div>
+        <div class="o"><div class="n" id="o_cac_full" style="color:var(--imp)">—</div><div class="l">Полный CAC (каналы + продажи + прочее)</div></div>
+        <div class="o"><div class="n" id="o_ltv">—</div><div class="l">LTV (валовая прибыль)</div></div>
+        <div class="o"><div class="n" id="o_ratio">—</div><div class="l">LTV / CAC (полный)</div></div>
+        <div class="o"><div class="n" id="o_life">—</div><div class="l">Срок жизни клиента, мес</div></div>
+        <div class="o"><div class="n" id="o_pay">—</div><div class="l">Payback (на марже), мес</div></div>
+        <div class="o"><div class="n" id="o_salescost">—</div><div class="l">Продажи + прочее за период</div></div>
+      </div>
+      <div class="verdict" id="verdict"></div>
+
+      <h3 style="margin-top:22px">Чувствительность к churn (при полном CAC)</h3>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>Месячный churn</th><th>Срок жизни, мес</th><th>LTV (маржа)</th><th>LTV / CAC</th><th>Вердикт</th></tr></thead>
+          <tbody id="churn_tbl"></tbody>
+        </table>
+      </div>
+      <p class="note">Ориентир для SaaS: LTV/CAC ≥ 3, окупаемость ≤ 12 мес. Красная зона показывает, где модель ломается, если churn окажется выше 3–4%.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ================= MEDIA PLAN ================= -->
+<section class="page" id="media">
+<div class="wrap">
+  <h1>Медиаплан: июль — декабрь</h1>
+  <p class="sub">По каналам, по всей воронке, включая лиды. Все ячейки <b>Бюджет / Показы / CR1–CR5</b> редактируемые — цифры пересчитываются вживую. Это плановая модель (aggressive base case); подстраивайте под реальные данные каждую неделю.</p>
+
+  <div class="legend">
+    <span><span class="sw" style="background:var(--brand2)"></span> синие столбцы — расчётные</span>
+    <span><b style="color:var(--ink)">CR1</b> показ→клик · <b style="color:var(--ink)">CRл</b> клик→лид · <b style="color:var(--ink)">CPL</b> цена лида (бюджет ÷ лиды) · <b style="color:var(--ink)">CR2</b> лид→букд.демо · <b style="color:var(--ink)">CPA</b> цена букд.демо · <b style="color:var(--ink)">CR3</b> доходимость · <b style="color:var(--ink)">CPA2</b> цена сост.демо · <b style="color:var(--ink)">CR4</b> →контракт выслан · <b style="color:var(--ink)">CR5</b> →подписан</span>
+  </div>
+
+  <div class="toolbar">
+    <span class="saved" id="planSaved">💾 изменения сохраняются автоматически в этом браузере</span>
+    <button class="tbtn" id="planExport">⬇ Экспорт всех данных (.json)</button>
+    <label class="tbtn">⬆ Импорт<input type="file" id="planImport" accept="application/json,.json" hidden></label>
+    <button class="tbtn warnb" id="planReset">Сбросить к плану</button>
+  </div>
+  <p class="note" style="margin-top:0">Данные хранятся локально в вашем браузере (не на сервере). «Экспорт» сохраняет калькулятор + медиаплан в файл — им можно перенести цифры на другой компьютер через «Импорт».</p>
+
+  <div class="monthtabs" id="monthtabs"></div>
+
+  <div class="tblwrap">
+    <table id="mptable">
+      <thead><tr>
+        <th>Канал</th><th>Бюджет $</th><th>Показы</th><th>CR1</th><th>Клики</th><th>CRл</th><th>Лиды</th><th>CPL $</th>
+        <th>CR2</th><th>Букд.<br>демо</th><th>CPA $</th><th>CR3</th><th>Сост.<br>демо</th><th>CPA2 $</th>
+        <th>CR4</th><th>Контракт<br>выслан</th><th>CR5</th><th>Подпи-<br>сано</th><th></th>
+      </tr></thead>
+      <tbody id="mpbody"></tbody>
+      <tfoot id="mpfoot"></tfoot>
+    </table>
+  </div>
+  <p class="note" id="mpnote"></p>
+
+  <h2>Сводка по месяцам</h2>
+  <div class="tblwrap">
+    <table id="summary">
+      <thead><tr><th>Месяц</th><th>Бюджет $</th><th>Букд.демо</th><th>Сост.демо</th><th>Подписано</th><th>CAC $ (GTM)</th><th>Накопит. клиентов</th></tr></thead>
+      <tbody id="sumbody"></tbody>
+      <tfoot id="sumfoot"></tfoot>
+    </table>
+  </div>
+  <p class="note">CAC здесь — только GTM/канальный бюджет ÷ подписания (без времени фаундера). Реальный CAC см. во вкладке «Калькулятор экономики».</p>
+</div>
+</section>
+
+<script>
+// ---------- tab nav ----------
+document.querySelectorAll('nav.tabs button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('section.page').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById(b.dataset.tab).classList.add('active');
+    window.scrollTo(0,0);
+  };
+});
+
+// ---------- economics calculator ----------
+const E={arpu:'arpu',gm:'gm',churn:'churn',gtm:'gtm',cust:'cust',fh:'fh',fr:'fr'};
+function money(n){return '$'+Math.round(n).toLocaleString('ru-RU').replace(/,/g,' ');}
+function calcEcon(){
+  const arpu=+arpu_i.value, gm=+gm_i.value/100, churn=+churn_i.value/100,
+        gtm=+gtm_i.value, cust=+cust_i.value,
+        sellers=+sellers_i.value, salary=+salary_i.value, months=+months_i.value, other=+other_i.value;
+  v_arpu.textContent=arpu; v_gm.textContent=gm*100|0; v_churn.textContent=(+churn_i.value);
+  v_gtm.textContent=(gtm).toLocaleString('ru-RU').replace(/,/g,' ');
+  v_cust.textContent=cust; v_sellers.textContent=sellers; v_months.textContent=months;
+  v_salary.textContent=salary.toLocaleString('ru-RU').replace(/,/g,' ');
+  v_other.textContent=other.toLocaleString('ru-RU').replace(/,/g,' ');
+  const cacSub=cust>0?gtm/cust:0;
+  const salesCost=sellers*salary*months;
+  const cacFull=cust>0?(gtm+salesCost+other)/cust:0;
+  const life=1/churn;
+  const ltv=arpu*gm*life;
+  const ratio=cacFull>0?ltv/cacFull:0;
+  const payback=cacFull/(arpu*gm);
+  o_cac_sub.textContent=money(cacSub);
+  o_cac_full.textContent=money(cacFull);
+  o_salescost.textContent=money(salesCost+other);
+  o_ltv.textContent=money(ltv);
+  o_ratio.textContent=ratio.toFixed(1)+'×';
+  o_life.textContent=Math.round(life);
+  o_pay.textContent=payback.toFixed(1);
+  const vv=document.getElementById('verdict');
+  if(ratio>=3 && payback<=12){vv.style.background='#0f2a20';vv.style.color='var(--good)';vv.style.border='1px solid #1f5641';
+    vv.textContent='✔ Здоровая экономика: LTV/CAC '+ratio.toFixed(1)+'× и payback '+payback.toFixed(1)+' мес — модель масштабируема с учётом всех расходов.';}
+  else if(ratio>=2){vv.style.background='#2a2310';vv.style.color='var(--warn)';vv.style.border='1px solid #5a4a17';
+    vv.textContent='⚠ Пограничная зона: LTV/CAC '+ratio.toFixed(1)+'×. С учётом продаж и прочих расходов запаса почти нет. Снижайте churn или растите ARPU.';}
+  else{vv.style.background='#2a1414';vv.style.color='var(--bad)';vv.style.border='1px solid #5a2323';
+    vv.textContent='✖ Модель не сходится: LTV/CAC '+ratio.toFixed(1)+'×. С полными затратами масштабирование убыточно.';}
+  // churn sensitivity
+  const tb=document.getElementById('churn_tbl'); tb.innerHTML='';
+  [0.03,0.04,0.05,0.06,0.07].forEach(c=>{
+    const l=1/c, lt=arpu*gm*l, r=lt/cacFull;
+    let cls='', txt='';
+    if(r>=3){cls='good';txt='здорово';} else if(r>=2){cls='warn';txt='погранич-но';} else {cls='bad';txt='ломается';}
+    tb.insertAdjacentHTML('beforeend',
+      '<tr><td>'+Math.round(c*100)+'%</td><td>'+Math.round(l)+'</td><td>'+money(lt)+'</td><td>'+r.toFixed(1)+'×</td><td><span class="tag '+cls+'">'+txt+'</span></td></tr>');
+  });
+}
+const arpu_i=document.getElementById('arpu'),gm_i=document.getElementById('gm'),churn_i=document.getElementById('churn'),
+  gtm_i=document.getElementById('gtm'),cust_i=document.getElementById('cust'),
+  sellers_i=document.getElementById('sellers'),salary_i=document.getElementById('salary'),
+  months_i=document.getElementById('months'),other_i=document.getElementById('other');
+const CALC_INPUTS=[arpu_i,gm_i,churn_i,gtm_i,cust_i,sellers_i,salary_i,months_i,other_i];
+const CALC_KEY='iv_calc_v2';
+const CALC_DEFAULTS={arpu:600,gm:72,churn:4,gtm:105000,cust:50,sellers:1,salary:4500,months:6,other:0};
+function saveCalc(){try{const o={};CALC_INPUTS.forEach(i=>o[i.id]=i.value);localStorage.setItem(CALC_KEY,JSON.stringify(o));}catch(e){}}
+function loadCalc(){try{const d=JSON.parse(localStorage.getItem(CALC_KEY));if(d)CALC_INPUTS.forEach(i=>{if(d[i.id]!=null)i.value=d[i.id];});}catch(e){}}
+function setCalcDefaults(){CALC_INPUTS.forEach(i=>i.value=CALC_DEFAULTS[i.id]);}
+CALC_INPUTS.forEach(i=>i.addEventListener('input',()=>{calcEcon();saveCalc();}));
+document.getElementById('calcReset').onclick=()=>{localStorage.removeItem(CALC_KEY);setCalcDefaults();calcEcon();flash('calcSaved','Сброшено к базовым ✓');};
+loadCalc(); calcEcon();
+
+// small "saved" flash helper (shared)
+let _flashT;
+function flash(id,msg){const el=document.getElementById(id);if(!el)return;const orig=el.dataset.orig||(el.dataset.orig=el.textContent);
+  el.textContent=msg;el.classList.add('flash');clearTimeout(_flashT);
+  _flashT=setTimeout(()=>{el.textContent=orig;el.classList.remove('flash');},1800);}
+
+// ---------- media plan ----------
+const MONTHS=['Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+// r = [cr1 показ→клик, crL клик→лид, cr2 лид→букд.демо, cr3 доходимость, cr4 →контракт, cr5 →подписан]
+const CH=[
+  {n:'Meta (Paid Social)',   b:[1600,3300,3300,4800,4800,4800],  im:[60000,120000,120000,150000,150000,150000], r:[0.007,0.22,0.045,0.60,0.55,0.38]},
+  {n:'LinkedIn Ads (таргет)',b:[600,1500,1500,1800,1800,1800],   im:[8000,18000,18000,24000,24000,24000],  r:[0.008,0.25,0.06,0.62,0.55,0.40]},
+  {n:'Cold Email',           b:[2800,3800,3800,4200,4200,4200],  im:[6000,6500,6500,7000,7000,7000],       r:[0.033,0.85,0.112,0.65,0.60,0.32]},
+  {n:'LinkedIn (founder)',   b:[800,1200,1200,1500,1500,1500],   im:[850,950,950,1000,1000,1000],         r:[0.20,0.70,0.071,0.65,0.60,0.40]},
+  {n:'Тёплая сеть / реферал',b:[200,300,400,500,800,1000],       im:[24,28,30,34,40,46],                   r:[0.70,0.85,0.53,0.80,0.70,0.45]},
+  {n:'Google Search',        b:[1200,1800,1800,2200,2200,2200],  im:[3200,3600,3600,4000,4000,4000],       r:[0.045,0.30,0.08,0.65,0.60,0.42]},
+  {n:'Вебинары / демо',      b:[400,750,750,1100,1100,1100],     im:[0,280,280,380,380,380],               r:[0.12,0.40,0.45,0.70,0.60,0.42]},
+  {n:'Подкасты / медиа',     b:[400,1200,1200,1300,1300,1300],   im:[3500,7000,7000,8500,8500,8500],       r:[0.008,0.25,0.06,0.65,0.60,0.42]},
+  {n:'Партнёрства / события',b:[0,750,750,4400,4400,4400],       im:[0,30,30,140,160,180],                 r:[0.20,0.35,0.371,0.75,0.65,0.48]}
+];
+// per-channel per-month editable state (with localStorage persistence)
+const PLAN_KEY='iv_plan_v2';
+function freshState(){return CH.map(c=>c.b.map((_,mi)=>({budget:c.b[mi],impr:c.im[mi],cr1:c.r[0],crL:c.r[1],cr2:c.r[2],cr3:c.r[3],cr4:c.r[4],cr5:c.r[5]})));}
+const STATE=freshState();
+function savePlan(){try{localStorage.setItem(PLAN_KEY,JSON.stringify(STATE));}catch(e){}renderBudgetTables();}
+function renderBudgetTables(){
+  const groups=[{label:'Phase 1 (июль)',idx:[0]},{label:'Phase 2 (авг–сен, ~/мес)',idx:[1,2]},{label:'Phase 3 (Q4, ~/мес)',idx:[3,4,5]}];
+  const phaseMonthly=groups.map(g=>{
+    let sum=0; CH.forEach((c,ci)=>{g.idx.forEach(mi=>sum+=STATE[ci][mi].budget);});
+    return sum/g.idx.length;
+  });
+  let rows='', totalAll=0;
+  CH.forEach((c,ci)=>{
+    let cells='';
+    groups.forEach((g,gi)=>{
+      let sum=0; g.idx.forEach(mi=>sum+=STATE[ci][mi].budget);
+      const avg=sum/g.idx.length;
+      const pct=phaseMonthly[gi]>0?Math.round(avg/phaseMonthly[gi]*100):0;
+      cells+='<td>'+pct+'% · $'+(avg/1000).toFixed(1)+'K</td>';
+    });
+    let tag='';
+    if(c.n.indexOf('Meta')===0)tag=' <span class="tag good">работает сейчас</span>';
+    else if(c.n.indexOf('LinkedIn Ads')===0)tag=' <span class="tag">повторный тест</span>';
+    rows+='<tr><td>'+c.n+tag+'</td>'+cells+'</tr>';
+    STATE[ci].forEach(s=>totalAll+=s.budget);
+  });
+  const totalRow='<tr><td><b>Итого / мес</b></td>'+phaseMonthly.map(v=>'<td><b>$'+(v/1000).toFixed(1)+'K</b></td>').join('')+'</tr>';
+  const html='<table><thead><tr><th>Статья</th>'+groups.map(g=>'<th>'+g.label+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody><tfoot>'+totalRow+'</tfoot></table>';
+  ['original','v3'].forEach(id=>{
+    const el=document.getElementById('budgetTable-'+id);
+    if(el)el.innerHTML=html;
+    const note=document.getElementById('budgetNote-'+id);
+    if(note)note.innerHTML='Итого GTM за июль–декабрь ≈ <b style="color:var(--ink)">$'+fmt(totalAll)+'</b> — считается автоматически по цифрам из медиаплана (вкладка «Медиаплан VII–XII»); поменяете бюджет там — обновится и здесь.';
+  });
+}
+function applyPlan(src){for(let i=0;i<STATE.length;i++)for(let m=0;m<STATE[i].length;m++)if(src[i]&&src[i][m])Object.assign(STATE[i][m],src[i][m]);}
+function loadPlan(){try{const d=JSON.parse(localStorage.getItem(PLAN_KEY));if(Array.isArray(d)&&d.length===STATE.length)applyPlan(d);}catch(e){}}
+loadPlan();
+let curM=0;
+
+// month tabs
+const mt=document.getElementById('monthtabs');
+MONTHS.forEach((m,i)=>{
+  const b=document.createElement('button'); b.textContent=m; if(i===0)b.classList.add('active');
+  b.onclick=()=>{curM=i;[...mt.children].forEach(x=>x.classList.remove('active'));b.classList.add('active');renderMonth();};
+  mt.appendChild(b);
+});
+
+function pctv(x){return Math.round(x*10000)/100;}
+function fmt(n){return Math.round(n).toLocaleString('ru-RU').replace(/,/g,' ');}
+function fmt1(n){return (Math.round(n*10)/10).toLocaleString('ru-RU');}
+function pct(n){return (Math.round(n*1000)/10)+'%';}
+function compute(s){
+  const clicks=s.impr*s.cr1;
+  const leads=clicks*s.crL;
+  const cpl=leads>0?s.budget/leads:0;
+  const booked=leads*s.cr2;
+  const cpa=booked>0?s.budget/booked:0;
+  const completed=booked*s.cr3;
+  const cpa2=completed>0?s.budget/completed:0;
+  const sent=completed*s.cr4;
+  const signed=sent*s.cr5;
+  return {clicks,leads,cpl,booked,cpa,completed,cpa2,sent,signed};
+}
+function inp(val,field,ci,cls){
+  return '<input class="mp-in '+(cls||'')+'" data-ci="'+ci+'" data-f="'+field+'" value="'+val+'">';
+}
+function renderMonth(){
+  const body=document.getElementById('mpbody'); body.innerHTML='';
+  let T={budget:0,impr:0,clicks:0,leads:0,booked:0,completed:0,sent:0,signed:0};
+  CH.forEach((c,ci)=>{
+    const s=STATE[ci][curM]; const r=compute(s);
+    T.budget+=s.budget;T.impr+=s.impr;T.clicks+=r.clicks;T.leads+=r.leads;T.booked+=r.booked;T.completed+=r.completed;T.sent+=r.sent;T.signed+=r.signed;
+    body.insertAdjacentHTML('beforeend',
+      '<tr><td>'+c.n+'</td>'+
+      '<td>'+inp(s.budget,'budget',ci)+'</td>'+
+      '<td>'+inp(s.impr,'impr',ci)+'</td>'+
+      '<td>'+inp(pctv(s.cr1),'cr1',ci,'pct')+'%</td>'+
+      '<td class="calc-cell">'+fmt(r.clicks)+'</td>'+
+      '<td>'+inp(pctv(s.crL),'crL',ci,'pct')+'%</td>'+
+      '<td class="calc-cell">'+fmt(r.leads)+'</td>'+
+      '<td class="calc-cell">$'+fmt(r.cpl)+'</td>'+
+      '<td>'+inp(pctv(s.cr2),'cr2',ci,'pct')+'%</td>'+
+      '<td class="calc-cell">'+fmt(r.booked)+'</td>'+
+      '<td class="calc-cell">$'+fmt(r.cpa)+'</td>'+
+      '<td>'+inp(pctv(s.cr3),'cr3',ci,'pct')+'%</td>'+
+      '<td class="calc-cell">'+fmt(r.completed)+'</td>'+
+      '<td class="calc-cell">$'+fmt(r.cpa2)+'</td>'+
+      '<td>'+inp(pctv(s.cr4),'cr4',ci,'pct')+'%</td>'+
+      '<td class="calc-cell">'+fmt(r.sent)+'</td>'+
+      '<td>'+inp(pctv(s.cr5),'cr5',ci,'pct')+'%</td>'+
+      '<td class="calc-cell" style="color:var(--good);font-weight:700">'+fmt(r.signed)+'</td>'+
+      '<td><button class="mp-zero" data-ci="'+ci+'" title="Обнулить бюджет и показы этого канала в '+MONTHS[curM]+'">✕ 0</button></td></tr>');
+  });
+  const foot=document.getElementById('mpfoot');
+  const bCR1=T.impr>0?T.clicks/T.impr:0, bCRL=T.clicks>0?T.leads/T.clicks:0, bCPL=T.leads>0?T.budget/T.leads:0,
+        bCR2=T.leads>0?T.booked/T.leads:0, blendedCpa=T.booked>0?T.budget/T.booked:0,
+        bCR3=T.booked>0?T.completed/T.booked:0, bCPA2=T.completed>0?T.budget/T.completed:0,
+        bCR4=T.completed>0?T.sent/T.completed:0, bCR5=T.sent>0?T.signed/T.sent:0,
+        blendedCac=T.signed>0?T.budget/T.signed:0;
+  foot.innerHTML='<tr><td>ИТОГО '+MONTHS[curM]+'</td><td>$'+fmt(T.budget)+'</td><td>'+fmt(T.impr)+'</td>'+
+    '<td>'+pctv(bCR1)+'%</td><td>'+fmt(T.clicks)+'</td><td>'+pctv(bCRL)+'%</td><td>'+fmt(T.leads)+'</td><td>$'+fmt(bCPL)+'</td>'+
+    '<td>'+pctv(bCR2)+'%</td><td>'+fmt(T.booked)+'</td><td>$'+fmt(blendedCpa)+'</td>'+
+    '<td>'+pctv(bCR3)+'%</td><td>'+fmt(T.completed)+'</td><td>$'+fmt(bCPA2)+'</td>'+
+    '<td>'+pctv(bCR4)+'%</td><td>'+fmt(T.sent)+'</td><td>'+pctv(bCR5)+'%</td><td>'+fmt(T.signed)+'</td><td></td></tr>';
+  document.getElementById('mpnote').innerHTML='В строке ИТОГО проценты (CR) и стоимости (CPL/CPA) — <b>взвешенные</b> по всем каналам, а не сумма. CPL считается на лиды, не на клики: <b>$'+fmt(bCPL)+'</b> за лид. Blended CPA демо: <b>$'+fmt(blendedCpa)+'</b> · Blended CAC (канальный бюджет ÷ подписания): <b>$'+fmt(blendedCac)+'</b>.';
+  // rebind inputs
+  document.querySelectorAll('#mpbody .mp-in').forEach(el=>{
+    el.addEventListener('change',e=>{
+      const ci=+el.dataset.ci, f=el.dataset.f; let v=parseFloat(el.value.replace(',','.'))||0;
+      if(f.startsWith('cr'))v=v/100;
+      STATE[ci][curM][f]=v; savePlan(); renderMonth(); renderSummary();
+      flash('planSaved','💾 сохранено ✓');
+    });
+  });
+  document.querySelectorAll('#mpbody .mp-zero').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const ci=+el.dataset.ci;
+      STATE[ci][curM].budget=0; STATE[ci][curM].impr=0;
+      savePlan(); renderMonth(); renderSummary();
+      flash('planSaved','✕ канал обнулён на '+MONTHS[curM]+' ✓');
+    });
+  });
+}
+function renderSummary(){
+  const sb=document.getElementById('sumbody'); sb.innerHTML='';
+  let cum=0, GT={b:0,bk:0,co:0,si:0};
+  MONTHS.forEach((m,mi)=>{
+    let b=0,bk=0,co=0,si=0;
+    CH.forEach((c,ci)=>{const r=compute(STATE[ci][mi]);b+=STATE[ci][mi].budget;bk+=r.booked;co+=r.completed;si+=r.signed;});
+    cum+=si; GT.b+=b;GT.bk+=bk;GT.co+=co;GT.si+=si;
+    const cac=si>0?b/si:0;
+    sb.insertAdjacentHTML('beforeend','<tr><td>'+m+'</td><td>$'+fmt(b)+'</td><td>'+fmt(bk)+'</td><td>'+fmt(co)+
+      '</td><td style="color:var(--good);font-weight:700">'+fmt(si)+'</td><td>$'+fmt(cac)+'</td><td><b>'+fmt(cum)+'</b></td></tr>');
+  });
+  const gcac=GT.si>0?GT.b/GT.si:0;
+  document.getElementById('sumfoot').innerHTML='<tr><td>ИТОГО</td><td>$'+fmt(GT.b)+'</td><td>'+fmt(GT.bk)+
+    '</td><td>'+fmt(GT.co)+'</td><td>'+fmt(GT.si)+'</td><td>$'+fmt(gcac)+'</td><td>'+fmt(Math.round(GT.si))+'</td></tr>';
+}
+renderMonth(); renderSummary(); renderBudgetTables();
+
+// ---------- reset / export / import ----------
+document.getElementById('planReset').onclick=()=>{
+  if(!confirm('Сбросить медиаплан к исходным цифрам? Ваши правки будут удалены.'))return;
+  localStorage.removeItem(PLAN_KEY); applyPlan(freshState()); renderMonth(); renderSummary(); renderBudgetTables();
+  flash('planSaved','↺ сброшено к плану ✓');
+};
+document.getElementById('planExport').onclick=()=>{
+  const snap={version:1,exported:new Date().toISOString(),
+    calc:(()=>{try{return JSON.parse(localStorage.getItem(CALC_KEY));}catch(e){return null;}})(),
+    plan:STATE};
+  const blob=new Blob([JSON.stringify(snap,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='insurvoice-data-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  flash('planSaved','⬇ файл выгружен ✓');
+};
+document.getElementById('planImport').onchange=(e)=>{
+  const file=e.target.files[0]; if(!file)return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+    const d=JSON.parse(rd.result);
+    if(d.plan&&Array.isArray(d.plan)){applyPlan(d.plan);savePlan();renderMonth();renderSummary();}
+    if(d.calc){localStorage.setItem(CALC_KEY,JSON.stringify(d.calc));loadCalc();calcEcon();}
+    flash('planSaved','⬆ импортировано ✓');
+  }catch(err){alert('Не удалось прочитать файл: '+err.message);} };
+  rd.readAsText(file); e.target.value='';
+};
+</script>
+</body>
+</html>

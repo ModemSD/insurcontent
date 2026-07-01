@@ -572,5 +572,49 @@ export async function logoutAction() {
   }
 }
 
+export async function getMediaPlanSettings() {
+  try {
+    const { data, error } = await supabase
+      .from('mediaplan_settings')
+      .select('*')
+      .eq('id', 'default')
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // PGRST116 is postgrest code for 0 rows returned, which is expected before first save
+        return { success: true, data: null };
+      }
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Error fetching media plan settings' };
+  }
+}
+
+export async function saveMediaPlanSettings(calcData: any, planData: any) {
+  try {
+    const { error } = await supabase
+      .from('mediaplan_settings')
+      .upsert({
+        id: 'default',
+        calc_data: calcData,
+        plan_data: planData,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Error saving media plan settings' };
+  }
+}
+
+
 
 

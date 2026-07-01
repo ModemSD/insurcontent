@@ -36,3 +36,19 @@ WITH CHECK (true);
 CREATE INDEX IF NOT EXISTS idx_raw_content_viral_score ON raw_content (viral_score DESC);
 CREATE INDEX IF NOT EXISTS idx_raw_content_source ON raw_content (source);
 CREATE INDEX IF NOT EXISTS idx_raw_content_created_at ON raw_content (created_at DESC);
+
+-- Create mediaplan_settings table to store the economics calculator and media plan state
+CREATE TABLE IF NOT EXISTS mediaplan_settings (
+    id TEXT PRIMARY KEY,
+    calc_data JSONB NOT NULL,
+    plan_data JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE mediaplan_settings ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for public access (anon and authenticated users)
+CREATE POLICY "Allow read access" ON mediaplan_settings FOR SELECT USING (true);
+CREATE POLICY "Allow insert access" ON mediaplan_settings FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access" ON mediaplan_settings FOR UPDATE USING (true) WITH CHECK (true);
