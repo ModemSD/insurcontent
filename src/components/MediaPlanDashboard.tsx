@@ -195,18 +195,20 @@ export default function MediaPlanDashboard({
     triggerFlash(`✕ канал обнулён на ${MONTHS[curMonth]} ✓`);
   };
 
-  // Toggle channel muting globally (for all months)
+  // Toggle channel muting for current month only
   const handleToggleMute = (ci: number) => {
     setPlanState(prev => {
-      const isCurrentlyMuted = prev[ci][curMonth]?.muted || false;
       const next = prev.map((ch, cIndex) => {
         if (cIndex !== ci) return ch;
-        return ch.map(m => ({ ...m, muted: !isCurrentlyMuted }));
+        return ch.map((m, mIndex) => {
+          if (mIndex !== curMonth) return m;
+          return { ...m, muted: !m.muted };
+        });
       });
       return next;
     });
     const isMutedNow = !(planState[ci][curMonth]?.muted || false);
-    triggerFlash(`Линейка канала ${isMutedNow ? 'приглушена' : 'активирована'} ✓`);
+    triggerFlash(`Канал ${isMutedNow ? 'приглушён' : 'активирован'} на ${MONTHS[curMonth]} ✓`);
   };
 
   // Export to JSON
