@@ -1487,7 +1487,7 @@ export default function MediaPlanDashboard({
                   <th>Канал</th>
                   <th>Бюджет $</th>
                   <th>Показы</th>
-                  <th>CTR (CR1)</th>
+                  <th>CTR</th>
                   <th>Клики</th>
                   <th>CPC $</th>
                   <th>CRл</th>
