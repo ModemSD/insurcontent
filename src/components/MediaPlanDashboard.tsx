@@ -123,6 +123,7 @@ export default function MediaPlanDashboard({
 
   const [flashMessage, setFlashMessage] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [copiedState, setCopiedState] = useState<ChannelMonthState | null>(null);
   const isFirstRender = useRef(true);
 
   // Debounced auto-save hook to Supabase database
@@ -209,6 +210,38 @@ export default function MediaPlanDashboard({
     });
     const isMutedNow = !(planState[ci][curMonth]?.muted || false);
     triggerFlash(`Канал ${isMutedNow ? 'приглушён' : 'активирован'} на ${MONTHS[curMonth]} ✓`);
+  };
+
+  // Copy row data (budget, cpc, CTR, and all CRs)
+  const handleCopyRow = (ci: number) => {
+    setCopiedState({ ...planState[ci][curMonth] });
+    triggerFlash(`Данные ${CH[ci].n} скопированы ✓`);
+  };
+
+  // Paste copied data to row
+  const handlePasteRow = (ci: number) => {
+    if (!copiedState) return;
+    setPlanState(prev => {
+      const next = prev.map((ch, cIndex) => {
+        if (cIndex !== ci) return ch;
+        return ch.map((m, mIndex) => {
+          if (mIndex !== curMonth) return m;
+          return {
+            ...m,
+            budget: copiedState.budget,
+            cpc: copiedState.cpc,
+            cr1: copiedState.cr1,
+            crL: copiedState.crL,
+            cr2: copiedState.cr2,
+            cr3: copiedState.cr3,
+            cr4: copiedState.cr4,
+            cr5: copiedState.cr5
+          };
+        });
+      });
+      return next;
+    });
+    triggerFlash(`Данные вставлены в ${CH[ci].n} ✓`);
   };
 
   // Export to JSON
@@ -1645,6 +1678,24 @@ export default function MediaPlanDashboard({
                     <td className="calc-cell" style={{ color: 'var(--good)', fontWeight: 700 }}>{fmt(row.r.signed)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '5px', alignItems: 'center', justifyContent: 'flex-end' }}>
+                        <button
+                          className="mp-zero"
+                          onClick={() => handleCopyRow(row.ci)}
+                          title="Копировать строку (бюджет, CPC, CTR, конверсии)"
+                          style={{ padding: '5px 7px' }}
+                        >
+                          📋
+                        </button>
+                        {copiedState && (
+                          <button
+                            className="mp-zero"
+                            onClick={() => handlePasteRow(row.ci)}
+                            title="Вставить скопированные данные в эту строку"
+                            style={{ padding: '5px 7px', borderColor: 'var(--good)', color: 'var(--good)', background: 'rgba(52,211,153,.04)' }}
+                          >
+                            📥
+                          </button>
+                        )}
                         <button
                           className={`mp-mute ${row.s.muted ? 'active' : ''}`}
                           onClick={() => handleToggleMute(row.ci)}
