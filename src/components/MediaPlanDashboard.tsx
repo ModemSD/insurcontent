@@ -18,6 +18,7 @@ interface CalcInputs {
 interface ChannelMonthState {
   budget: number;
   impr: number;
+  cpc: number;
   cr1: number;
   crL: number;
   cr2: number;
@@ -61,16 +62,24 @@ const CALC_DEFAULTS: CalcInputs = {
 
 function freshState(): PlanState {
   return CH.map(c =>
-    c.b.map((_, mi) => ({
-      budget: c.b[mi],
-      impr: c.im[mi],
-      cr1: c.r[0],
-      crL: c.r[1],
-      cr2: c.r[2],
-      cr3: c.r[3],
-      cr4: c.r[4],
-      cr5: c.r[5]
-    }))
+    c.b.map((_, mi) => {
+      const budget = c.b[mi];
+      const impr = c.im[mi];
+      const cr1 = c.r[0];
+      const clicks = impr * cr1;
+      const cpc = clicks > 0 ? budget / clicks : 0;
+      return {
+        budget,
+        impr,
+        cpc,
+        cr1,
+        crL: c.r[1],
+        cr2: c.r[2],
+        cr3: c.r[3],
+        cr4: c.r[4],
+        cr5: c.r[5]
+      };
+    })
   );
 }
 
@@ -97,7 +106,16 @@ export default function MediaPlanDashboard({
   const [calcInputs, setCalcInputs] = useState<CalcInputs>(() => initialCalcData || CALC_DEFAULTS);
   const [planState, setPlanState] = useState<PlanState>(() => {
     if (initialPlanData && Array.isArray(initialPlanData) && initialPlanData.length === CH.length) {
-      return initialPlanData;
+      return initialPlanData.map((ch, ci) => 
+        ch.map((m, mi) => {
+          const clicks = m.impr * m.cr1;
+          const defaultCpc = clicks > 0 ? m.budget / clicks : 0;
+          return {
+            ...m,
+            cpc: typeof m.cpc === 'number' ? m.cpc : defaultCpc
+          };
+        })
+      );
     }
     return freshState();
   });
@@ -218,8 +236,8 @@ export default function MediaPlanDashboard({
 
   // Math Helper for Channel Calculations
   const computeChannelMetrics = (s: ChannelMonthState) => {
-    const clicks = s.impr * s.cr1;
-    const cpc = clicks > 0 ? s.budget / clicks : 0;
+    const clicks = s.cpc > 0 ? s.budget / s.cpc : 0;
+    const impr = s.cr1 > 0 ? clicks / s.cr1 : 0;
     const leads = clicks * s.crL;
     const cpl = leads > 0 ? s.budget / leads : 0;
     const booked = leads * s.cr2;
@@ -228,7 +246,7 @@ export default function MediaPlanDashboard({
     const cpa2 = completed > 0 ? s.budget / completed : 0;
     const sent = completed * s.cr4;
     const signed = sent * s.cr5;
-    return { clicks, cpc, leads, cpl, booked, cpa, completed, cpa2, sent, signed };
+    return { impr, clicks, cpc: s.cpc, leads, cpl, booked, cpa, completed, cpa2, sent, signed };
   };
 
   // 1. Economics Calculations
@@ -305,7 +323,7 @@ export default function MediaPlanDashboard({
     const s = planState[ci][curMonth];
     const r = computeChannelMetrics(s);
     curMonthBudget += s.budget;
-    curMonthImpr += s.impr;
+    curMonthImpr += r.impr;
     curMonthClicks += r.clicks;
     curMonthLeads += r.leads;
     curMonthBooked += r.booked;
@@ -1520,14 +1538,7 @@ export default function MediaPlanDashboard({
                         onBlur={(e) => handleCellBlur(row.ci, 'budget', e.target.value)}
                       />
                     </td>
-                    <td>
-                      <input
-                        className="mp-in"
-                        key={`im-${row.ci}-${curMonth}-${row.s.impr}`}
-                        defaultValue={row.s.impr}
-                        onBlur={(e) => handleCellBlur(row.ci, 'impr', e.target.value)}
-                      />
-                    </td>
+                    <td className="calc-cell">{fmt(row.r.impr)}</td>
                     <td>
                       <input
                         className="mp-in pct"
@@ -1539,8 +1550,13 @@ export default function MediaPlanDashboard({
                     </td>
                     
                     <td className="calc-cell">{fmt(row.r.clicks)}</td>
-                    <td className="calc-cell">
-                      {row.r.cpc > 0 ? `$${row.r.cpc.toFixed(2)}` : '$0.00'}
+                    <td>
+                      <input
+                        className="mp-in"
+                        key={`cpc-${row.ci}-${curMonth}-${row.s.cpc}`}
+                        defaultValue={row.s.cpc.toFixed(2)}
+                        onBlur={(e) => handleCellBlur(row.ci, 'cpc', e.target.value)}
+                      />
                     </td>
                     
                     <td>
