@@ -13,6 +13,7 @@ interface CalcInputs {
   salary: number;
   months: number;
   other: number;
+  startClients?: number;
 }
 
 interface ChannelMonthState {
@@ -33,6 +34,17 @@ type PlanState = ChannelMonthState[][];
 interface MediaPlanDashboardProps {
   initialCalcData: CalcInputs | null;
   initialPlanData: PlanState | null;
+}
+
+interface RoadmapTask {
+  id: string;
+  month: string;
+  phase: string;
+  initiative: string;
+  source?: string;
+  type?: string;
+  comment?: string;
+  completed: boolean;
 }
 
 const MONTHS = ['Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
@@ -58,31 +70,203 @@ const CALC_DEFAULTS: CalcInputs = {
   sellers: 1,
   salary: 4500,
   months: 6,
-  other: 0
+  other: 0,
+  startClients: 0
 };
 
-function freshState(): PlanState {
-  return CH.map(c =>
-    c.b.map((_, mi) => {
-      const budget = c.b[mi];
-      const impr = c.im[mi];
-      const cr1 = c.r[0];
-      const clicks = impr * cr1;
-      const cpc = clicks > 0 ? budget / clicks : 0;
-      return {
+function defaultStateForScenario(scenarioName: 'realistic' | 'optimistic' | 'pessimistic'): PlanState {
+  const plan: PlanState = [];
+  
+  for (let c = 0; c < 9; c++) {
+    const chName = CH[c].n;
+    const monthsData: ChannelMonthState[] = [];
+    
+    for (let m = 0; m < 6; m++) {
+      let budget = 0;
+      let cpc = 0;
+      let cr1 = 0; // CTR
+      let crL = 0; // CRл
+      let cr2 = 0; // CR2
+      let cr3 = 0; // CR3
+      let cr4 = 0; // CR4
+      let cr5 = 0; // CR5
+      let muted = false;
+      
+      if (scenarioName === 'realistic') {
+        if (chName === 'Meta (Paid Social)') {
+          const budgets = [3500, 4500, 4500, 7000, 7000, 7000];
+          budget = budgets[m];
+          cpc = 3.50; cr1 = 0.018; crL = 0.05;
+          cr2 = m === 0 ? 0.36 : 0.34; cr3 = m === 0 ? 0.72 : 0.70; cr4 = 0.60; cr5 = m === 0 ? 0.43 : (m < 3 ? 0.40 : 0.44);
+        } else if (chName === 'LinkedIn Ads (таргет)') {
+          if (m !== 1) { muted = true; }
+          else { budget = 400; cpc = 0.50; cr1 = 0.010; crL = 0.015; cr2 = 0.32; cr3 = 0.65; cr4 = 0.55; cr5 = 0.35; }
+        } else if (chName === 'Google Search') {
+          const budgets = [1500, 1500, 1500, 2000, 2000, 2000];
+          budget = budgets[m]; cpc = 10.00; cr1 = 0.045; crL = 0.07;
+          cr2 = m === 0 ? 0.50 : 0.48; cr3 = m === 0 ? 0.70 : 0.65; cr4 = m === 0 ? 0.70 : 0.65; cr5 = m === 0 ? 0.45 : (m < 3 ? 0.42 : 0.46);
+        } else if (chName === 'Cold Email') {
+          budget = 100; cr1 = 0.010;
+          cpc = m === 0 ? 5.00 : 2.50; crL = m === 0 ? 0.15 : 0.10;
+          cr2 = m === 0 ? 0.70 : 0.60; cr3 = m === 0 ? 0.60 : 0.55; cr4 = m === 0 ? 0.70 : 0.65; cr5 = m === 0 ? 0.45 : (m < 3 ? 0.40 : 0.42);
+        } else if (chName === 'LinkedIn (founder)') {
+          budget = 250; cr1 = m === 0 ? 0.043 : 0.045;
+          cpc = m === 0 ? 7.14 : 5.00; crL = m === 0 ? 0.15 : 0.10;
+          cr2 = m === 0 ? 0.30 : 0.28; cr3 = m === 0 ? 0.70 : 0.65; cr4 = m === 0 ? 0.65 : 0.60; cr5 = m === 0 ? 0.45 : (m < 3 ? 0.40 : 0.42);
+        } else if (chName === 'Вебинары / демо') {
+          muted = true;
+        } else if (chName === 'Партнёрства / события') {
+          if (m < 3) { muted = true; }
+          else {
+            budget = m === 3 ? 1000 : (m === 4 ? 1000 : 800);
+            cpc = 150.00; cr1 = 0.45; crL = 0.35; cr2 = 0.75; cr3 = 0.70; cr4 = 0.70; cr5 = 0.60;
+          }
+        } else if (chName === 'Тёплая сеть / реферал') {
+          if (m < 3) { muted = true; }
+          else {
+            budget = m === 3 ? 200 : (m === 4 ? 300 : 400);
+            cpc = 20.00; cr1 = 0.60; crL = 0.60; cr2 = 0.75; cr3 = 0.75; cr4 = 0.75; cr5 = 0.70;
+          }
+        } else {
+          muted = true;
+        }
+      } else if (scenarioName === 'pessimistic') {
+        if (chName === 'Meta (Paid Social)') {
+          const budgets = [4000, 5500, 6000, 8000, 9000, 6500];
+          budget = budgets[m];
+          cpc = 5.00; cr1 = 0.015; crL = 0.038;
+          cr2 = 0.28; cr3 = 0.68; cr4 = 0.55; cr5 = 0.32;
+        } else if (chName === 'LinkedIn Ads (таргет)') {
+          muted = true;
+        } else if (chName === 'Google Search') {
+          const budgets = [1500, 2000, 2000, 2500, 3000, 2500];
+          budget = budgets[m]; cpc = 12.00; cr1 = 0.04; crL = 0.05;
+          cr2 = 0.42; cr3 = 0.58; cr4 = 0.64; cr5 = 0.38;
+        } else if (chName === 'Cold Email') {
+          budget = 100; cr1 = 0.010; crL = 0.08;
+          cpc = m === 0 ? 5.00 : 2.50;
+          cr2 = 0.58; cr3 = 0.48; cr4 = 0.60; cr5 = 0.30;
+        } else if (chName === 'LinkedIn (founder)') {
+          budget = 250; cr1 = m === 0 ? 0.043 : 0.045; crL = 0.08;
+          cpc = m === 0 ? 7.14 : 5.00;
+          cr2 = 0.24; cr3 = 0.60; cr4 = 0.54; cr5 = 0.34;
+        } else if (chName === 'Вебинары / демо') {
+          muted = true;
+        } else if (chName === 'Партнёрства / события') {
+          muted = true;
+        } else if (chName === 'Тёплая сеть / реферал') {
+          muted = true;
+        } else {
+          muted = true;
+        }
+      } else if (scenarioName === 'optimistic') {
+        if (chName === 'Meta (Paid Social)') {
+          const budgets = [5000, 8500, 9000, 13000, 15000, 11000];
+          budget = budgets[m];
+          cpc = 3.00; cr1 = 0.018; crL = 0.065;
+          cr2 = 0.35; cr3 = 0.70; cr4 = 0.60; cr5 = 0.45;
+        } else if (chName === 'LinkedIn Ads (таргет)') {
+          if (m !== 1) { muted = true; }
+          else { budget = 500; cpc = 0.50; cr1 = 0.010; crL = 0.02; cr2 = 0.35; cr3 = 0.65; cr4 = 0.55; cr5 = 0.35; }
+        } else if (chName === 'Google Search') {
+          const gsBudgets = [2000, 3000, 3000, 3500, 4000, 3500];
+          budget = gsBudgets[m]; cpc = 9.00; cr1 = 0.050; crL = 0.08;
+          cr2 = 0.50; cr3 = 0.62; cr4 = 0.68; cr5 = 0.42;
+        } else if (chName === 'Cold Email') {
+          budget = 100; cr1 = 0.010; crL = 0.12;
+          cpc = m === 0 ? 4.00 : 2.00;
+          cr2 = 0.65; cr3 = 0.52; cr4 = 0.70; cr5 = 0.38;
+        } else if (chName === 'LinkedIn (founder)') {
+          budget = 250; cr1 = m === 0 ? 0.050 : 0.054; crL = 0.12;
+          cpc = m === 0 ? 6.25 : 4.16;
+          cr2 = 0.28; cr3 = 0.70; cr4 = 0.60; cr5 = 0.40;
+        } else if (chName === 'Вебинары / демо') {
+          muted = true;
+        } else if (chName === 'Партнёрства / события') {
+          if (m < 2) { muted = true; }
+          else {
+            const partBudgets = [0, 0, 1500, 2500, 3000, 2500];
+            budget = partBudgets[m];
+            cpc = 150.00; cr1 = 0.45; crL = 0.38; cr2 = 0.78; cr3 = 0.70; cr4 = 0.70; cr5 = 0.58;
+          }
+        } else if (chName === 'Тёплая сеть / реферал') {
+          if (m === 0) { muted = true; }
+          else {
+            const wnBudgets = [0, 100, 150, 200, 300, 400];
+            budget = wnBudgets[m];
+            cpc = 20.00; cr1 = 0.60; crL = 0.65; cr2 = 0.80; cr3 = 0.80; cr4 = 0.80; cr5 = 0.65;
+          }
+        } else {
+          muted = true;
+        }
+      }
+      
+      const clicks = cpc > 0 ? budget / cpc : 0;
+      const imprComputed = cr1 > 0 ? clicks / cr1 : 0;
+      
+      monthsData.push({
         budget,
-        impr,
+        impr: Math.round(imprComputed) || 0,
         cpc,
         cr1,
-        crL: c.r[1],
-        cr2: c.r[2],
-        cr3: c.r[3],
-        cr4: c.r[4],
-        cr5: c.r[5]
-      };
-    })
-  );
+        crL,
+        cr2,
+        cr3,
+        cr4,
+        cr5,
+        muted: budget === 0 || muted
+      });
+    }
+    
+    plan.push(monthsData);
+  }
+  
+  return plan;
 }
+
+const ROADMAP_INITIATIVES = [
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "Публичный демо-номер, по которому любой может поговорить с AI", "source": "v3", "type": "Продукт/маркетинг", "comment": "Канал #3 \"Демо-номер\" — фундамент, всё остальное на него ссылается." },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "3 лендинга под ключевые сценарии (after-hours, speed-to-lead, renewals)", "source": "v3", "type": "Content", "comment": "Материалы для продаж и посадочные под будущий платный трафик." },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "ICP-базы и сегментация; настройка и прогрев email-доменов", "source": "v3", "type": "Outbound", "comment": "Подготовка Cold Email — канала #1." },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "Запуск поисковых кампаний по высокоинтентным запросам", "source": "v3 + Бэклог #3", "type": "Google Search", "comment": "Бэклог-гипотеза про \"информационную прокладку под AI receptionist use-case\" теперь прямо соответствует стратегии — можно запускать." },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "Контент-завод / система производства креативов — сборка инфраструктуры", "source": "Бэклог #10, #15", "type": "Content", "comment": "Поддержка Meta и будущих кейсов." },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "Сценарий демо и материалы для продаж", "source": "v3", "type": "Sales enablement", "comment": "" },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "Масштабный холодный outbound (Cold Email, ~2000 писем/нед)", "source": "v3", "type": "Outbound", "comment": "Канал #1, KPI reply >5%, письмо→демо >0,7%." },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "Ежедневный founder-led LinkedIn (органика)", "source": "v3", "type": "Social", "comment": "Канал #2, KPI accept >25%, →демо >5%." },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "Meta: масштабирование на подтверждённом CPL + retargeting квиза + video creatives с hook + LAL", "source": "v3 + Бэклог #14,#12,#22,#2", "type": "Paid", "comment": "Meta уже \"работает сейчас\" — усиливаем гипотезами с самым высоким RICE (retargeting 14.4, video creatives 9.1, LAL 7.5)." },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "Цепочка писем для новых лидов", "source": "Бэклог #11, RICE 21.4", "type": "Content/CRM", "comment": "Самый высокий RICE в бэклоге — напрямую поддерживает конверсию лидов в демо." },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "Работа с тёплой сетью и рекомендациями", "source": "v3", "type": "Networking", "comment": "" },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "Персональные демонстрации, быстрый сбор обратной связи", "source": "v3", "type": "Sales", "comment": "Итог фазы: 10 клиентов, ~40 состоявшихся демо, ~60 назначенных." },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "SEO (Доп страницы по ключам, сравнение с конкурентами)", "source": "-", "type": "-", "comment": "-" },
+  { "month": "Июль", "phase": "Фаза 1", "initiative": "Подключение демо номера", "source": "-", "type": "-", "comment": "-" },
+  { "month": "Август", "phase": "Фаза 2", "initiative": "Reddit", "source": "v3", "type": "Paid", "comment": "600 - африка, 1500 норм ребята" },
+  { "month": "Август", "phase": "Фаза 2", "initiative": "Ретаргетинг Meta + тест похожих аудиторий (LAL)", "source": "v3", "type": "Paid", "comment": "" },
+  { "month": "Август", "phase": "Фаза 2", "initiative": "LinkedIn Ads — повторный тест (таргетинг Agency Owner/Principal)", "source": "v3", "type": "Paid", "comment": "ВАЖНО: пересматривает более раннее решение \"Stop\". Сузить таргетинг именно на Agency Owner/Principal, не запускать широкие гипотезы из бэклога (лидформы, презентации) в исходном виде." },
+  { "month": "Август", "phase": "Фаза 2", "initiative": "PR (статьи)", "source": "", "type": "", "comment": "" },
+  { "month": "Август", "phase": "Фаза 2", "initiative": "Работа в профессиональных сообществах", "source": "v3", "type": "Community", "comment": "" },
+  { "month": "Август", "phase": "Фаза 2", "initiative": "Составить топ-20 целевых партнёров", "source": "Бэклог, новое", "type": "Partnership", "comment": "Конкретизация \"старта переговоров с партнёрами\" из v3." },
+  { "month": "Август", "phase": "Фаза 2", "initiative": "Выстроить Афилиейт", "source": "", "type": "", "comment": "" },
+  { "month": "Август", "phase": "Фаза 2", "initiative": "Старт переговоров с партнёрами и AMS-вендорами", "source": "v3", "type": "Partnership", "comment": "Ориентир v3: → 17–18 клиентов к концу августа." },
+  { "month": "Август", "phase": "Фаза 2", "initiative": "Первые кейсы и отзывы в маркетинговых материалах", "source": "v3", "type": "Content", "comment": "" },
+  { "month": "Август", "phase": "Фаза 2", "initiative": "Отдельная страница для отдела продаж", "source": "v3", "type": "Content", "comment": "" },
+  { "month": "Сентябрь", "phase": "Фаза 2", "initiative": "Закупка ссылок", "source": "", "type": "", "comment": "" },
+  { "month": "Сентябрь", "phase": "Фаза 2", "initiative": "Первый открытый вебинар; медиа и подкасты", "source": "v3", "type": "Content", "comment": "" },
+  { "month": "Сентябрь", "phase": "Фаза 2", "initiative": "Первый раунд outreach к топ-20 партнёрам + закрытие первых 3–5 pilot-партнёрств", "source": "Бэклог, новое", "type": "Partnership", "comment": "" },
+  { "month": "Сентябрь", "phase": "Фаза 2", "initiative": "X twitter", "source": "v3", "type": "", "comment": "" },
+  { "month": "Сентябрь", "phase": "Фаза 2", "initiative": "Подготовка к событиям Q4; формирование партнёрского пайплайна", "source": "v3", "type": "Partnership", "comment": "Итог фазы: ~25 клиентов, подтверждённая юнит-экономика." },
+  { "month": "Сентябрь", "phase": "Фаза 2", "initiative": "Видео для посадочных вебинаров на 5-15 минут", "source": "v3", "type": "", "comment": "" },
+  { "month": "Октябрь", "phase": "Фаза 3", "initiative": "Участие в крупных отраслевых событиях, живое демо с AI", "source": "v3", "type": "Events", "comment": "" },
+  { "month": "Октябрь", "phase": "Фаза 3", "initiative": "Кампании для Medicare в период AEP (15 окт – 7 дек)", "source": "v3", "type": "Paid/Content", "comment": "ICP Tier 2 — сезонное окно." },
+  { "month": "Октябрь", "phase": "Фаза 3", "initiative": "Первые партнёрские соглашения; масштабирование каналов", "source": "v3", "type": "Partnership", "comment": "" },
+  { "month": "Ноябрь", "phase": "Фаза 2", "initiative": "Второй вебинар; больше инвестиций в лучший по цене демо канал", "source": "v3", "type": "Paid/Content", "comment": "Решение по каналу — на основе данных к этому моменту (Meta / Google Search / LinkedIn retest)." },
+  { "month": "Ноябрь", "phase": "Фаза 3", "initiative": "Google Ads грант", "source": "v3", "type": "-", "comment": "" },
+  { "month": "Ноябрь", "phase": "Фаза 3", "initiative": "Запуск реферальной программы", "source": "v3", "type": "Referral", "comment": "" },
+  { "month": "Ноябрь", "phase": "Фаза 3", "initiative": "Развитие партнёрской дистрибуции; видео-кейсы", "source": "v3", "type": "Content/Partnership", "comment": "" },
+  { "month": "Ноябрь", "phase": "Фаза 3", "initiative": "Больше инвестиций в 1–2 самых эффективных канала", "source": "v3", "type": "Paid", "comment": "По факту к этому моменту должно быть понятно, какой платный канал лучший — туда и концентрируем бюджет." },
+  { "month": "Декабрь", "phase": "Фаза 3", "initiative": "Работа с агентствами, откладывавшими решение", "source": "v3", "type": "Sales", "comment": "" },
+  { "month": "Декабрь", "phase": "Фаза 3", "initiative": "Кейсы и рекомендации существующих клиентов", "source": "v3", "type": "Content", "comment": "" },
+  { "month": "Декабрь", "phase": "Фаза 3", "initiative": "Активизация партнёрского пайплайна; сценарии продлений", "source": "v3", "type": "Partnership", "comment": "Итог: 50 клиентов, предсказуемая модель роста." }
+];
 
 function money(n: number) {
   return '$' + Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' ');
@@ -100,26 +284,114 @@ export default function MediaPlanDashboard({
   initialCalcData,
   initialPlanData
 }: MediaPlanDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'original' | 'improved' | 'v3' | 'calc' | 'media'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'original' | 'improved' | 'v3' | 'calc' | 'media' | 'roadmap'>('overview');
   const [curMonth, setCurMonth] = useState<number>(0);
-  
-  // Initialize state with Supabase loaded values or fall back to code defaults
-  const [calcInputs, setCalcInputs] = useState<CalcInputs>(() => initialCalcData || CALC_DEFAULTS);
-  const [planState, setPlanState] = useState<PlanState>(() => {
-    if (initialPlanData && Array.isArray(initialPlanData) && initialPlanData.length === CH.length) {
-      return initialPlanData.map((ch, ci) => 
-        ch.map((m, mi) => {
-          const clicks = m.impr * m.cr1;
-          const defaultCpc = clicks > 0 ? m.budget / clicks : 0;
-          return {
-            ...m,
-            cpc: typeof m.cpc === 'number' ? m.cpc : defaultCpc
-          };
-        })
-      );
+  const [activeScenario, setActiveScenario] = useState<'realistic' | 'optimistic' | 'pessimistic'>('realistic');
+  const [roadmapView, setRoadmapView] = useState<'grid' | 'list'>('grid');
+
+  // Initialize maps for plans and calculator inputs
+  const [plans, setPlans] = useState<Record<'realistic' | 'optimistic' | 'pessimistic', PlanState>>(() => {
+    // Check if initialPlanData has scenario keys
+    if (initialPlanData && typeof initialPlanData === 'object' && !Array.isArray(initialPlanData) && ('realistic' in initialPlanData)) {
+      const data = initialPlanData as any;
+      return {
+        realistic: data.realistic || defaultStateForScenario('realistic'),
+        optimistic: data.optimistic || defaultStateForScenario('optimistic'),
+        pessimistic: data.pessimistic || defaultStateForScenario('pessimistic')
+      };
     }
-    return freshState();
+    // Legacy array or empty
+    const realistic = (initialPlanData && Array.isArray(initialPlanData) && initialPlanData.length === CH.length)
+      ? initialPlanData
+      : defaultStateForScenario('realistic');
+
+    return {
+      realistic: realistic,
+      optimistic: defaultStateForScenario('optimistic'),
+      pessimistic: defaultStateForScenario('pessimistic')
+    };
   });
+
+  const [calcInputsMap, setCalcInputsMap] = useState<Record<'realistic' | 'optimistic' | 'pessimistic', CalcInputs>>(() => {
+    if (initialCalcData && typeof initialCalcData === 'object' && !Array.isArray(initialCalcData) && ('realistic' in initialCalcData)) {
+      const data = initialCalcData as any;
+      const startClientsGlobal = data.realistic?.startClients || data.optimistic?.startClients || data.pessimistic?.startClients || 0;
+      return {
+        realistic: { ...CALC_DEFAULTS, ...data.realistic, startClients: startClientsGlobal },
+        optimistic: { ...CALC_DEFAULTS, churn: 3, ...data.optimistic, startClients: startClientsGlobal },
+        pessimistic: { ...CALC_DEFAULTS, churn: 5, ...data.pessimistic, startClients: startClientsGlobal }
+      };
+    }
+    // Legacy single object
+    const baseCalc = (initialCalcData && typeof initialCalcData === 'object' && !Array.isArray(initialCalcData))
+      ? (initialCalcData as CalcInputs)
+      : CALC_DEFAULTS;
+
+    const startClientsGlobal = baseCalc.startClients || 0;
+
+    return {
+      realistic: { ...baseCalc, startClients: startClientsGlobal },
+      optimistic: { ...baseCalc, churn: 3, startClients: startClientsGlobal },
+      pessimistic: { ...baseCalc, churn: 5, startClients: startClientsGlobal }
+    };
+  });
+
+  const [roadmapTasks, setRoadmapTasks] = useState<RoadmapTask[]>(() => {
+    let raw: any[] = [];
+    if (initialPlanData && typeof initialPlanData === 'object' && 'roadmap' in initialPlanData) {
+      raw = (initialPlanData as any).roadmap || ROADMAP_INITIATIVES;
+    } else {
+      raw = ROADMAP_INITIATIVES;
+    }
+    return raw.map((t, idx) => ({
+      id: t.id || `task-${idx}-${Date.now()}`,
+      month: t.month || 'Июль',
+      phase: t.phase || 'Фаза 1',
+      initiative: t.initiative || '',
+      source: t.source || '',
+      type: t.type || '',
+      comment: t.comment || '',
+      completed: !!t.completed
+    }));
+  });
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
+  const planState = plans[activeScenario];
+  const calcInputs = calcInputsMap[activeScenario];
+
+  const setPlanState = (updateFn: PlanState | ((prev: PlanState) => PlanState)) => {
+    setPlans(prevPlans => {
+      const prevPlan = prevPlans[activeScenario];
+      const nextPlan = typeof updateFn === 'function' ? (updateFn as any)(prevPlan) : updateFn;
+      return {
+        ...prevPlans,
+        [activeScenario]: nextPlan
+      };
+    });
+  };
 
   const [flashMessage, setFlashMessage] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -136,7 +408,10 @@ export default function MediaPlanDashboard({
     const timer = setTimeout(async () => {
       setIsSaving(true);
       setFlashMessage('💾 сохранение...');
-      const res = await saveMediaPlanSettings(calcInputs, planState);
+      const res = await saveMediaPlanSettings(calcInputsMap, {
+        ...plans,
+        roadmap: roadmapTasks
+      });
       setIsSaving(false);
       if (res.success) {
         setFlashMessage('💾 сохранено в БД ✓');
@@ -147,7 +422,7 @@ export default function MediaPlanDashboard({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [calcInputs, planState]);
+  }, [calcInputsMap, plans, roadmapTasks]);
 
   const triggerFlash = (msg: string) => {
     setFlashMessage(msg);
@@ -157,10 +432,22 @@ export default function MediaPlanDashboard({
   };
 
   const handleCalcChange = (field: keyof CalcInputs, val: number) => {
-    setCalcInputs(prev => ({
-      ...prev,
-      [field]: val
-    }));
+    setCalcInputsMap(prev => {
+      if (field === 'startClients') {
+        return {
+          realistic: { ...prev.realistic, startClients: val },
+          optimistic: { ...prev.optimistic, startClients: val },
+          pessimistic: { ...prev.pessimistic, startClients: val }
+        };
+      }
+      return {
+        ...prev,
+        [activeScenario]: {
+          ...prev[activeScenario],
+          [field]: val
+        }
+      };
+    });
   };
 
   // Switch tabs and scroll to top
@@ -171,14 +458,25 @@ export default function MediaPlanDashboard({
 
   // Reset helper
   const handleCalcReset = () => {
-    setCalcInputs(CALC_DEFAULTS);
+    setCalcInputsMap(prev => ({
+      ...prev,
+      [activeScenario]: CALC_DEFAULTS
+    }));
     triggerFlash('Сброшено к базовым ✓');
   };
 
   const handlePlanReset = () => {
-    if (!confirm('Сбросить медиаплан к исходным цифрам? Ваши правки будут удалены.')) return;
-    setPlanState(freshState());
-    triggerFlash('↺ сброшено к плану ✓');
+    showConfirm(
+      'Сброс медиаплана',
+      'Вы уверены, что хотите сбросить медиаплан к исходным цифрам? Все ваши текущие правки по этому сценарию будут удалены.',
+      () => {
+        setPlans(prev => ({
+          ...prev,
+          [activeScenario]: defaultStateForScenario(activeScenario)
+        }));
+        triggerFlash('↺ сброшено к плану ✓');
+      }
+    );
   };
 
   // Zero channel budget for current month
@@ -247,10 +545,10 @@ export default function MediaPlanDashboard({
   // Export to JSON
   const handleExport = () => {
     const snap = {
-      version: 1,
+      version: 2,
       exported: new Date().toISOString(),
-      calc: calcInputs,
-      plan: planState
+      calc: calcInputsMap,
+      plan: plans
     };
     const blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -269,11 +567,22 @@ export default function MediaPlanDashboard({
     rd.onload = () => {
       try {
         const d = JSON.parse(rd.result as string);
-        if (d.plan && Array.isArray(d.plan)) {
-          setPlanState(d.plan);
+        if (d.plan && typeof d.plan === 'object' && !Array.isArray(d.plan) && d.plan.realistic) {
+          setPlans(d.plan);
+        } else if (d.plan && Array.isArray(d.plan)) {
+          setPlans(prev => ({
+            ...prev,
+            [activeScenario]: d.plan
+          }));
         }
-        if (d.calc) {
-          setCalcInputs(d.calc);
+        
+        if (d.calc && typeof d.calc === 'object' && !Array.isArray(d.calc) && d.calc.realistic) {
+          setCalcInputsMap(d.calc);
+        } else if (d.calc) {
+          setCalcInputsMap(prev => ({
+            ...prev,
+            [activeScenario]: d.calc
+          }));
         }
         triggerFlash('⬆ импортировано ✓');
       } catch (err: any) {
@@ -295,8 +604,10 @@ export default function MediaPlanDashboard({
     const completed = booked * s.cr3;
     const cpa2 = completed > 0 ? s.budget / completed : 0;
     const sent = completed * s.cr4;
+    const cpa3 = sent > 0 ? s.budget / sent : 0;
     const signed = sent * s.cr5;
-    return { impr, clicks, cpc: s.cpc, leads, cpl, booked, cpa, completed, cpa2, sent, signed };
+    const cpa4 = signed > 0 ? s.budget / signed : 0;
+    return { impr, clicks, cpc: s.cpc, leads, cpl, booked, cpa, completed, cpa2, sent, cpa3, signed, cpa4 };
   };
 
   // 1. Economics Calculations
@@ -392,11 +703,12 @@ export default function MediaPlanDashboard({
   const bCR3 = curMonthBooked > 0 ? curMonthCompleted / curMonthBooked : 0;
   const bCPA2 = curMonthCompleted > 0 ? curMonthBudget / curMonthCompleted : 0;
   const bCR4 = curMonthCompleted > 0 ? curMonthSent / curMonthCompleted : 0;
+  const bCPA3 = curMonthSent > 0 ? curMonthBudget / curMonthSent : 0;
   const bCR5 = curMonthSent > 0 ? curMonthSigned / curMonthSent : 0;
   const blendedCac = curMonthSigned > 0 ? curMonthBudget / curMonthSigned : 0;
 
   // 4. Cumulative months summary
-  let cumulativeSigned = 0;
+  let cumulativeSigned = calcInputs.startClients || 0;
   let gtBudget = 0;
   let gtLeads = 0;
   let gtBooked = 0;
@@ -447,6 +759,45 @@ export default function MediaPlanDashboard({
       });
       return next;
     });
+  };
+
+  // Roadmap CRUD handlers
+  const handleToggleComplete = (id: string) => {
+    setRoadmapTasks(prev =>
+      prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t))
+    );
+  };
+
+  const handleAddTask = (month: string) => {
+    const newTask: RoadmapTask = {
+      id: `task-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      month,
+      phase: month === 'Июль' ? 'Фаза 1' : (['Август', 'Сентябрь'].includes(month) ? 'Фаза 2' : 'Фаза 3'),
+      initiative: 'Новая инициатива',
+      source: 'v3',
+      type: 'Paid',
+      comment: '',
+      completed: false
+    };
+    setRoadmapTasks(prev => [...prev, newTask]);
+    triggerFlash('➕ Инициатива добавлена ✓');
+  };
+
+  const handleUpdateTaskField = (id: string, field: keyof RoadmapTask, value: any) => {
+    setRoadmapTasks(prev =>
+      prev.map(t => (t.id === id ? { ...t, [field]: value } : t))
+    );
+  };
+
+  const handleDeleteTask = (id: string) => {
+    showConfirm(
+      'Удаление инициативы',
+      'Вы уверены, что хотите удалить эту инициативу из роадмапа? Это действие нельзя будет отменить.',
+      () => {
+        setRoadmapTasks(prev => prev.filter(t => t.id !== id));
+        triggerFlash('✕ Инициатива удалена ✓');
+      }
+    );
   };
 
   // Custom budget table rendering shared for tabs
@@ -512,8 +863,8 @@ export default function MediaPlanDashboard({
         .mediaplan-container a { color: var(--brand2); }
         .mediaplan-container .wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
         .mediaplan-container header.top { position: sticky; top: 0; z-index: 50; background: rgba(11,16,32,.86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-        .mediaplan-container .topbar { display: flex; align-items: center; gap: 18px; height: 62px; }
-        .mediaplan-container .logo { font-weight: 800; letter-spacing: .3px; font-size: 18px; display: flex; align-items: center; gap: 9px; }
+        .mediaplan-container .topbar { display: flex; align-items: center; gap: 18px; min-height: 62px; padding: 6px 0; flex-wrap: wrap; }
+        .mediaplan-container .logo { font-weight: 800; letter-spacing: .3px; font-size: 18px; display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
         .mediaplan-container .logo .dot { width: 11px; height: 11px; border-radius: 50%; background: linear-gradient(135deg,var(--brand),var(--brand2)); box-shadow: 0 0 14px var(--brand2); }
         .mediaplan-container nav.tabs { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
         .mediaplan-container nav.tabs button { background: transparent; border: 1px solid transparent; color: var(--mut); padding: 8px 13px; border-radius: 9px; cursor: pointer; font-size: 13.5px; font-weight: 600; }
@@ -615,6 +966,25 @@ export default function MediaPlanDashboard({
         .mediaplan-container .rm .g { font-size: 12px; color: var(--mut); margin-top: 5px; }
         .mediaplan-container .rm .t { font-size: 22px; font-weight: 800; margin-top: 8px; color: #fff; }
         .mediaplan-container .pill { font-size: 11px; color: var(--mut); }
+
+        .mediaplan-container .scenario-selector { display: flex; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); padding: 8px 16px; border-radius: 12px; margin-top: 10px; width: fit-content; }
+        .mediaplan-container .scenario-selector span { font-weight: 700; font-size: 13.5px; color: var(--mut); margin-right: 8px; }
+        .mediaplan-container .scenario-selector button { background: var(--chip); border: 1px solid var(--line); color: var(--mut); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 12.5px; font-weight: 700; transition: all 150ms; }
+        .mediaplan-container .scenario-selector button:hover { color: var(--ink); border-color: var(--brand); }
+        .mediaplan-container .scenario-selector button.active { background: linear-gradient(135deg,var(--brand),#3b63e0); color: #fff; border-color: #3b63e0; }
+
+        .mediaplan-container .roadmap-grid { display: flex; flex-direction: column; gap: 24px; }
+        .mediaplan-container .roadmap-month-section { border: 1px solid var(--line); border-radius: 16px; background: var(--panel2); padding: 20px; }
+        .mediaplan-container .roadmap-month-title { font-size: 20px; font-weight: 800; color: var(--brand2); border-bottom: 1px solid var(--line); padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .mediaplan-container .roadmap-month-title span.phase-badge { font-size: 12px; color: #fff; background: var(--brand); padding: 3px 8px; border-radius: 6px; font-weight: 700; }
+        .mediaplan-container .roadmap-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+        .mediaplan-container .roadmap-item { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; min-height: 140px; }
+        .mediaplan-container .roadmap-item-header { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; align-items: flex-start; }
+        .mediaplan-container .roadmap-item-title { font-weight: 700; font-size: 14px; color: #fff; line-height: 1.4; }
+        .mediaplan-container .roadmap-item-type { font-size: 11px; font-weight: 700; color: var(--brand2); text-transform: uppercase; background: rgba(34,211,238,.08); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(34,211,238,.2); height: fit-content; white-space: nowrap; }
+        .mediaplan-container .roadmap-item-comment { font-size: 13px; color: var(--mut); margin-top: 6px; line-height: 1.4; flex-grow: 1; }
+        .mediaplan-container .roadmap-item-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 11px; color: var(--mut); border-top: 1px solid rgba(255,255,255,0.03); padding-top: 6px; }
+        .mediaplan-container .roadmap-item-source { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
         
         @media(max-width: 980px) {
           .mediaplan-container .kpis, .mediaplan-container .cols-3, .mediaplan-container .cols-2, .mediaplan-container .out { grid-template-columns: 1fr 1fr; }
@@ -629,13 +999,43 @@ export default function MediaPlanDashboard({
           .mediaplan-container nav.tabs, .mediaplan-container header.top { position: static; }
           .mediaplan-container section.page { display: block!important; page-break-after: always; }
         }
+        
+        /* Interactive Roadmap CSS */
+        .mediaplan-container .roadmap-item.completed { opacity: 0.55; border-color: rgba(52, 211, 153, 0.25); background: rgba(52, 211, 153, 0.01); }
+        .mediaplan-container .roadmap-item.completed .roadmap-input-title { text-decoration: line-through; color: var(--mut); }
+        .mediaplan-container .roadmap-btn-add { background: transparent; border: 1px dashed var(--line); color: var(--mut); font-weight: 700; border-radius: 12px; cursor: pointer; padding: 16px; font-size: 13px; text-align: center; transition: all 150ms; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 140px; width: 100%; }
+        .mediaplan-container .roadmap-btn-add:hover { border-color: var(--brand); color: #fff; background: rgba(255,255,255,0.02); }
+        .mediaplan-container .roadmap-input-title { background: transparent; border: none; font-weight: 700; font-size: 14px; color: #fff; line-height: 1.4; width: 100%; outline: none; padding: 2px 0; border-bottom: 1px dashed transparent; }
+        .mediaplan-container .roadmap-input-title:focus { border-bottom-color: var(--brand); }
+        .mediaplan-container .roadmap-textarea-comment { background: transparent; border: none; font-size: 13px; color: var(--mut); margin-top: 6px; line-height: 1.4; width: 100%; resize: none; outline: none; padding: 2px 0; border-bottom: 1px dashed transparent; height: 50px; font-family: inherit; }
+        .mediaplan-container .roadmap-textarea-comment:focus { border-bottom-color: var(--brand); }
+        .mediaplan-container .roadmap-select-type { background: var(--chip); border: 1px solid var(--line); border-radius: 4px; color: var(--brand2); font-size: 10px; font-weight: 700; outline: none; cursor: pointer; padding: 1px 4px; text-transform: uppercase; }
+        .mediaplan-container .roadmap-input-source { background: transparent; border: none; font-size: 11px; color: var(--mut); width: 130px; outline: none; border-bottom: 1px dashed transparent; }
+        .mediaplan-container .roadmap-input-source:focus { border-bottom-color: var(--brand); }
+        .mediaplan-container .roadmap-item-delete { background: transparent; border: none; color: #ef4444; opacity: 0.3; cursor: pointer; padding: 4px; transition: opacity 150ms; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; }
+        .mediaplan-container .roadmap-item-delete:hover { opacity: 1; }
+        .mediaplan-container .roadmap-checkbox { width: 16px; height: 16px; accent-color: var(--good); cursor: pointer; border-radius: 4px; }
+        
+        /* List-view (строчный) layout */
+        .mediaplan-container .roadmap-list.list-view { display: flex; flex-direction: column; gap: 8px; }
+        .mediaplan-container .roadmap-list.list-view .roadmap-item { min-height: auto; padding: 10px 14px; flex-direction: row; }
+        .mediaplan-container .roadmap-list.list-view .roadmap-btn-add { min-height: auto; padding: 10px 14px; border-radius: 12px; }
+        .mediaplan-container .roadmap-view-switcher { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); padding: 4px; border-radius: 8px; width: fit-content; }
+        .mediaplan-container .roadmap-view-switcher button { background: transparent; border: none; color: var(--mut); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12.5px; font-weight: 700; transition: all 150ms; }
+        .mediaplan-container .roadmap-view-switcher button:hover { color: #fff; }
+        .mediaplan-container .roadmap-view-switcher button.active { background: var(--chip); color: #fff; }
+
+
       `}} />
 
       <header className="top">
         <div className="wrap topbar">
           <div className="logo">
-            <span className="dot"></span> InsurVoice
-            <span style={{ color: 'var(--mut)', fontWeight: 600 }}>.ai</span>
+            <img 
+              src="/images/logo-horizontal-green-white.png" 
+              alt="InsurVoice" 
+              style={{ height: '24px', display: 'block' }} 
+            />
           </div>
           <nav className="tabs">
             <button
@@ -648,35 +1048,68 @@ export default function MediaPlanDashboard({
               onClick={() => handleTabClick('original')}
               className={activeTab === 'original' ? 'active' : ''}
             >
-              Стратегия (оригинал)
+              Стратегия (ориг.)
             </button>
             <button
               onClick={() => handleTabClick('improved')}
               className={activeTab === 'improved' ? 'active' : ''}
             >
-              Стратегия v2 (с правками)
+              Стратегия v2
             </button>
             <button
               onClick={() => handleTabClick('v3')}
               className={activeTab === 'v3' ? 'active' : ''}
             >
-              Стратегия v3 (финал)
+              Стратегия v3
             </button>
             <button
               onClick={() => handleTabClick('calc')}
               className={activeTab === 'calc' ? 'active' : ''}
             >
-              Калькулятор экономики
+              Калькулятор
             </button>
             <button
               onClick={() => handleTabClick('media')}
               className={activeTab === 'media' ? 'active' : ''}
             >
-              Медиаплан VII–XII
+              Медиаплан
+            </button>
+            <button
+              onClick={() => handleTabClick('roadmap')}
+              className={activeTab === 'roadmap' ? 'active' : ''}
+            >
+              Роадмап
             </button>
           </nav>
         </div>
       </header>
+
+      {/* Global Scenario Selector */}
+      {(activeTab === 'calc' || activeTab === 'media') && (
+        <div className="wrap" style={{ marginTop: '16px', marginBottom: '8px' }}>
+          <div className="scenario-selector">
+            <span>Версия медиаплана:</span>
+            <button 
+              className={activeScenario === 'realistic' ? 'active' : ''} 
+              onClick={() => setActiveScenario('realistic')}
+            >
+              Реалистичный (Realistic)
+            </button>
+            <button 
+              className={activeScenario === 'optimistic' ? 'active' : ''} 
+              onClick={() => setActiveScenario('optimistic')}
+            >
+              Оптимистичный (Optimistic)
+            </button>
+            <button 
+              className={activeScenario === 'pessimistic' ? 'active' : ''} 
+              onClick={() => setActiveScenario('pessimistic')}
+            >
+              Пессимистичный (Pessimistic)
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ================= OVERVIEW ================= */}
       <section className={`page ${activeTab === 'overview' ? 'active' : ''}`}>
@@ -1161,11 +1594,11 @@ export default function MediaPlanDashboard({
           </div>
           <div className="grid cols-3" style={{ marginTop: '14px' }}>
             <div className="card"><span className="tag good">Фаза 1</span><h3 style={{ marginTop: '8px' }}>Product-Market Fit</h3>
-              <p>Прямой outbound + Meta (уже даёт лиды) + личные продажи. Максимум разговоров с рынком, первые кейсы и дизайн-партнёры.</p></div>
+              <p>Прямой outbound + Meta (уже даёт лиды) + личные продажи. Запуск демо-номера, ICP-баз, 3 лендингов, ежедневный LinkedIn. Первые кейсы и 10 дизайн-партнёров.</p></div>
             <div className="card"><span className="tag">Фаза 2</span><h3 style={{ marginTop: '8px' }}>Повторяемая система</h3>
-              <p>Кейсы в маркетинг; ретаргетинг, вебинары, медиа, сообщества; старт партнёрств. <b style={{ color: 'var(--imp)' }}>Нанимаем SDR/2-го продавца</b>, пока ёмкость не стала горлышком.</p></div>
+              <p>Тест Reddit ($600-$1500), LinkedIn Ads re-test (Owner/Principal), топ-20 партнёров, афилиейт. В сентябре: открытый вебинар, закрытие 3-5 пилотов, X twitter, видео для посадочных. <b style={{ color: 'var(--imp)' }}>Нанимаем SDR/Sellers с августа</b>.</p></div>
             <div className="card"><span className="tag">Фаза 3</span><h3 style={{ marginTop: '8px' }}>Масштабирование</h3>
-              <p>Дистрибуция: партнёрства/кластеры, события, Medicare AEP, реферралы. Масштабируем подтверждённые платные каналы.</p></div>
+              <p>Отраслевые события (live AI demo), сезонный Medicare AEP (15 окт – 7 дек), Google Ads грант, реферальная программа, дожим сделок (delayed decisions) к декабрю.</p></div>
           </div>
 
           <h2>3. ICP — приоритетные сегменты</h2>
@@ -1363,6 +1796,24 @@ export default function MediaPlanDashboard({
                 />
               </div>
 
+              <div className="row">
+                <label>
+                  <span className="lbltxt">
+                    Текущих клиентов (на старте)
+                    <span className="hint" title="Количество активных клиентов перед началом периода (начало июля). С этого числа стартует накопительный расчёт клиентов в медиаплане.">?</span>
+                  </span>
+                  <b>{calcInputs.startClients || 0}</b>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="50"
+                  step="1"
+                  value={calcInputs.startClients || 0}
+                  onChange={(e) => handleCalcChange('startClients', parseInt(e.target.value) || 0)}
+                />
+              </div>
+
               <hr style={{ borderColor: 'var(--line)' }} />
 
               <div className="row">
@@ -1532,6 +1983,20 @@ export default function MediaPlanDashboard({
 
           <div className="toolbar">
             <span className={`saved ${isSaving ? 'flash' : ''}`}>{flashMessage || '💾 изменения сохраняются автоматически в БД'}</span>
+            
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', background: 'var(--panel)', border: '1px solid var(--line)', padding: '5px 12px', borderRadius: '8px' }}>
+              <span style={{ fontSize: '12.5px', color: 'var(--mut)', fontWeight: 600 }}>Клиентов на старте (текущих):</span>
+              <input
+                type="number"
+                className="num"
+                style={{ width: '55px', padding: '4px 6px', textAlign: 'center', background: '#0b1224', border: '1px solid var(--line)', color: 'var(--ink)', borderRadius: '6px', fontSize: '12px' }}
+                min="0"
+                max="500"
+                value={calcInputs.startClients || 0}
+                onChange={(e) => handleCalcChange('startClients', Math.max(0, parseInt(e.target.value) || 0))}
+              />
+            </div>
+
             <button className="tbtn" onClick={handleExport}>⬇ Экспорт всех данных (.json)</button>
             <label className="tbtn">
               ⬆ Импорт
@@ -1574,8 +2039,10 @@ export default function MediaPlanDashboard({
                   <th>CPA2 $</th>
                   <th>CR4</th>
                   <th>Контракт<br />выслан</th>
+                  <th>CPA3 $</th>
                   <th>CR5</th>
                   <th>Подпи-<br />сано</th>
+                  <th>CPA4 $</th>
                   <th></th>
                 </tr>
               </thead>
@@ -1664,6 +2131,7 @@ export default function MediaPlanDashboard({
                     </td>
                     
                     <td className="calc-cell">{fmt(row.r.sent)}</td>
+                    <td className="calc-cell">${fmt(row.r.cpa3)}</td>
                     
                     <td>
                       <input
@@ -1676,6 +2144,7 @@ export default function MediaPlanDashboard({
                     </td>
                     
                     <td className="calc-cell" style={{ color: 'var(--good)', fontWeight: 700 }}>{fmt(row.r.signed)}</td>
+                    <td className="calc-cell" style={{ color: 'var(--good)', fontWeight: 700 }}>${fmt(row.r.cpa4)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '5px', alignItems: 'center', justifyContent: 'flex-end' }}>
                         <button
@@ -1734,8 +2203,10 @@ export default function MediaPlanDashboard({
                   <td>${fmt(bCPA2)}</td>
                   <td>{pctv(bCR4)}%</td>
                   <td>{fmt(curMonthSent)}</td>
+                  <td>${fmt(bCPA3)}</td>
                   <td>{pctv(bCR5)}%</td>
                   <td>{fmt(curMonthSigned)}</td>
+                  <td>${fmt(blendedCac)}</td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -1745,7 +2216,30 @@ export default function MediaPlanDashboard({
             В строке ИТОГО проценты (CR) и стоимости (CPC/CPL/CPA) — <b>взвешенные</b> по всем каналам, а не сумма. Blended CPC: <b>{bCPC > 0 ? `$${bCPC.toFixed(2)}` : '$0.00'}</b> · CPL считается на лиды, не на клики: <b>${fmt(bCPL)}</b> за лид. Blended CPA демо: <b>${fmt(blendedCpa)}</b> · Blended CAC (канальный бюджет ÷ подписания): <b>${fmt(blendedCac)}</b>.
           </p>
 
-          <h2>Сводка по месяцам</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '34px', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+            <h2 style={{ margin: 0 }}>Сводка по месяцам</h2>
+            <div className="scenario-selector" style={{ marginTop: 0 }}>
+              <span>Версия:</span>
+              <button 
+                className={activeScenario === 'realistic' ? 'active' : ''} 
+                onClick={() => setActiveScenario('realistic')}
+              >
+                Реалистичный
+              </button>
+              <button 
+                className={activeScenario === 'optimistic' ? 'active' : ''} 
+                onClick={() => setActiveScenario('optimistic')}
+              >
+                Оптимистичный
+              </button>
+              <button 
+                className={activeScenario === 'pessimistic' ? 'active' : ''} 
+                onClick={() => setActiveScenario('pessimistic')}
+              >
+                Пессимистичный
+              </button>
+            </div>
+          </div>
           <div className="tblwrap">
             <table>
               <thead>
@@ -1783,7 +2277,7 @@ export default function MediaPlanDashboard({
                   <td>{fmt(gtCompleted)}</td>
                   <td>{fmt(gtSigned)}</td>
                   <td>${fmt(gtCac)}</td>
-                  <td>{fmt(Math.round(gtSigned))}</td>
+                  <td><b>{fmt(Math.round((calcInputs.startClients || 0) + gtSigned))}</b></td>
                 </tr>
               </tfoot>
             </table>
@@ -1791,6 +2285,325 @@ export default function MediaPlanDashboard({
           <p className="note">CAC здесь — только GTM/канальный бюджет ÷ подписания (без времени фаундера). Реальный CAC см. во вкладке «Калькулятор экономики».</p>
         </div>
       </section>
+
+      {/* ================= ROADMAP ================= */}
+      <section className={`page ${activeTab === 'roadmap' ? 'active' : ''}`}>
+        <div className="wrap">
+          <div className="hero" style={{ marginBottom: '22px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ maxWidth: '680px' }}>
+              <span className="tag">Дорожная карта · GTM-активности · 2026</span>
+              <h1 style={{ marginTop: '14px', marginBottom: '8px' }}>Интерактивный Роадмап (Roadmap)</h1>
+              <p className="sub" style={{ margin: 0 }}>
+                Помесячный план действий для запуска и масштабирования. Теперь вы можете отмечать задачи как выполненные, 
+                добавлять новые, редактировать существующие и удалять неактуальные. Все изменения автоматически сохраняются в базу данных.
+              </p>
+            </div>
+            
+            <div className="roadmap-view-switcher">
+              <button 
+                className={roadmapView === 'grid' ? 'active' : ''} 
+                onClick={() => setRoadmapView('grid')}
+              >
+                🎴 Карточки
+              </button>
+              <button 
+                className={roadmapView === 'list' ? 'active' : ''} 
+                onClick={() => setRoadmapView('list')}
+              >
+                ≡ Строчный
+              </button>
+            </div>
+          </div>
+
+          <div className="roadmap-grid">
+            {['Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'].map(month => {
+              const items = roadmapTasks.filter(x => x.month === month);
+              
+              // Find the phase for this month
+              const phase = month === 'Июль' ? 'Фаза 1' : (['Август', 'Сентябрь'].includes(month) ? 'Фаза 2' : 'Фаза 3');
+              
+              return (
+                <div key={month} className="roadmap-month-section">
+                  <div className="roadmap-month-title">
+                    {month}
+                    {phase && <span className="phase-badge">{phase}</span>}
+                  </div>
+                  {roadmapView === 'list' ? (
+                    <div className="tblwrap" style={{ marginTop: '10px' }}>
+                      <table style={{ width: '100%' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ width: '40px', textAlign: 'center' }}>Статус</th>
+                            <th style={{ width: '35%' }}>Инициатива</th>
+                            <th style={{ width: '130px' }}>Тип</th>
+                            <th style={{ width: '130px' }}>Источник</th>
+                            <th>Комментарий / Описание</th>
+                            <th style={{ width: '50px', textAlign: 'center' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((item) => (
+                            <tr key={item.id} className={item.completed ? 'row-muted' : ''}>
+                              <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                                <input
+                                  type="checkbox"
+                                  className="roadmap-checkbox"
+                                  checked={item.completed}
+                                  onChange={() => handleToggleComplete(item.id)}
+                                  title={item.completed ? "Отметить как невыполненное" : "Отметить как выполненное"}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="mp-in"
+                                  value={item.initiative}
+                                  onChange={(e) => handleUpdateTaskField(item.id, 'initiative', e.target.value)}
+                                  placeholder="Название инициативы..."
+                                  style={{
+                                    width: '100%',
+                                    textDecoration: item.completed ? 'line-through' : 'none',
+                                    color: item.completed ? 'var(--mut)' : '#fff',
+                                    fontWeight: 700
+                                  }}
+                                />
+                              </td>
+                              <td>
+                                <select
+                                  className="roadmap-select-type"
+                                  value={item.type || 'Paid'}
+                                  onChange={(e) => handleUpdateTaskField(item.id, 'type', e.target.value)}
+                                  style={{ width: '100%', padding: '4px' }}
+                                >
+                                  <option value="Paid">Paid</option>
+                                  <option value="Outbound">Outbound</option>
+                                  <option value="Content">Content</option>
+                                  <option value="Social">Social</option>
+                                  <option value="Partnership">Partnership</option>
+                                  <option value="Events">Events</option>
+                                  <option value="Referral">Referral</option>
+                                  <option value="Community">Community</option>
+                                  <option value="Networking">Networking</option>
+                                  <option value="Sales">Sales</option>
+                                  <option value="CRM">CRM</option>
+                                  <option value="Product">Product</option>
+                                  <option value="-">-</option>
+                                </select>
+                              </td>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="mp-in"
+                                  value={item.source || ''}
+                                  onChange={(e) => handleUpdateTaskField(item.id, 'source', e.target.value)}
+                                  placeholder="v3 / backlog..."
+                                  style={{ width: '100%' }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="mp-in"
+                                  value={item.comment}
+                                  onChange={(e) => handleUpdateTaskField(item.id, 'comment', e.target.value)}
+                                  placeholder="Комментарий..."
+                                  style={{ width: '100%', color: 'var(--mut)' }}
+                                />
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button
+                                  className="roadmap-item-delete"
+                                  onClick={() => handleDeleteTask(item.id)}
+                                  title="Удалить инициативу"
+                                  style={{ padding: '4px 8px' }}
+                                >
+                                  ✕
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          <tr>
+                            <td colSpan={6} style={{ padding: '0' }}>
+                              <button 
+                                className="roadmap-btn-add"
+                                onClick={() => handleAddTask(month)}
+                                style={{
+                                  border: 'none',
+                                  borderRadius: '0',
+                                  width: '100%',
+                                  minHeight: 'auto',
+                                  padding: '10px',
+                                  background: 'rgba(255, 255, 255, 0.01)'
+                                }}
+                              >
+                                ➕ Добавить инициативу
+                              </button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="roadmap-list">
+                      {items.map((item) => (
+                        <div key={item.id} className={`roadmap-item ${item.completed ? 'completed' : ''}`}>
+                          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between', gap: '8px' }}>
+                            <div>
+                              <div className="roadmap-item-header" style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                <input
+                                  type="checkbox"
+                                  className="roadmap-checkbox"
+                                  checked={item.completed}
+                                  onChange={() => handleToggleComplete(item.id)}
+                                  title={item.completed ? "Отметить как невыполненное" : "Отметить как выполненное"}
+                                  style={{ marginTop: '3px' }}
+                                />
+                                <input
+                                  type="text"
+                                  className="roadmap-input-title"
+                                  value={item.initiative}
+                                  onChange={(e) => handleUpdateTaskField(item.id, 'initiative', e.target.value)}
+                                  placeholder="Название инициативы..."
+                                />
+                                <button
+                                  className="roadmap-item-delete"
+                                  onClick={() => handleDeleteTask(item.id)}
+                                  title="Удалить инициативу"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                              
+                              <textarea
+                                className="roadmap-textarea-comment"
+                                value={item.comment}
+                                onChange={(e) => handleUpdateTaskField(item.id, 'comment', e.target.value)}
+                                placeholder="Описание или комментарий..."
+                              />
+                            </div>
+
+                            <div className="roadmap-item-footer">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '10px', color: 'var(--mut)' }}>ТИП:</span>
+                                <select
+                                  className="roadmap-select-type"
+                                  value={item.type || 'Paid'}
+                                  onChange={(e) => handleUpdateTaskField(item.id, 'type', e.target.value)}
+                                >
+                                  <option value="Paid">Paid</option>
+                                  <option value="Outbound">Outbound</option>
+                                  <option value="Content">Content</option>
+                                  <option value="Social">Social</option>
+                                  <option value="Partnership">Partnership</option>
+                                  <option value="Events">Events</option>
+                                  <option value="Referral">Referral</option>
+                                  <option value="Community">Community</option>
+                                  <option value="Networking">Networking</option>
+                                  <option value="Sales">Sales</option>
+                                  <option value="CRM">CRM</option>
+                                  <option value="Product">Product</option>
+                                  <option value="-">-</option>
+                                </select>
+                              </div>
+
+                              <span className="roadmap-item-source">
+                                Ист: 
+                                <input
+                                  type="text"
+                                  className="roadmap-input-source"
+                                  value={item.source || ''}
+                                  onChange={(e) => handleUpdateTaskField(item.id, 'source', e.target.value)}
+                                  placeholder="v3 / backlog..."
+                                  style={{ marginLeft: '4px' }}
+                                />
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Add Initiative Card */}
+                      <button 
+                        className="roadmap-btn-add"
+                        onClick={() => handleAddTask(month)}
+                      >
+                        ➕ Добавить инициативу
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: 'var(--panel2)',
+            border: '1px solid var(--line)',
+            borderRadius: '16px',
+            padding: '24px',
+            maxWidth: '440px',
+            width: '100%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
+            margin: '20px'
+          }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: 800, color: '#fff' }}>
+              {confirmModal.title}
+            </h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: '14.5px', color: 'var(--mut)', lineHeight: 1.5 }}>
+              {confirmModal.message}
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--line)',
+                  color: 'var(--mut)',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '13.5px'
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={confirmModal.onConfirm}
+                style={{
+                  background: '#ef4444',
+                  border: 'none',
+                  color: '#fff',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '13.5px'
+                }}
+              >
+                Подтвердить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
