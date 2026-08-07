@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Insurvoice — 4:5 post & carousel builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{ --ink:#0B0F0E; --emerald:#10B981; --paper:#F4FBF8; --muted:#7E938C; --stage:#1A1F1E; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+        background:var(--stage); color:var(--paper); padding:28px;
+        display:flex; gap:34px; flex-wrap:wrap; align-items:flex-start; }
+
+  .stage{ flex:1 1 520px; min-width:340px }
+  .strip{ display:flex; gap:14px; overflow-x:auto; padding-bottom:16px; }
+  .strip::-webkit-scrollbar{ height:8px }
+  .strip::-webkit-scrollbar-thumb{ background:#2C3A35; border-radius:4px }
+
+  .slot{ flex:0 0 auto }
+  .slot .cap{ font-size:11px; color:var(--muted); margin-top:8px; text-align:center;
+              font-weight:600; letter-spacing:.06em; text-transform:uppercase }
+
+  .artboard{ width:324px; height:405px; position:relative; overflow:hidden;
+             background:var(--ink); border-radius:2px; box-shadow:0 18px 44px rgba(0,0,0,.5); }
+  .artboard.active{ outline:2px solid var(--emerald); outline-offset:3px }
+  .bg{ position:absolute; inset:0; background-size:cover; background-position:center;
+       background-image: radial-gradient(120% 80% at 50% 108%, rgba(16,185,129,.30) 0%, rgba(16,185,129,0) 58%),
+                         linear-gradient(180deg,#0B0F0E 0%, #12201B 100%); }
+  .scrim{ position:absolute; inset:0;
+          background:linear-gradient(180deg, rgba(11,15,14,.88) 0%, rgba(11,15,14,.42) 44%, rgba(11,15,14,.22) 72%); }
+  .content{ position:absolute; inset:0; padding:33px 30px; display:flex; flex-direction:column; }
+
+  .eyebrow{ font-size:8.5px; font-weight:600; letter-spacing:.16em; text-transform:uppercase;
+            color:var(--emerald); display:flex; align-items:center; gap:7px; margin-bottom:15px; }
+  .eyebrow::before{ content:''; width:17px; height:2px; background:var(--emerald); flex:0 0 auto }
+  .eyebrow.hide{ display:none }
+
+  .headline{ font-size:31px; line-height:1.05; font-weight:800; letter-spacing:-.024em;
+             color:#fff; max-width:11.5ch; text-wrap:balance; }
+  .inner-num{ font-size:8.5px; font-weight:700; letter-spacing:.18em; color:var(--emerald); margin-bottom:15px }
+  .inner-body{ font-size:25px; line-height:1.16; font-weight:700; letter-spacing:-.018em;
+               color:#fff; max-width:14ch; text-wrap:balance; }
+  .cta-body{ font-size:23px; line-height:1.18; font-weight:700; letter-spacing:-.016em;
+             color:#fff; max-width:15ch; text-wrap:balance }
+  [contenteditable]:focus{ outline:1px dashed rgba(16,185,129,.8); outline-offset:4px }
+
+  .foot{ margin-top:auto; display:flex; align-items:flex-end; justify-content:space-between; gap:11px }
+  .logo{ display:flex; align-items:center; gap:7px }
+  .logo span{ font-size:11.5px; font-weight:700; letter-spacing:-.01em; color:#fff }
+  .corner{ text-align:right }
+  .corner.hide{ display:none }
+  .c-url{ font-size:9px; font-weight:600; color:rgba(244,251,248,.62); letter-spacing:.02em }
+  .c-key{ font-size:8.5px; font-weight:600; color:var(--emerald) }
+  .c-tag{ font-size:8.5px; font-weight:500; color:rgba(244,251,248,.55); letter-spacing:.03em }
+  .c-free{ font-size:8.5px; font-weight:600; color:var(--emerald); display:inline-block;
+           max-width:150px; line-height:1.35 }
+  .c-swipe{ display:inline-flex; align-items:center; gap:5px; font-size:8px; font-weight:600;
+            letter-spacing:.12em; text-transform:uppercase; color:#04231A; background:var(--emerald);
+            padding:6px 10px; border-radius:100px }
+  .c-dots{ display:flex; gap:4px; align-items:center; justify-content:flex-end }
+  .c-dots i{ width:4px; height:4px; border-radius:50%; background:rgba(244,251,248,.28) }
+  .c-dots i.on{ background:var(--emerald); width:13px; border-radius:100px }
+
+  .guides{ position:absolute; inset:0; display:none }
+  .guides.on{ display:block }
+  .guides::before,.guides::after{ content:''; position:absolute; left:0; right:0; height:36px;
+    background:repeating-linear-gradient(45deg, rgba(255,80,80,.16) 0 6px, transparent 6px 12px);
+    border-block:1px dashed rgba(255,80,80,.5) }
+  .guides::before{ top:0 } .guides::after{ bottom:0 }
+  .margin-box{ position:absolute; inset:33px 30px; border:1px dashed rgba(16,185,129,.45) }
+
+  .panel{ flex:0 1 380px; min-width:300px }
+  h1{ font-size:18px; font-weight:700; letter-spacing:-.01em; margin-bottom:5px }
+  .lede{ font-size:13px; line-height:1.6; color:#A9BFB8; margin-bottom:22px }
+  label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.1em;
+         text-transform:uppercase; color:var(--muted); margin:0 0 7px }
+  select,input[type=text]{ width:100%; padding:10px 12px; font-family:inherit; font-size:13px;
+    background:#0F1514; color:var(--paper); border:1px solid #24302C; border-radius:7px; margin-bottom:10px }
+  select{ margin-bottom:16px }
+  select:focus,input:focus{ outline:2px solid var(--emerald); outline-offset:1px }
+  .hint{ font-size:11px; color:#6E837C; margin:-1px 0 16px; line-height:1.5 }
+  .group{ padding:15px; border:1px solid #24302C; border-radius:9px; margin-bottom:18px; background:#0E1413 }
+  .seg{ display:flex; gap:6px; margin-bottom:14px }
+  .seg button{ flex:1; padding:9px; font-family:inherit; font-size:12.5px; font-weight:600;
+    background:#0F1514; color:#A9BFB8; border:1px solid #24302C; border-radius:7px; cursor:pointer }
+  .seg button.on{ background:var(--emerald); color:#04231A; border-color:var(--emerald) }
+  .row{ display:flex; gap:9px; align-items:center; margin-bottom:11px }
+  .row input[type=checkbox]{ accent-color:var(--emerald); width:16px; height:16px; flex:0 0 auto }
+  .row label{ margin:0; text-transform:none; letter-spacing:0; font-size:12.5px; color:#A9BFB8; font-weight:400 }
+  .file{ font-size:12px; color:#A9BFB8 }
+  .file::file-selector-button{ font-family:inherit; font-size:12px; font-weight:600; margin-right:10px;
+    padding:8px 12px; border:0; border-radius:6px; cursor:pointer; background:var(--emerald); color:#04231A }
+  .dl{ display:flex; gap:8px; margin-top:6px }
+  .dl button{ flex:1; padding:12px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;
+    border-radius:8px; border:1px solid var(--emerald); background:var(--emerald); color:#04231A }
+  .dl button.ghost{ background:transparent; color:var(--emerald) }
+  .dl button:disabled{ opacity:.45; cursor:default }
+  .status{ font-size:11.5px; color:var(--emerald); margin-top:9px; min-height:16px }
+  .notes{ margin-top:22px; padding-top:20px; border-top:1px solid #24302C;
+          font-size:12px; line-height:1.7; color:#8FA69F }
+  .notes b{ color:var(--paper); font-weight:600 }
+  .notes ul{ padding-left:16px; margin-top:7px }
+  .notes li{ margin-bottom:6px }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="strip" id="strip"></div>
+</div>
+
+<div class="panel">
+  <h1>4:5 post &amp; carousel builder</h1>
+  <p class="lede">Generated images sit underneath. Type directly on any slide to edit it. Export at full 1080&nbsp;&times;&nbsp;1350.</p>
+
+  <div class="group">
+    <label for="post">Post</label>
+    <select id="post"></select>
+
+    <label>Format</label>
+    <div class="seg">
+      <button id="f-single" data-fmt="single">Single image</button>
+      <button id="f-carousel" data-fmt="carousel">Carousel</button>
+    </div>
+
+    <label for="count">Slides</label>
+    <select id="count">
+      <option value="3">3 slides</option>
+      <option value="4">4 slides</option>
+      <option value="5" selected>5 slides</option>
+      <option value="6">6 slides</option>
+      <option value="7">7 slides</option>
+    </select>
+
+    <label for="custom-theme">Theme &mdash; blank keeps the preset</label>
+    <input type="text" id="custom-theme" placeholder="e.g. Renewal season">
+    <label for="custom">Headline &mdash; blank keeps the preset</label>
+    <input type="text" id="custom" placeholder="Type your own headline">
+    <div class="row" style="margin-bottom:0">
+      <input type="checkbox" id="no-theme">
+      <label for="no-theme">Hide the theme line</label>
+    </div>
+  </div>
+
+  <div class="group">
+    <label for="corner-style">Bottom-right element</label>
+    <select id="corner-style">
+      <option value="auto">Auto &mdash; swipe pill on carousels, URL on singles</option>
+      <option value="swipe">Swipe pill</option>
+      <option value="dots">Slide dots</option>
+      <option value="url">Website &mdash; insurvoice.ai</option>
+      <option value="key">Comment keyword</option>
+      <option value="tag">Tagline &mdash; Every call answered</option>
+      <option value="custom">Custom text</option>
+      <option value="none">Nothing</option>
+    </select>
+    <label for="corner-custom">Custom text</label>
+    <input type="text" id="corner-custom" placeholder="e.g. Book a 15-min demo">
+    <p class="hint">Typing switches the dropdown to Custom. Keep it under ~30 characters.</p>
+    <div class="row" style="margin-bottom:0">
+      <input type="checkbox" id="corner-pill">
+      <label for="corner-pill">Render custom text as a filled pill</label>
+    </div>
+  </div>
+
+  <label for="upload">Background image for slide 1</label>
+  <input type="file" id="upload" class="file" accept="image/*">
+
+  <div class="row" style="margin-top:16px">
+    <input type="checkbox" id="sz">
+    <label for="sz">Show Instagram safe zones and margins</label>
+  </div>
+
+  <label style="margin-top:14px">Export</label>
+  <div class="dl">
+    <button id="dl-one">Download slide 1</button>
+    <button id="dl-all" class="ghost">Download all</button>
+  </div>
+  <div class="status" id="status"></div>
+
+  <div class="notes">
+    <b>How to use it</b>
+    <ul>
+      <li>Click any text on a slide and type &mdash; it edits in place.</li>
+      <li>Click a slide to make it the one that &ldquo;Download slide&rdquo; exports.</li>
+      <li>Export renders at 1080 &times; 1350 px, ready for Instagram.</li>
+      <li>Inner slides stay flat dark on purpose &mdash; photography competes with the text.</li>
+      <li>Swap Inter for the real brand face once you have the licence.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const POSTS = [
+{
+"day": 1,
+"theme": "Problem awareness",
+"head": "Where do your callers go after 5 PM?",
+"key": "DEMO",
+"fmt": "carousel",
+"inner": [
+"40% of prospects call outside business hours",
+"80% never leave a voicemail",
+"They just dial the next agency on the list",
+"95% of calls answered, around the clock"
+],
+"cta": "Comment DEMO and we'll price your after-hours pipeline"
+},
+{
+"day": 2,
+"theme": "Product feature",
+"head": "Listen to our AI talk to a real client",
+"key": "TALK",
+"fmt": "carousel",
+"inner": [
+"It reads tone",
+"It handles interruptions without losing the thread",
+"It slows down when a caller is stressed",
+"It never sounds like a phone tree"
+],
+"cta": "Comment TALK to hear it say your agency's name"
+},
+{
+"day": 3,
+"theme": "Loss analysis",
+"head": "$21,700 a month, walking out the door",
+"key": "CALC",
+"fmt": "carousel",
+"inner": [
+"40 inbound calls a day",
+"31 missed every month",
+"$250 average commission",
+"= $21,700 lost, every month"
+],
+"cta": "Comment CALC for the math on your real call volume"
+},
+{
+"day": 4,
+"theme": "Customer story",
+"head": "My clients never realized they were talking to an AI",
+"key": "",
+"fmt": "carousel",
+"inner": [
+"He thought AI phone agents were a gimmick",
+"Answer rate went from patchy to near-total",
+"Not one new seat added",
+"Clients get instant answers now"
+],
+"cta": "Full story at the link in bio"
+},
+{
+"day": 5,
+"theme": "Technical value",
+"head": "Manual data entry is officially dead",
+"key": "",
+"fmt": "carousel",
+"inner": [
+"Every call ends in five minutes of retyping",
+"Fields get dropped. Details get lost.",
+"We transcribe, score sentiment, extract fields",
+"Straight into AMS360 or EZLynx in 30 seconds"
+],
+"cta": "Drop your AMS in the comments to check compatibility"
+},
+{
+"day": 6,
+"theme": "Risk reduction",
+"head": "TCPA fines don't come with a warning shot",
+"key": "SAFE",
+"fmt": "single",
+"inner": [
+"$500 per improper call",
+"Up to $1,500 if a court finds it willful",
+"Consent checks built into the dial logic",
+"Not a settings toggle bolted on later"
+],
+"cta": "Comment SAFE for our compliance guide"
+},
+{
+"day": 7,
+"theme": "Voice cloning",
+"head": "Your best closer, working 24/7",
+"key": "CLONE",
+"fmt": "carousel",
+"inner": [
+"One recording session",
+"Your top producer's voice, cloned",
+"Same delivery, same pacing, same confidence",
+"At 2 AM on a holiday weekend"
+],
+"cta": "Comment CLONE for voice samples"
+},
+{
+"day": 8,
+"theme": "Dormant book",
+"head": "There's money sitting in your CRM right now",
+"key": "REACTIVE",
+"fmt": "single",
+"inner": [
+"Contacts older than 90 days",
+"Quoted once, never closed",
+"Fresh leads cost more every quarter",
+"Work the book you already paid for"
+],
+"cta": "Comment REACTIVE to start the campaign"
+},
+{
+"day": 9,
+"theme": "Sales psychology",
+"head": "Five minutes decides who closes the deal",
+"key": "SPEED",
+"fmt": "carousel",
+"inner": [
+"Contact inside five minutes and you close",
+"Wait an hour and they've talked to someone else",
+"We pick up in about five seconds",
+"Every time. Including Sunday."
+],
+"cta": "Comment SPEED for a free response-time audit"
+},
+{
+"day": 10,
+"theme": "FNOL automation",
+"head": "The worst moment to put someone on hold",
+"key": "",
+"fmt": "single",
+"inner": [
+"FNOL is when your client is most rattled",
+"It usually has the longest wait time",
+"We collect details, photos and timeline",
+"Filed while they're still on the line"
+],
+"cta": "Run a demo FNOL scenario — link in bio"
+},
+{
+"day": 11,
+"theme": "Burnout",
+"head": "Your best CSR won't tell you they're burning out",
+"key": "PEOPLE",
+"fmt": "carousel",
+"inner": [
+"Same twelve questions all day",
+"Manual entry after every single call",
+"Voicemails to return at 6 PM",
+"They won't complain. They'll resign."
+],
+"cta": "Comment PEOPLE to see what to offload first"
+},
+{
+"day": 12,
+"theme": "Financial guarantee",
+"head": "We pay if our AI gets it wrong",
+"key": "SHIELD",
+"fmt": "single",
+"inner": [
+"The objection we hear most",
+"What if it misstates a policy detail?",
+"Zero-Misinfo Shield",
+"We credit your subscription for the quarter"
+],
+"cta": "Comment SHIELD for the full terms"
+},
+{
+"day": 13,
+"theme": "Market data",
+"head": "The buyer's journey changed while you were on hold",
+"key": "FUTURE",
+"fmt": "carousel",
+"inner": [
+"Buyers ask an AI assistant first",
+"They arrive already compared",
+"Down to two agencies before they dial",
+"They call once. That's the whole funnel."
+],
+"cta": "Comment FUTURE to adapt your intake"
+},
+{
+"day": 14,
+"theme": "ROI guarantee",
+"head": "30 days. No risk. Money back.",
+"key": "RISKFREE",
+"fmt": "single",
+"inner": [
+"20 hours saved in the first 30 days",
+"Or the platform pays for itself",
+"Or you get every dollar back",
+"We take the risk because the math works"
+],
+"cta": "Comment RISKFREE to start"
+},
+{
+"day": 15,
+"theme": "Interactive",
+"head": "What percentage of your calls are you missing?",
+"key": "LEAK",
+"fmt": "carousel",
+"inner": [
+"Missed at lunch",
+"Missed at 5:02",
+"Missed during the Monday meeting",
+"Missed all weekend, when the storm hit"
+],
+"cta": "Comment LEAK for our free lead-leak test"
+},
+{
+"day": 16,
+"theme": "Integrations",
+"head": "Your AI should adapt to your stack",
+"key": "",
+"fmt": "single",
+"inner": [
+"Applied Epic. HawkSoft.",
+"EZLynx. AMS360.",
+"No developer, no data migration",
+"No six-week onboarding series"
+],
+"cta": "DM us your CRM for the exact setup steps"
+},
+{
+"day": 17,
+"theme": "Humor / Life",
+"head": "Friday, 5:01 PM at a typical agency",
+"key": "WEEKEND",
+"fmt": "carousel",
+"inner": [
+"The lights are off",
+"The parking lot is empty",
+"The phone is still ringing",
+"Somebody's commission is on the other end"
+],
+"cta": "Comment WEEKEND to cover after-hours"
+},
+{
+"day": 18,
+"theme": "Specialization",
+"head": "Generic bots fall apart on trucking and Medicare",
+"key": "NICHE",
+"fmt": "single",
+"inner": [
+"Ask one about an MCS-90 endorsement",
+"Or a Part D late enrollment penalty",
+"Watch it improvise. Your caller will notice.",
+"Ours trained on real insurance conversations"
+],
+"cta": "Comment NICHE for dialogues in your line"
+},
+{
+"day": 19,
+"theme": "Product feature",
+"head": "If our system drops a call, we pay for it",
+"key": "BOUNTY",
+"fmt": "carousel",
+"inner": [
+"Uptime promises are cheap",
+"Ours has a price tag",
+"Our failure means credited leads",
+"No ticket, no argument about fault"
+],
+"cta": "Comment BOUNTY for details"
+},
+{
+"day": 20,
+"theme": "Case study",
+"head": "This agency cut churn 40% with one phone call",
+"key": "CHURN",
+"fmt": "single",
+"inner": [
+"Renewal season is peak exposure",
+"Most agencies go quiet exactly then",
+"AI called every client before auto-renewal",
+"Two questions. Unhappy ones flagged same day."
+],
+"cta": "Comment CHURN for the retention script"
+},
+{
+"day": 21,
+"theme": "Data security",
+"head": "Who owns your clients' data?",
+"key": "TRUST",
+"fmt": "carousel",
+"inner": [
+"Never sold",
+"Never used to train public models",
+"Never leaves your account",
+"Export it or delete it, any time"
+],
+"cta": "Comment TRUST for our security documentation"
+},
+{
+"day": 22,
+"theme": "Value comparison",
+"head": "Scripts don't know an HO-3 from an HO-5",
+"key": "COMPARE",
+"fmt": "single",
+"inner": [
+"Your client knows the difference",
+"Every misquote becomes a service ticket",
+"Enough tickets become a lost renewal",
+"Faster, cheaper, and on your compliance rules"
+],
+"cta": "Comment COMPARE for the cost breakdown"
+},
+{
+"day": 23,
+"theme": "Lowering barriers",
+"head": "14 days to change your mind",
+"key": "TRY",
+"fmt": "carousel",
+"inner": [
+"Run it on your real call volume",
+"Two full weeks",
+"Not doing what we promised? Refunded.",
+"No exit interview, no retention offer"
+],
+"cta": "Comment TRY to start"
+},
+{
+"day": 24,
+"theme": "Expert content",
+"head": "Grow the book without growing payroll",
+"key": "SCALE",
+"fmt": "single",
+"inner": [
+"Salary, taxes, benefits, a desk",
+"Eight weeks before they're useful",
+"A third leave inside eighteen months",
+"Scale capacity instead of headcount"
+],
+"cta": "Comment SCALE to build your model"
+},
+{
+"day": 25,
+"theme": "Technical value",
+"head": "AI should know when to hand it over",
+"key": "TRANSFER",
+"fmt": "carousel",
+"inner": [
+"It shouldn't close a $40K commercial account",
+"It should recognise one",
+"Qualified and routed to a live producer",
+"Full transcript already on screen"
+],
+"cta": "Comment TRANSFER to see the handoff"
+},
+{
+"day": 26,
+"theme": "Humor / Life",
+"head": "Nobody sounds great at 4:47 on a Thursday",
+"key": "QUALITY",
+"fmt": "single",
+"inner": [
+"Tired voice. Flat delivery. Skipped questions.",
+"That's not a character flaw",
+"That's a human at the end of a long week",
+"AI doesn't have long weeks"
+],
+"cta": "Comment QUALITY for a call audit"
+},
+{
+"day": 27,
+"theme": "Niche solutions",
+"head": "AEP rewards whoever picks up",
+"key": "AEP",
+"fmt": "carousel",
+"inner": [
+"200 calls in a single afternoon",
+"Headcount can't flex that fast",
+"AI takes every call at once",
+"Qualifies each one and books it"
+],
+"cta": "Comment AEP to prep for the season"
+},
+{
+"day": 28,
+"theme": "Value guarantee",
+"head": "You're not short on leads",
+"key": "LEADGEN",
+"fmt": "single",
+"inner": [
+"Thousands a month on cold, shared lists",
+"Meanwhile inbound calls hit voicemail",
+"Those callers already want to buy",
+"Fix the second problem first"
+],
+"cta": "Comment LEADGEN to rebuild the model"
+},
+{
+"day": 29,
+"theme": "Expert content",
+"head": "Buyers pay for your process, not your book",
+"key": "VALUATION",
+"fmt": "carousel",
+"inner": [
+"Three people who remember everything",
+"That's dependency, not enterprise value",
+"Standardised intake. Documented calls.",
+"Process is what moves the multiple"
+],
+"cta": "Comment VALUATION to talk it through"
+},
+{
+"day": 30,
+"theme": "Direct CTA",
+"head": "Stop donating commissions to the agency down the street",
+"key": "START",
+"fmt": "single",
+"inner": [
+"Missed calls",
+"Overloaded staff",
+"Renewals walking quietly at 11 PM",
+"Fixable in days, not quarters"
+],
+"cta": "Comment START to book your demo"
+}
+];
+
+const $ = function(id){ return document.getElementById(id); };
+const strip = $('strip'), sel = $('post'), countSel = $('count');
+let fmt = 'carousel', current = 0, bgData = '', edits = {};
+
+POSTS.forEach(function(p){
+  const o = document.createElement('option');
+  o.value = p.day;
+  o.textContent = 'Day ' + String(p.day).padStart(2,'0') + ' \u2014 ' + p.theme;
+  sel.appendChild(o);
+});
+
+function post(){ return POSTS.find(function(x){ return x.day === Number(sel.value); }); }
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+const LOGO = '<div class="logo"><svg width="17" height="21" viewBox="0 0 21 26" fill="none">'
+ + '<rect x="0" y="9" width="3.4" height="8" rx="1.7" fill="#10B981"/>'
+ + '<rect x="5.5" y="4.5" width="3.4" height="17" rx="1.7" fill="#10B981"/>'
+ + '<rect x="11" y="0" width="3.4" height="26" rx="1.7" fill="#10B981"/>'
+ + '<rect x="16.5" y="6.5" width="3.4" height="13" rx="1.7" fill="#10B981"/>'
+ + '</svg><span>insurvoice<span style="color:#10B981">.ai</span></span></div>';
+
+function cornerHTML(idx, total){
+  const p = post();
+  let mode = $('corner-style').value;
+  if(mode === 'auto') mode = (fmt === 'carousel') ? 'swipe' : 'url';
+  if(fmt === 'carousel' && idx === total - 1 && (mode === 'swipe' || mode === 'dots')) mode = 'url';
+
+  switch(mode){
+    case 'swipe':
+      return '<span class="c-swipe">Swipe <svg width="10" height="8" viewBox="0 0 11 9" fill="none">'
+        + '<path d="M6.4 1L10 4.5L6.4 8M10 4.5H0" stroke="#04231A" stroke-width="1.7" '
+        + 'stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+    case 'dots': {
+      let h = '<span class="c-dots">';
+      for(let i=0;i<total;i++) h += '<i class="' + (i===idx?'on':'') + '"></i>';
+      return h + '</span>';
+    }
+    case 'url': return '<span class="c-url">insurvoice.ai</span>';
+    case 'key': return p.key ? '<span class="c-key">Comment \u201C' + p.key + '\u201D</span>' : '';
+    case 'tag': return '<span class="c-tag">Every call answered</span>';
+    case 'custom': {
+      const t = $('corner-custom').value.trim();
+      if(!t) return '';
+      return $('corner-pill').checked
+        ? '<span class="c-swipe" style="text-transform:none;letter-spacing:.02em">' + esc(t) + '</span>'
+        : '<span class="c-free">' + esc(t) + '</span>';
+    }
+    default: return '';
+  }
+}
+
+function slideHTML(idx, total){
+  const p = post();
+  const bg = (idx === 0 && bgData) ? ' style="background-image:url(' + bgData + ')"' : '';
+  let body;
+
+  if(idx === 0){
+    const theme = $('custom-theme').value.trim() || p.theme;
+    const head  = $('custom').value.trim() || p.head;
+    body = '<div class="eyebrow' + ($('no-theme').checked ? ' hide' : '') + '" contenteditable>'
+         + esc(theme) + '</div><div class="headline" contenteditable>' + esc(head) + '</div>';
+  } else if(idx === total - 1 && total > 1){
+    body = '<div class="inner-num">' + String(idx+1).padStart(2,'0') + '</div>'
+         + '<div class="cta-body" contenteditable>' + esc(p.cta) + '</div>';
+  } else {
+    const line = edits[p.day + ':' + idx] || p.inner[(idx-1) % p.inner.length];
+    body = '<div class="inner-num">' + String(idx+1).padStart(2,'0') + '</div>'
+         + '<div class="inner-body" contenteditable>' + esc(line) + '</div>';
+  }
+
+  return '<div class="slot"><div class="artboard' + (idx===current?' active':'') + '" data-i="' + idx + '">'
+    + '<div class="bg"' + bg + '></div>' + (idx===0 ? '<div class="scrim"></div>' : '')
+    + '<div class="content">' + body
+    + '<div class="foot">' + LOGO + '<div class="corner">' + cornerHTML(idx, total) + '</div></div>'
+    + '</div><div class="guides' + ($('sz').checked?' on':'') + '"><div class="margin-box"></div></div>'
+    + '</div><div class="cap">' + (idx===0 ? 'Cover' : 'Slide ' + (idx+1)) + '</div></div>';
+}
+
+function render(){
+  const total = (fmt === 'single') ? 1 : Number(countSel.value);
+  if(current >= total) current = 0;
+  let h = '';
+  for(let i=0;i<total;i++) h += slideHTML(i, total);
+  strip.innerHTML = h;
+  $('dl-all').disabled = (total === 1);
+  $('dl-one').textContent = 'Download slide ' + (current+1);
+}
+
+strip.addEventListener('click', function(e){
+  const a = e.target.closest('.artboard');
+  if(a && !e.target.hasAttribute('contenteditable')){
+    current = Number(a.dataset.i); render();
+  }
+});
+strip.addEventListener('input', function(e){
+  const el = e.target;
+  if(!el.classList.contains('inner-body')) return;
+  const a = el.closest('.artboard');
+  edits[post().day + ':' + Number(a.dataset.i)] = el.textContent;
+});
+
+sel.addEventListener('change', function(){
+  const p = post();
+  fmt = p.fmt;
+  $('f-single').classList.toggle('on', fmt==='single');
+  $('f-carousel').classList.toggle('on', fmt==='carousel');
+  $('custom').value=''; $('custom-theme').value=''; current=0; render();
+});
+document.querySelectorAll('.seg button').forEach(function(b){
+  b.addEventListener('click', function(){
+    fmt = b.dataset.fmt;
+    document.querySelectorAll('.seg button').forEach(function(x){ x.classList.toggle('on', x===b); });
+    current = 0; render();
+  });
+});
+['count','corner-style','corner-pill','no-theme','sz'].forEach(function(id){
+  $(id).addEventListener('change', render);
+});
+['custom','custom-theme'].forEach(function(id){ $(id).addEventListener('input', render); });
+$('corner-custom').addEventListener('input', function(){
+  if($('corner-custom').value.trim() && $('corner-style').value !== 'custom') $('corner-style').value = 'custom';
+  render();
+});
+$('upload').addEventListener('change', function(e){
+  const f = e.target.files && e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = function(ev){ bgData = ev.target.result; render(); };
+  r.readAsDataURL(f);
+});
+
+async function shoot(i){
+  const board = strip.querySelectorAll('.artboard')[i];
+  const g = board.querySelector('.guides'); const was = g.classList.contains('on');
+  g.classList.remove('on');
+  const canvas = await html2canvas(board, {scale: 1080/324, backgroundColor:'#0B0F0E', logging:false, useCORS:true});
+  if(was) g.classList.add('on');
+  const a = document.createElement('a');
+  a.download = 'insurvoice-day' + String(post().day).padStart(2,'0') + '-slide' + (i+1) + '.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+$('dl-one').addEventListener('click', async function(){
+  $('status').textContent = 'Rendering\u2026';
+  await shoot(current);
+  $('status').textContent = 'Slide ' + (current+1) + ' saved at 1080 \u00D7 1350.';
+});
+$('dl-all').addEventListener('click', async function(){
+  const n = strip.querySelectorAll('.artboard').length;
+  for(let i=0;i<n;i++){
+    $('status').textContent = 'Rendering slide ' + (i+1) + ' of ' + n + '\u2026';
+    await shoot(i);
+    await new Promise(function(r){ setTimeout(r, 320); });
+  }
+  $('status').textContent = n + ' slides saved at 1080 \u00D7 1350.';
+});
+
+fmt = POSTS[0].fmt;
+$('f-carousel').classList.add('on');
+render();
+</script>
+</body>
+</html>
