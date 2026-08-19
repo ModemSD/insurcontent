@@ -14,6 +14,7 @@
     "@types/leaflet": "^1.9.22",
     "@vis.gl/react-google-maps": "^1.9.0",
     "apify-client": "^2.25.0",
+    "google-libphonenumber": "^3.2.46",
     "html2canvas": "^1.4.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.577.0",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/google-libphonenumber": "^7.4.31",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
