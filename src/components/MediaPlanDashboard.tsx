@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { saveMediaPlanSettings } from '@/app/actions';
+import * as XLSX from 'xlsx';
 
 interface CalcInputs {
   arpu: number;
@@ -843,6 +844,159 @@ export default function MediaPlanDashboard({
         </table>
       </div>
     );
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // Summary sheet
+      const summaryData: any[][] = [
+        ['Сводные данные по медиаплану', `Сценарий: ${activeScenario === 'realistic' ? 'Реалистичный' : activeScenario === 'optimistic' ? 'Оптимистичный' : 'Пессимистичный'}`],
+        [],
+        ['Месяц', 'Бюджет $', 'Лиды', 'Назначено демо', 'Проведено демо', 'Подписано контрактов', 'CAC $', 'Накопительный итог клиентов']
+      ];
+
+      summaryRows.forEach(r => {
+        summaryData.push([
+          r.m,
+          r.b,
+          Math.round(r.l),
+          Math.round(r.bk),
+          Math.round(r.co),
+          Math.round(r.si),
+          Math.round(r.cac),
+          Math.round(r.cumulativeSigned)
+        ]);
+      });
+
+      summaryData.push([
+        'Итого',
+        gtBudget,
+        Math.round(gtLeads),
+        Math.round(gtBooked),
+        Math.round(gtCompleted),
+        Math.round(gtSigned),
+        Math.round(gtCac),
+        ''
+      ]);
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Сводка');
+
+      // Month sheets
+      MONTHS.forEach((monthName, mi) => {
+        const monthData: any[][] = [
+          [`Медиаплан на ${monthName}`, `Сценарий: ${activeScenario === 'realistic' ? 'Реалистичный' : activeScenario === 'optimistic' ? 'Оптимистичный' : 'Пессимистичный'}`],
+          [],
+          [
+            'Канал', 'Бюджет $', 'Показы', 'CTR', 'Клики', 'CPC $', 'CRл', 'Лиды', 
+            'CPL $', 'CR2', 'Букд. демо', 'CPA $', 'CR3', 'Сост. демо', 'CPA2 $', 
+            'CR4', 'Контракт выслан', 'CPA3 $', 'CR5', 'Подписано', 'CPA4 $'
+          ]
+        ];
+
+        let mBudget = 0;
+        let mImpr = 0;
+        let mClicks = 0;
+        let mLeads = 0;
+        let mBooked = 0;
+        let mCompleted = 0;
+        let mSent = 0;
+        let mSigned = 0;
+
+        CH.forEach((c, ci) => {
+          const s = planState[ci][mi];
+          if (s.muted) {
+            monthData.push([
+              c.n, 'Приглушен', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''
+            ]);
+            return;
+          }
+          const r = computeChannelMetrics(s);
+          
+          mBudget += s.budget;
+          mImpr += r.impr;
+          mClicks += r.clicks;
+          mLeads += r.leads;
+          mBooked += r.booked;
+          mCompleted += r.completed;
+          mSent += r.sent;
+          mSigned += r.signed;
+
+          monthData.push([
+            c.n,
+            s.budget,
+            Math.round(r.impr),
+            `${(s.cr1 * 100).toFixed(2)}%`,
+            Math.round(r.clicks),
+            s.cpc,
+            `${(s.crL * 100).toFixed(2)}%`,
+            Math.round(r.leads),
+            r.cpl,
+            `${(s.cr2 * 100).toFixed(2)}%`,
+            Math.round(r.booked),
+            r.cpa,
+            `${(s.cr3 * 100).toFixed(2)}%`,
+            Math.round(r.completed),
+            r.cpa2,
+            `${(s.cr4 * 100).toFixed(2)}%`,
+            Math.round(r.sent),
+            r.cpa3,
+            `${(s.cr5 * 100).toFixed(2)}%`,
+            Math.round(r.signed),
+            r.cpa4
+          ]);
+        });
+
+        // Totals
+        const mCR1 = mImpr > 0 ? mClicks / mImpr : 0;
+        const mCPC = mClicks > 0 ? mBudget / mClicks : 0;
+        const mCRL = mClicks > 0 ? mLeads / mClicks : 0;
+        const mCPL = mLeads > 0 ? mBudget / mLeads : 0;
+        const mCR2 = mLeads > 0 ? mBooked / mLeads : 0;
+        const mCPA = mBooked > 0 ? mBudget / mBooked : 0;
+        const mCR3 = mBooked > 0 ? mCompleted / mBooked : 0;
+        const mCPA2 = mCompleted > 0 ? mBudget / mCompleted : 0;
+        const mCR4 = mCompleted > 0 ? mSent / mCompleted : 0;
+        const mCPA3 = mSent > 0 ? mBudget / mSent : 0;
+        const mCR5 = mSent > 0 ? mSigned / mSent : 0;
+        const mCPA4 = mSigned > 0 ? mBudget / mSigned : 0;
+
+        monthData.push([
+          'ИТОГО',
+          mBudget,
+          Math.round(mImpr),
+          `${(mCR1 * 100).toFixed(2)}%`,
+          Math.round(mClicks),
+          mCPC,
+          `${(mCRL * 100).toFixed(2)}%`,
+          Math.round(mLeads),
+          mCPL,
+          `${(mCR2 * 100).toFixed(2)}%`,
+          Math.round(mBooked),
+          mCPA,
+          `${(mCR3 * 100).toFixed(2)}%`,
+          Math.round(mCompleted),
+          mCPA2,
+          `${(mCR4 * 100).toFixed(2)}%`,
+          Math.round(mSent),
+          mCPA3,
+          `${(mCR5 * 100).toFixed(2)}%`,
+          Math.round(mSigned),
+          mCPA4
+        ]);
+
+        const wsMonth = XLSX.utils.aoa_to_sheet(monthData);
+        XLSX.utils.book_append_sheet(wb, wsMonth, monthName);
+      });
+
+      XLSX.writeFile(wb, `mediaplan-${activeScenario}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      triggerFlash('⬇ Excel файл выгружен ✓');
+    } catch (e: any) {
+      console.error(e);
+      alert('Ошибка экспорта: ' + e.message);
+    }
   };
 
   return (
@@ -1997,9 +2151,11 @@ export default function MediaPlanDashboard({
               />
             </div>
 
-            <button className="tbtn" onClick={handleExport}>⬇ Экспорт всех данных (.json)</button>
+            <button className="tbtn" onClick={handleExportExcel} style={{ background: '#107c41', color: '#fff', border: 'none', fontWeight: 600 }}>📊 Скачать в Excel (.xlsx)</button>
+            <a href="/Mediaplan _ Insurvoice.xlsx" className="tbtn" download style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>📄 Шаблон (.xlsx)</a>
+            <button className="tbtn" onClick={handleExport}>⬇ Экспорт (.json)</button>
             <label className="tbtn">
-              ⬆ Импорт
+              ⬆ Импорт (.json)
               <input type="file" onChange={handleImport} accept="application/json,.json" hidden />
             </label>
             <button className="tbtn warnb" onClick={handlePlanReset}>Сбросить к плану</button>

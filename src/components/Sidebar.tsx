@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  Inbox, CheckSquare, ChevronLeft, ChevronRight, SendHorizontal, BarChart3, LogOut, Calendar, Instagram
+  Inbox, CheckSquare, ChevronLeft, ChevronRight, SendHorizontal, BarChart3, LogOut, Calendar, Instagram, MapPin
 } from 'lucide-react';
 import { logoutAction } from '@/app/actions';
 
@@ -53,6 +53,11 @@ export default function Sidebar({ collapsed, setCollapsed, onNavigateStart }: Si
       name: 'Media Plan',
       href: '/mediaplan',
       icon: Calendar,
+    },
+    {
+      name: 'Google Maps Parser',
+      href: '/google-parser',
+      icon: MapPin,
     },
     {
       name: 'Statistics',
