@@ -5,6 +5,8 @@ export async function analyzeCallWithGPT(params: {
   transcript: TranscriptUtterance[];
   managerName?: string;
   durationSeconds?: number;
+  customCriteria?: string;
+  model?: string;
 }): Promise<CallAnalysisResult> {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -20,11 +22,15 @@ export async function analyzeCallWithGPT(params: {
     return generateSimulatedAnalysis(params.callId, params.transcript, params.managerName);
   }
 
+  const userCustomRules = params.customCriteria?.trim()
+    ? `\nДОПОЛНИТЕЛЬНЫЕ КРИТЕРИИ И СЦЕНАРИЙ РУКОВОДИТЕЛЯ:\n${params.customCriteria.trim()}\nОбязательно учитывай эти критерии при выставлении баллов и описании сильных сторон / ошибок менеджера.\n`
+    : '';
+
   const systemPrompt = `
 Ты — ведущий эксперт по оценке качества звонков отдела продаж и клиентского сервиса.
 Твоя задача — проанализировать стенограмму телефонного разговора между Менеджером и Клиентом, оценить работу менеджера и вернуть строгий JSON.
-
-Правила анализа:
+${userCustomRules}
+Базовые правила анализа:
 1. Приветствие (greeting 0-10): представился ли менеджер, вежлив ли, назвал ли компанию.
 2. Выявление потребностей (needsDiscovery 0-10): задавал ли открытые вопросы, выяснил ли контекст клиента.
 3. Отработка возражений (objectionHandling 0-10): аргументировал ли выгоды, не спорил ли, закрыл ли сомнения.
@@ -59,15 +65,18 @@ export async function analyzeCallWithGPT(params: {
 }
 `;
 
+  // Fallback chain: first try gpt-5.4-mini or custom model, then fallback to gpt-4o-mini if provider doesn't support it yet
+  const primaryModel = params.model || process.env.OPENAI_CALL_MODEL || 'gpt-5.4-mini';
+
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    let response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: primaryModel,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Стенограмма звонка:\n${formattedDialog}` },
@@ -76,6 +85,26 @@ export async function analyzeCallWithGPT(params: {
         response_format: { type: 'json_object' },
       }),
     });
+
+    if (!response.ok && primaryModel !== 'gpt-4o-mini') {
+      console.warn(`Model ${primaryModel} failed (${response.status}), falling back to gpt-4o-mini...`);
+      response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Стенограмма звонка:\n${formattedDialog}` },
+          ],
+          temperature: 0.2,
+          response_format: { type: 'json_object' },
+        }),
+      });
+    }
 
     if (!response.ok) {
       const errText = await response.text();

@@ -76,14 +76,14 @@ export class QuoClient {
   async getCalls(params?: { maxResults?: number }): Promise<{ calls: QuoCall[] }> {
     try {
       // 1. Fetch recent conversations
-      const limit = params?.maxResults || 50;
+      const limit = params?.maxResults || 100;
       const convRes = await this.request<{ data: any[] }>(`/conversations?maxResults=${limit}`);
       const conversations = convRes.data || [];
 
       const allCalls: QuoCall[] = [];
 
-      // 2. Query calls for conversations that have phone & participants
-      const batch = conversations.slice(0, 20); // Scan top 20 active conversations
+      // 2. Query calls for conversations that have phone & participants (top 50 active)
+      const batch = conversations.slice(0, 50);
       await Promise.all(
         batch.map(async (conv) => {
           if (!conv.phoneNumberId || !conv.participants || conv.participants.length === 0) return;

@@ -191,7 +191,12 @@ export async function fetchTelephonyDataAction(): Promise<{
   };
 }
 
-export async function runGptAnalysisForCallAction(callId: string, managerName?: string): Promise<{
+export async function runGptAnalysisForCallAction(
+  callId: string, 
+  managerName?: string,
+  customCriteria?: string,
+  model?: string
+): Promise<{
   success: boolean;
   analysis?: CallAnalysisResult;
   error?: string;
@@ -224,6 +229,8 @@ export async function runGptAnalysisForCallAction(callId: string, managerName?: 
       callId,
       transcript,
       managerName,
+      customCriteria,
+      model,
     });
 
     // Save analysis to Supabase

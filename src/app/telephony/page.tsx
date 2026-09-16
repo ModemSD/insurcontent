@@ -42,6 +42,13 @@ export default function TelephonyPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [activeCallModal, setActiveCallModal] = useState<QuoCall | null>(null);
 
+  // Custom Criteria & Model
+  const [selectedModel, setSelectedModel] = useState<string>('gpt-5.4-mini');
+  const [customCriteria, setCustomCriteria] = useState<string>(
+    '1. Проверь, выяснил ли менеджер компанию и отрасль клиента.\n2. Была ли озвучена вилка цен.\n3. Назначен ли четкий день и время следующего контакта (Next Step).'
+  );
+  const [showCriteriaDrawer, setShowCriteriaDrawer] = useState(false);
+
   const loadData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -70,7 +77,12 @@ export default function TelephonyPage() {
   const handleRunAnalysis = async (call: QuoCall) => {
     setAnalyzingCallId(call.id);
     try {
-      const res = await runGptAnalysisForCallAction(call.id, call.userName);
+      const res = await runGptAnalysisForCallAction(
+        call.id, 
+        call.userName,
+        customCriteria,
+        selectedModel
+      );
       if (res.success && res.analysis) {
         setAnalyses((prev) => ({
           ...prev,
@@ -142,6 +154,14 @@ export default function TelephonyPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCriteriaDrawer(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50/70 px-3 py-2 text-xs font-semibold text-purple-700 shadow-sm hover:bg-purple-100 transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Сценарий и критерии GPT ({selectedModel})
+            </button>
+
             <button
               onClick={() => loadData(true)}
               disabled={refreshing}
@@ -596,6 +616,92 @@ export default function TelephonyPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Criteria & Script Settings Modal */}
+      {showCriteriaDrawer && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-2xl max-w-xl w-full flex flex-col overflow-hidden animate-in fade-in duration-200">
+            <div className="px-6 py-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-50/80">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-purple-600 text-white flex items-center justify-center">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-900">Сценарий и критерии оценки звонков</h3>
+                  <p className="text-[11px] text-zinc-500">Настройте модель и правила, по которым GPT оценивает менеджеров</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCriteriaDrawer(false)}
+                className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-200/60 hover:text-zinc-700 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-1.5">
+                  Модель OpenAI
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedModel('gpt-5.4-mini')}
+                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                      selectedModel === 'gpt-5.4-mini'
+                        ? 'border-purple-600 bg-purple-50/60 text-purple-950 ring-1 ring-purple-600'
+                        : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <span>GPT-5.4-MINI</span>
+                    {selectedModel === 'gpt-5.4-mini' && <Check className="h-3.5 w-3.5 text-purple-600" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedModel('gpt-4o-mini')}
+                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                      selectedModel === 'gpt-4o-mini'
+                        ? 'border-purple-600 bg-purple-50/60 text-purple-950 ring-1 ring-purple-600'
+                        : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <span>GPT-4O-MINI</span>
+                    {selectedModel === 'gpt-4o-mini' && <Check className="h-3.5 w-3.5 text-purple-600" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-1.5">
+                  Ваш сценарий и правила проверки менеджера
+                </label>
+                <textarea
+                  rows={6}
+                  value={customCriteria}
+                  onChange={(e) => setCustomCriteria(e.target.value)}
+                  placeholder="Напишите здесь обязательные пункты, скрипт или стоп-слова, которые должен проверить GPT..."
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 text-xs text-zinc-900 placeholder:text-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600/20 focus:border-purple-600 transition-all font-sans"
+                />
+                <p className="text-[11px] text-zinc-400 mt-1">
+                  GPT будет проверять диалог по этим пунктам, снижать балл за нарушения и выписывать замечания менеджеру.
+                </p>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCriteriaDrawer(false)}
+                  className="rounded-xl bg-zinc-900 text-white px-5 py-2.5 text-xs font-semibold hover:bg-zinc-800 transition-colors shadow-xs"
+                >
+                  Применить сценарий
+                </button>
               </div>
             </div>
           </div>
