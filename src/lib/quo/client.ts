@@ -71,57 +71,68 @@ export class QuoClient {
   }
 
   /**
-   * Get calls list
+   * Get calls list via conversations
    */
-  async getCalls(params?: { phoneNumberId?: string; userId?: string; maxResults?: number; pageToken?: string }): Promise<{ calls: QuoCall[]; nextPageToken?: string }> {
-    let targetPhoneId = params?.phoneNumberId;
+  async getCalls(params?: { maxResults?: number }): Promise<{ calls: QuoCall[] }> {
+    try {
+      // 1. Fetch recent conversations
+      const limit = params?.maxResults || 50;
+      const convRes = await this.request<{ data: any[] }>(`/conversations?maxResults=${limit}`);
+      const conversations = convRes.data || [];
 
-    // If phoneNumberId is not provided, fetch the first available phone number
-    if (!targetPhoneId) {
-      const numbers = await this.getPhoneNumbers();
-      if (numbers.length > 0) {
-        targetPhoneId = numbers[0].id;
-      }
-    }
+      const allCalls: QuoCall[] = [];
 
-    if (!targetPhoneId) {
+      // 2. Query calls for conversations that have phone & participants
+      const batch = conversations.slice(0, 20); // Scan top 20 active conversations
+      await Promise.all(
+        batch.map(async (conv) => {
+          if (!conv.phoneNumberId || !conv.participants || conv.participants.length === 0) return;
+
+          const query = new URLSearchParams();
+          query.set('phoneNumberId', conv.phoneNumberId);
+          for (const p of conv.participants) {
+            query.append('participants[]', p);
+          }
+
+          try {
+            const callsRes = await this.request<{ data: any[] }>(`/calls?${query.toString()}`);
+            for (const c of callsRes.data || []) {
+              const direction = c.direction === 'outgoing' ? 'outbound' : 'inbound';
+              let status: QuoCall['status'] = 'completed';
+              if (c.status === 'missed') status = 'missed';
+              else if (c.status === 'voicemail') status = 'voicemail';
+
+              const customerPhone = (c.participants || []).find((p: string) => !p.includes(conv.phoneNumberId)) || c.participants?.[1] || '';
+              const ourPhone = (c.participants || []).find((p: string) => p !== customerPhone) || c.participants?.[0] || '';
+
+              allCalls.push({
+                id: c.id,
+                direction,
+                status,
+                duration: c.duration || 0,
+                createdAt: c.createdAt || new Date().toISOString(),
+                completedAt: c.completedAt,
+                from: direction === 'inbound' ? customerPhone : ourPhone,
+                to: direction === 'inbound' ? ourPhone : customerPhone,
+                userId: c.userId,
+                phoneNumberId: c.phoneNumberId,
+                hasRecording: true,
+              });
+            }
+          } catch (e) {
+            // Ignore individual conversation call fetch errors
+          }
+        })
+      );
+
+      // Sort descending by created date
+      allCalls.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      return { calls: allCalls };
+    } catch (err) {
+      console.warn('Failed to fetch calls:', err);
       return { calls: [] };
     }
-
-    const query = new URLSearchParams();
-    query.set('phoneNumberId', targetPhoneId);
-    if (params?.userId) query.set('userId', params.userId);
-    if (params?.maxResults) query.set('maxResults', params.maxResults.toString());
-    if (params?.pageToken) query.set('pageToken', params.pageToken);
-
-    const queryString = `?${query.toString()}`;
-    const res = await this.request<{ data: any[]; nextPageToken?: string }>(`/calls${queryString}`);
-
-    const calls: QuoCall[] = (res.data || []).map((c) => {
-      let status: QuoCall['status'] = 'completed';
-      if (c.status === 'missed' || c.disposition === 'missed') status = 'missed';
-      else if (c.status === 'voicemail' || c.hasVoicemail) status = 'voicemail';
-
-      return {
-        id: c.id,
-        direction: c.direction || (c.from?.userId ? 'outbound' : 'inbound'),
-        status,
-        duration: c.duration || 0,
-        createdAt: c.createdAt || new Date().toISOString(),
-        completedAt: c.completedAt,
-        from: c.from?.phoneNumber || c.from || '',
-        to: c.to?.phoneNumber || c.to || '',
-        userId: c.userId || c.from?.userId || c.to?.userId,
-        phoneNumberId: c.phoneNumberId,
-        recordingUrl: c.mediaUrl || c.recordingUrl,
-        hasRecording: Boolean(c.mediaUrl || c.recordingUrl || c.hasRecording),
-      };
-    });
-
-    return {
-      calls,
-      nextPageToken: res.nextPageToken,
-    };
   }
 
   /**
@@ -130,18 +141,17 @@ export class QuoClient {
   async getCallTranscript(callId: string): Promise<TranscriptUtterance[] | null> {
     try {
       const res = await this.request<any>(`/call-transcripts/${callId}`);
-      if (res?.data?.utterances) {
-        return res.data.utterances.map((u: any) => ({
-          speaker: u.speaker === 'agent' || u.userId ? 'agent' : 'customer',
-          speakerName: u.speakerName,
-          text: u.text,
-          start: u.start,
-          end: u.end,
+      if (res?.data?.dialogue) {
+        return res.data.dialogue.map((item: any) => ({
+          speaker: item.userId ? 'agent' : 'customer',
+          speakerName: item.userId ? 'Менеджер' : 'Клиент',
+          text: item.content || item.text,
+          start: item.start,
+          end: item.end,
         }));
       }
       return null;
     } catch (err) {
-      // Transcript might not exist yet or not supported on this plan
       return null;
     }
   }
@@ -151,8 +161,8 @@ export class QuoClient {
    */
   async getCallRecordingUrl(callId: string): Promise<string | null> {
     try {
-      const res = await this.request<{ data: { url: string } }>(`/call-recordings/${callId}`);
-      return res?.data?.url || null;
+      const res = await this.request<{ data: any[] }>(`/call-recordings/${callId}`);
+      return res?.data?.[0]?.url || null;
     } catch {
       return null;
     }

@@ -79,7 +79,14 @@ export async function fetchTelephonyDataAction(): Promise<{
       }
 
       if (fetchedCalls?.calls && fetchedCalls.calls.length > 0) {
-        calls = fetchedCalls.calls;
+        calls = fetchedCalls.calls.map((c) => {
+          const matchedManager = managers.find((m) => m.id === c.userId);
+          return {
+            ...c,
+            userName: matchedManager?.name || c.userName || 'Сотрудник',
+          };
+        });
+
         // Optionally cache calls in Supabase
         try {
           await supabase.from('quo_calls').upsert(
