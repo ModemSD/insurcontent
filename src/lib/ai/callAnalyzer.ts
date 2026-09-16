@@ -65,18 +65,17 @@ ${userCustomRules}
 }
 `;
 
-  // Fallback chain: first try gpt-5.4-mini or custom model, then fallback to gpt-4o-mini if provider doesn't support it yet
-  const primaryModel = params.model || process.env.OPENAI_CALL_MODEL || 'gpt-5.4-mini';
+  const model = 'gpt-5.4-mini';
 
   try {
-    let response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: primaryModel,
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Стенограмма звонка:\n${formattedDialog}` },
@@ -85,26 +84,6 @@ ${userCustomRules}
         response_format: { type: 'json_object' },
       }),
     });
-
-    if (!response.ok && primaryModel !== 'gpt-4o-mini') {
-      console.warn(`Model ${primaryModel} failed (${response.status}), falling back to gpt-4o-mini...`);
-      response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Стенограмма звонка:\n${formattedDialog}` },
-          ],
-          temperature: 0.2,
-          response_format: { type: 'json_object' },
-        }),
-      });
-    }
 
     if (!response.ok) {
       const errText = await response.text();

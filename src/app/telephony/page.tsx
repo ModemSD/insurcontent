@@ -221,7 +221,7 @@ export default function TelephonyPage() {
             </div>
             <div className="mt-1 text-[11px] text-emerald-600 font-medium flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
-              На основе оценки GPT-4o
+              На основе оценки GPT-5.4-mini
             </div>
           </div>
 
@@ -654,32 +654,14 @@ export default function TelephonyPage() {
                 <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-1.5">
                   Модель OpenAI
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedModel('gpt-5.4-mini')}
-                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                      selectedModel === 'gpt-5.4-mini'
-                        ? 'border-purple-600 bg-purple-50/60 text-purple-950 ring-1 ring-purple-600'
-                        : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
-                    }`}
-                  >
-                    <span>GPT-5.4-MINI</span>
-                    {selectedModel === 'gpt-5.4-mini' && <Check className="h-3.5 w-3.5 text-purple-600" />}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedModel('gpt-4o-mini')}
-                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                      selectedModel === 'gpt-4o-mini'
-                        ? 'border-purple-600 bg-purple-50/60 text-purple-950 ring-1 ring-purple-600'
-                        : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
-                    }`}
-                  >
-                    <span>GPT-4O-MINI</span>
-                    {selectedModel === 'gpt-4o-mini' && <Check className="h-3.5 w-3.5 text-purple-600" />}
-                  </button>
+                <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-purple-600 bg-purple-50/60 text-purple-950 ring-1 ring-purple-600 text-xs font-bold">
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-purple-600" />
+                    GPT-5.4-MINI
+                  </span>
+                  <span className="text-[10px] font-semibold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded-full">
+                    Активна
+                  </span>
                 </div>
               </div>
 
