@@ -147,7 +147,7 @@ export default function TelephonyPage() {
                   </span>
                 </h1>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  Синхронизация телефонии Quo, статистика по менеджерам и скоринг расшифровок через GPT-4o
+                  Синхронизация телефонии Quo, статистика по менеджерам и скоринг расшифровок через GPT
                 </p>
               </div>
             </div>
@@ -396,8 +396,13 @@ export default function TelephonyPage() {
                       <td className="px-6 py-4 font-medium">
                         {call.duration > 0 ? formatDuration(call.duration) : '—'}
                       </td>
-                      <td className="px-6 py-4 text-zinc-400">
-                        {new Date(call.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <td className="px-6 py-4 text-zinc-600 whitespace-nowrap">
+                        <div className="font-medium text-zinc-800">
+                          {new Date(call.createdAt).toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </div>
+                        <div className="text-[11px] text-zinc-400">
+                          {new Date(call.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </td>
                       <td className="px-6 py-4 max-w-sm">
                         {analysis ? (
