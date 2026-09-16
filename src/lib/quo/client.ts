@@ -79,52 +79,58 @@ export class QuoClient {
       const limit = params?.maxResults || 100;
       const convRes = await this.request<{ data: any[] }>(`/conversations?maxResults=${limit}`);
       const conversations = convRes.data || [];
-
-      const allCalls: QuoCall[] = [];
-
-      // 2. Query calls for conversations that have phone & participants (top 50 active)
+      // 2. Query calls in smaller concurrent chunks (5 at a time) to strictly respect Quo rate limit (10 req/s)
       const batch = conversations.slice(0, 50);
-      await Promise.all(
-        batch.map(async (conv) => {
-          if (!conv.phoneNumberId || !conv.participants || conv.participants.length === 0) return;
+      const callMap = new Map<string, QuoCall>();
 
-          const query = new URLSearchParams();
-          query.set('phoneNumberId', conv.phoneNumberId);
-          for (const p of conv.participants) {
-            query.append('participants[]', p);
-          }
+      const chunkSize = 5;
+      for (let i = 0; i < batch.length; i += chunkSize) {
+        const chunk = batch.slice(i, i + chunkSize);
+        await Promise.all(
+          chunk.map(async (conv) => {
+            if (!conv.phoneNumberId || !conv.participants || conv.participants.length === 0) return;
 
-          try {
-            const callsRes = await this.request<{ data: any[] }>(`/calls?${query.toString()}`);
-            for (const c of callsRes.data || []) {
-              const direction = c.direction === 'outgoing' ? 'outbound' : 'inbound';
-              let status: QuoCall['status'] = 'completed';
-              if (c.status === 'missed') status = 'missed';
-              else if (c.status === 'voicemail') status = 'voicemail';
-
-              const customerPhone = (c.participants || []).find((p: string) => !p.includes(conv.phoneNumberId)) || c.participants?.[1] || '';
-              const ourPhone = (c.participants || []).find((p: string) => p !== customerPhone) || c.participants?.[0] || '';
-
-              allCalls.push({
-                id: c.id,
-                direction,
-                status,
-                duration: c.duration || 0,
-                createdAt: c.createdAt || new Date().toISOString(),
-                completedAt: c.completedAt,
-                from: direction === 'inbound' ? customerPhone : ourPhone,
-                to: direction === 'inbound' ? ourPhone : customerPhone,
-                userId: c.userId,
-                phoneNumberId: c.phoneNumberId,
-                hasRecording: true,
-              });
+            const query = new URLSearchParams();
+            query.set('phoneNumberId', conv.phoneNumberId);
+            for (const p of conv.participants) {
+              query.append('participants[]', p);
             }
-          } catch (e) {
-            // Ignore individual conversation call fetch errors
-          }
-        })
-      );
 
+            try {
+              const callsRes = await this.request<{ data: any[] }>(`/calls?${query.toString()}`);
+              for (const c of callsRes.data || []) {
+                if (!c.id || callMap.has(c.id)) continue;
+
+                const direction = c.direction === 'outgoing' ? 'outbound' : 'inbound';
+                let status: QuoCall['status'] = 'completed';
+                if (c.status === 'missed') status = 'missed';
+                else if (c.status === 'voicemail') status = 'voicemail';
+
+                const customerPhone = (c.participants || []).find((p: string) => !p.includes(conv.phoneNumberId)) || c.participants?.[1] || '';
+                const ourPhone = (c.participants || []).find((p: string) => p !== customerPhone) || c.participants?.[0] || '';
+
+                callMap.set(c.id, {
+                  id: c.id,
+                  direction,
+                  status,
+                  duration: c.duration || 0,
+                  createdAt: c.createdAt || new Date().toISOString(),
+                  completedAt: c.completedAt,
+                  from: direction === 'inbound' ? customerPhone : ourPhone,
+                  to: direction === 'inbound' ? ourPhone : customerPhone,
+                  userId: c.userId,
+                  phoneNumberId: c.phoneNumberId,
+                  hasRecording: true,
+                });
+              }
+            } catch (e) {
+              // Ignore individual conversation fetch error
+            }
+          })
+        );
+      }
+
+      const allCalls = Array.from(callMap.values());
       // Sort descending by created date
       allCalls.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 

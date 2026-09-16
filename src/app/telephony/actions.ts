@@ -53,17 +53,53 @@ export async function fetchTelephonyDataAction(): Promise<{
     // Supabase table might not be created yet, fallback gracefully
   }
 
-  if (quoApiKey) {
+  // 1. First, load existing saved calls and managers from Supabase
+  try {
+    const [dbManagersRes, dbCallsRes] = await Promise.all([
+      supabase.from('quo_managers').select('*'),
+      supabase.from('quo_calls').select('*').order('call_created_at', { ascending: false }).limit(200),
+    ]);
+
+    if (dbManagersRes.data && dbManagersRes.data.length > 0) {
+      managers = dbManagersRes.data.map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        email: m.email,
+        role: m.role,
+        phoneNumbers: m.phone_numbers || [],
+      }));
+    }
+
+    if (dbCallsRes.data && dbCallsRes.data.length > 0) {
+      calls = dbCallsRes.data.map((c: any) => ({
+        id: c.id,
+        direction: c.direction,
+        status: c.status,
+        duration: c.duration,
+        from: c.from_number,
+        to: c.to_number,
+        userId: c.manager_id,
+        userName: c.manager_name || 'Сотрудник',
+        recordingUrl: c.recording_url,
+        hasRecording: c.has_recording,
+        createdAt: c.call_created_at || c.created_at,
+      }));
+    }
+  } catch (e) {
+    console.warn('Could not read from Supabase cache:', e);
+  }
+
+  // 2. If no calls in Supabase yet and API key exists, do initial fetch from Quo
+  if (quoApiKey && calls.length === 0) {
     try {
       const client = new QuoClient(quoApiKey);
       const [fetchedUsers, fetchedCalls] = await Promise.all([
         client.getUsers(),
-        client.getCalls({ maxResults: 50 }),
+        client.getCalls({ maxResults: 40 }),
       ]);
 
       if (fetchedUsers && fetchedUsers.length > 0) {
         managers = fetchedUsers;
-        // Optionally cache managers in Supabase
         try {
           await supabase.from('quo_managers').upsert(
             managers.map((m) => ({
@@ -79,15 +115,15 @@ export async function fetchTelephonyDataAction(): Promise<{
       }
 
       if (fetchedCalls?.calls && fetchedCalls.calls.length > 0) {
-        calls = fetchedCalls.calls.map((c) => {
+        const enrichedCalls = fetchedCalls.calls.map((c) => {
           const matchedManager = managers.find((m) => m.id === c.userId);
           return {
             ...c,
             userName: matchedManager?.name || c.userName || 'Сотрудник',
           };
         });
+        calls = enrichedCalls;
 
-        // Optionally cache calls in Supabase
         try {
           await supabase.from('quo_calls').upsert(
             calls.map((c) => ({
@@ -108,8 +144,10 @@ export async function fetchTelephonyDataAction(): Promise<{
       }
       isLive = true;
     } catch (err: any) {
-      console.warn('Quo API connection fallback to demo data:', err?.message);
+      console.warn('Quo initial sync error:', err?.message);
     }
+  } else if (quoApiKey) {
+    isLive = true;
   }
 
   // Only fallback to mock data if QUO_API_KEY is completely missing
