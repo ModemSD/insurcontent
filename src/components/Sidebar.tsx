@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  Inbox, CheckSquare, ChevronLeft, ChevronRight, SendHorizontal, BarChart3, LogOut, Calendar, Instagram, MapPin, PhoneCall
+  Inbox, CheckSquare, ChevronLeft, ChevronRight, SendHorizontal, BarChart3, LogOut, Calendar, Instagram, MapPin, PhoneCall, Headphones
 } from 'lucide-react';
 import { logoutAction } from '@/app/actions';
 
@@ -63,6 +63,11 @@ export default function Sidebar({ collapsed, setCollapsed, onNavigateStart }: Si
       name: 'Phone Checker',
       href: '/phone-checker',
       icon: PhoneCall,
+    },
+    {
+      name: 'Telephony & Calls',
+      href: '/telephony',
+      icon: Headphones,
     },
     {
       name: 'Statistics',
