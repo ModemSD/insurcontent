@@ -3,7 +3,7 @@
 import { QuoClient } from '@/lib/quo/client';
 import { analyzeCallWithGPT } from '@/lib/ai/callAnalyzer';
 import { MOCK_MANAGERS, MOCK_CALLS, MOCK_ANALYSES } from '@/lib/telephony/mockData';
-import { QuoCall, QuoUser, CallAnalysisResult, ManagerPerformance } from '@/types/telephony';
+import { QuoCall, QuoUser, CallAnalysisResult, ManagerPerformance, TranscriptUtterance } from '@/types/telephony';
 
 import { supabase } from '@/lib/supabase';
 
@@ -408,5 +408,44 @@ export async function runGptAnalysisForCallAction(
     return { success: true, analysis };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Ошибка запуска анализа звонка' };
+  }
+}
+
+export async function getCallTranscriptAction(callId: string): Promise<{
+  success: boolean;
+  transcript: TranscriptUtterance[];
+  recordingUrl?: string | null;
+}> {
+  try {
+    // 1. Check if already in analysis in Supabase
+    const { data: dbAnalysis } = await supabase
+      .from('quo_call_analyses')
+      .select('transcript')
+      .eq('call_id', callId)
+      .maybeSingle();
+
+    if (dbAnalysis?.transcript && dbAnalysis.transcript.length > 0) {
+      return { success: true, transcript: dbAnalysis.transcript };
+    }
+
+    // 2. Fetch directly from Quo API
+    const quoApiKey = process.env.QUO_API_KEY;
+    if (quoApiKey) {
+      const client = new QuoClient(quoApiKey);
+      const [liveTranscript, recordingUrl] = await Promise.all([
+        client.getCallTranscript(callId),
+        client.getCallRecordingUrl(callId),
+      ]);
+
+      if (liveTranscript && liveTranscript.length > 0) {
+        return { success: true, transcript: liveTranscript, recordingUrl };
+      }
+    }
+
+    // 3. Fallback to mock if available
+    const mock = MOCK_ANALYSES[callId]?.transcript || [];
+    return { success: true, transcript: mock };
+  } catch (err) {
+    return { success: false, transcript: [] };
   }
 }

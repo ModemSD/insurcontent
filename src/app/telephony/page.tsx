@@ -25,8 +25,12 @@ import {
   Zap,
   PhoneForwarded
 } from 'lucide-react';
-import { fetchTelephonyDataAction, runGptAnalysisForCallAction } from './actions';
-import { QuoCall, QuoUser, CallAnalysisResult, ManagerPerformance } from '@/types/telephony';
+import { 
+  fetchTelephonyDataAction, 
+  runGptAnalysisForCallAction,
+  getCallTranscriptAction
+} from './actions';
+import { QuoCall, QuoUser, CallAnalysisResult, ManagerPerformance, TranscriptUtterance } from '@/types/telephony';
 
 export default function TelephonyPage() {
   const [loading, setLoading] = useState(true);
@@ -42,6 +46,9 @@ export default function TelephonyPage() {
   const [selectedManagerId, setSelectedManagerId] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [activeCallModal, setActiveCallModal] = useState<QuoCall | null>(null);
+  const [activeTranscript, setActiveTranscript] = useState<TranscriptUtterance[]>([]);
+  const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
+  const [loadingTranscript, setLoadingTranscript] = useState(false);
 
   // Custom Criteria & Model
   const [selectedModel, setSelectedModel] = useState<string>('gpt-5.4-mini');
@@ -74,6 +81,32 @@ export default function TelephonyPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleOpenCallModal = async (call: QuoCall) => {
+    setActiveCallModal(call);
+    setActiveAudioUrl(call.recordingUrl || null);
+
+    // If already analyzed and transcript exists
+    if (analyses[call.id]?.transcript && analyses[call.id].transcript.length > 0) {
+      setActiveTranscript(analyses[call.id].transcript);
+      return;
+    }
+
+    // Otherwise load transcript dynamically from Quo API
+    setLoadingTranscript(true);
+    setActiveTranscript([]);
+    try {
+      const res = await getCallTranscriptAction(call.id);
+      if (res.success && res.transcript) {
+        setActiveTranscript(res.transcript);
+        if (res.recordingUrl) setActiveAudioUrl(res.recordingUrl);
+      }
+    } catch (err) {
+      console.error('Failed to load transcript:', err);
+    } finally {
+      setLoadingTranscript(false);
+    }
+  };
 
   const handleRunAnalysis = async (call: QuoCall) => {
     setAnalyzingCallId(call.id);
@@ -496,7 +529,7 @@ export default function TelephonyPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => setActiveCallModal(call)}
+                          onClick={() => handleOpenCallModal(call)}
                           className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-900 hover:text-zinc-600 border border-zinc-200 px-3 py-1.5 rounded-lg bg-white shadow-2xs hover:bg-zinc-50 transition-colors"
                         >
                           <FileText className="h-3.5 w-3.5" />
@@ -532,7 +565,11 @@ export default function TelephonyPage() {
                 </div>
               </div>
               <button
-                onClick={() => setActiveCallModal(null)}
+                onClick={() => {
+                  setActiveCallModal(null);
+                  setActiveTranscript([]);
+                  setActiveAudioUrl(null);
+                }}
                 className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-200/60 hover:text-zinc-700 transition-colors"
               >
                 <X className="h-5 w-5" />
@@ -541,6 +578,20 @@ export default function TelephonyPage() {
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-6">
+              {/* Audio Recording Player */}
+              {activeAudioUrl && (
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-zinc-700">
+                    <Headphones className="h-3.5 w-3.5 text-zinc-500" />
+                    Запись разговора Quo
+                  </div>
+                  <audio controls className="w-full h-9">
+                    <source src={activeAudioUrl} type="audio/mpeg" />
+                    Ваш браузер не поддерживает аудиоэлемент.
+                  </audio>
+                </div>
+              )}
+
               {/* AI Verdict Section */}
               {analyses[activeCallModal.id] ? (
                 <div className="rounded-xl border border-purple-100 bg-purple-50/40 p-5 space-y-4">
@@ -651,39 +702,54 @@ export default function TelephonyPage() {
 
               {/* Dialog Transcript */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5 text-zinc-400" />
-                  Полная стенограмма разговора
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5 text-zinc-400" />
+                    Полная стенограмма разговора
+                  </h4>
+                  {loadingTranscript && (
+                    <span className="text-[11px] text-zinc-400 animate-pulse">Загрузка расшифровки...</span>
+                  )}
+                </div>
 
                 <div className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 max-h-72 overflow-y-auto">
-                  {(analyses[activeCallModal.id]?.transcript || []).length > 0 ? (
-                    analyses[activeCallModal.id].transcript.map((msg, i) => (
-                      <div
-                        key={i}
-                        className={`flex flex-col ${
-                          msg.speaker === 'agent' ? 'items-end' : 'items-start'
-                        }`}
-                      >
-                        <span className="text-[10px] font-bold text-zinc-400 mb-1 px-1">
-                          {msg.speaker === 'agent' ? (msg.speakerName || 'Менеджер') : 'Клиент'}
-                        </span>
+                  {(() => {
+                    const transcriptList = (analyses[activeCallModal.id]?.transcript && analyses[activeCallModal.id].transcript.length > 0)
+                      ? analyses[activeCallModal.id].transcript
+                      : (activeTranscript || []);
+
+                    if (transcriptList.length > 0) {
+                      return transcriptList.map((msg, i) => (
                         <div
-                          className={`rounded-2xl px-3.5 py-2 text-xs max-w-[85%] leading-relaxed ${
-                            msg.speaker === 'agent'
-                              ? 'bg-zinc-900 text-white rounded-tr-xs'
-                              : 'bg-white border border-zinc-200 text-zinc-800 rounded-tl-xs shadow-2xs'
+                          key={i}
+                          className={`flex flex-col ${
+                            msg.speaker === 'agent' ? 'items-end' : 'items-start'
                           }`}
                         >
-                          {msg.text}
+                          <span className="text-[10px] font-bold text-zinc-400 mb-1 px-1">
+                            {msg.speaker === 'agent' ? (msg.speakerName || 'Менеджер') : 'Клиент'}
+                          </span>
+                          <div
+                            className={`rounded-2xl px-3.5 py-2 text-xs max-w-[85%] leading-relaxed ${
+                              msg.speaker === 'agent'
+                                ? 'bg-zinc-900 text-white rounded-tr-xs'
+                                : 'bg-white border border-zinc-200 text-zinc-800 rounded-tl-xs shadow-2xs'
+                            }`}
+                          >
+                            {msg.text}
+                          </div>
                         </div>
+                      ));
+                    }
+
+                    return (
+                      <div className="text-center py-6 text-xs text-zinc-400">
+                        {loadingTranscript
+                          ? 'Загружаем стенограмму из Quo...'
+                          : 'Стенограмма для этого звонка отсутствует в Quo или разговор еще не расшифрован.'}
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-6 text-xs text-zinc-400">
-                      Стенограмма звонка загружается из Quo или формируется через Whisper.
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
             </div>
