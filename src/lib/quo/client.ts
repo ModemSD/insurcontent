@@ -108,14 +108,22 @@ export class QuoClient {
 
                 const customerPhone = (c.participants || []).find((p: string) => !p.includes(conv.phoneNumberId)) || c.participants?.[1] || '';
                 const ourPhone = (c.participants || []).find((p: string) => p !== customerPhone) || c.participants?.[0] || '';
+                
+                // Проверяем факт ответа:
+                // Если нет answeredAt или длительность <= 5 сек, трубку не взяли (No answer)
+                const duration = c.duration || 0;
+                const hasAnsweredAt = Boolean(c.answeredAt);
+                const answeredByHuman = hasAnsweredAt && duration > 10;
 
                 callMap.set(c.id, {
                   id: c.id,
                   direction,
                   status,
-                  duration: c.duration || 0,
+                  duration,
                   createdAt: c.createdAt || new Date().toISOString(),
                   completedAt: c.completedAt,
+                  answeredAt: c.answeredAt || null,
+                  answeredByHuman,
                   from: direction === 'inbound' ? customerPhone : ourPhone,
                   to: direction === 'inbound' ? ourPhone : customerPhone,
                   userId: c.userId,

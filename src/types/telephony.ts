@@ -23,6 +23,8 @@ export interface QuoCall {
   duration: number; // in seconds
   createdAt: string;
   completedAt?: string;
+  answeredAt?: string | null;
+  answeredByHuman?: boolean; // Реально ответил ли живой человек, а не автоответчик
   from: string;
   to: string;
   userId?: string;

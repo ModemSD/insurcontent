@@ -209,8 +209,33 @@ export async function fetchTelephonyDataAction(): Promise<{
       if (c.direction === 'inbound') p.inboundCalls += 1;
       if (c.direction === 'outbound') {
         p.outboundCalls += 1;
-        // Исходящий вызов считается отвеченным человеком (дозвон), если статус completed и длительность > 0
-        if (c.status === 'completed' && (c.duration || 0) > 0) {
+
+        // Определяем, ответил ли реальный человек или включился автоответчик / IVR / сброс
+        const duration = c.duration || 0;
+        const analysis = analyses[c.id];
+        
+        let isHuman = false;
+        if (c.status === 'completed' && duration > 10) {
+          if (analysis?.transcript && analysis.transcript.length > 0) {
+            // Проверяем текст транскрипта
+            const text = analysis.transcript.map(t => t.text).join(' ').toLowerCase();
+            const isVoicemail = text.includes('voice mail') || 
+                               text.includes('voicemail') || 
+                               text.includes('not available') || 
+                               text.includes('leave a message') ||
+                               text.includes('record your message') ||
+                               text.includes('mailbox') ||
+                               text.includes('after the tone');
+            const hasCustomerReply = analysis.transcript.some(t => t.speaker === 'customer' && t.text.trim().length > 3);
+            isHuman = !isVoicemail && hasCustomerReply;
+          } else {
+            // Если транскрипт еще не анализировался через GPT:
+            // Звонки от 25 секунд без сброса с высокой вероятностью содержат диалог
+            isHuman = duration >= 25;
+          }
+        }
+
+        if (isHuman) {
           p.answeredOutboundCalls += 1;
         }
       }
@@ -226,7 +251,7 @@ export async function fetchTelephonyDataAction(): Promise<{
   });
 
   const performance = Object.values(performanceMap).map((p) => {
-    // CTR по исходящим звонкам: отвеченные / всего набранных * 100%
+    // CTR по исходящим звонкам: реально отвеченные человеком / всего набранных * 100%
     const outboundCtr = p.outboundCalls > 0 
       ? Math.round((p.answeredOutboundCalls / p.outboundCalls) * 1000) / 10 
       : 0;

@@ -111,10 +111,28 @@ export default function TelephonyPage() {
   const totalDuration = calls.reduce((acc, c) => acc + (c.duration || 0), 0);
   const avgDuration = completedCallsCount > 0 ? Math.round(totalDuration / completedCallsCount) : 0;
 
-  // Call Through Rate (Дозваниваемость)
+  // Call Through Rate (Дозваниваемость живым человеком)
   const outboundCalls = calls.filter((c) => c.direction === 'outbound');
   const totalOutboundCount = outboundCalls.length;
-  const answeredOutboundCount = outboundCalls.filter((c) => c.status === 'completed' && (c.duration || 0) > 0).length;
+  const answeredOutboundCount = outboundCalls.filter((c) => {
+    if (c.status !== 'completed' || (c.duration || 0) <= 10) return false;
+    const analysis = analyses[c.id];
+    if (analysis?.transcript && analysis.transcript.length > 0) {
+      const text = analysis.transcript.map(t => t.text).join(' ').toLowerCase();
+      const isVoicemail = text.includes('voice mail') || 
+                         text.includes('voicemail') || 
+                         text.includes('not available') || 
+                         text.includes('leave a message') ||
+                         text.includes('record your message') ||
+                         text.includes('mailbox') ||
+                         text.includes('after the tone');
+      const hasCustomerReply = analysis.transcript.some(t => t.speaker === 'customer' && t.text.trim().length > 3);
+      return !isVoicemail && hasCustomerReply;
+    }
+    // Если звонок от 25 сек — высокая вероятность реального контакта
+    return (c.duration || 0) >= 25;
+  }).length;
+
   const outboundCallThroughRate = totalOutboundCount > 0 
     ? Math.round((answeredOutboundCount / totalOutboundCount) * 1000) / 10 
     : 0;
