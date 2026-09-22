@@ -55,7 +55,7 @@ export default function TelephonyPage() {
     else setLoading(true);
 
     try {
-      const res = await fetchTelephonyDataAction();
+      const res = await fetchTelephonyDataAction({ forceRefresh: isRefresh });
       if (res.success) {
         setIsLive(res.isLive);
         setManagers(res.managers);
@@ -194,8 +194,8 @@ export default function TelephonyPage() {
               disabled={refreshing}
               className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50 hover:text-zinc-900 transition-colors disabled:opacity-50"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              Синхронизировать звонки
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin text-purple-600' : ''}`} />
+              {refreshing ? 'Синхронизация из Quo...' : 'Синхронизировать звонки'}
             </button>
           </div>
         </div>

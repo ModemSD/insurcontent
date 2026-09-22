@@ -7,7 +7,7 @@ import { QuoCall, QuoUser, CallAnalysisResult, ManagerPerformance } from '@/type
 
 import { supabase } from '@/lib/supabase';
 
-export async function fetchTelephonyDataAction(): Promise<{
+export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolean }): Promise<{
   success: boolean;
   isLive: boolean;
   managers: QuoUser[];
@@ -17,6 +17,7 @@ export async function fetchTelephonyDataAction(): Promise<{
   error?: string;
 }> {
   const quoApiKey = process.env.QUO_API_KEY;
+  const forceRefresh = options?.forceRefresh ?? false;
 
   let managers: QuoUser[] = [];
   let calls: QuoCall[] = [];
@@ -53,49 +54,112 @@ export async function fetchTelephonyDataAction(): Promise<{
     // Supabase table might not be created yet, fallback gracefully
   }
 
-  // 1. First, load existing saved calls and managers from Supabase
-  try {
-    const [dbManagersRes, dbCallsRes] = await Promise.all([
-      supabase.from('quo_managers').select('*'),
-      supabase.from('quo_calls').select('*').order('call_created_at', { ascending: false }).limit(200),
-    ]);
+  // 1. If forceRefresh is requested OR no calls in Supabase, fetch fresh data from Quo
+  if (quoApiKey && forceRefresh) {
+    try {
+      const client = new QuoClient(quoApiKey);
+      const [fetchedUsers, fetchedCalls] = await Promise.all([
+        client.getUsers(),
+        client.getCalls({ maxResults: 100 }),
+      ]);
 
-    if (dbManagersRes.data && dbManagersRes.data.length > 0) {
-      managers = dbManagersRes.data.map((m: any) => ({
-        id: m.id,
-        name: m.name,
-        email: m.email,
-        role: m.role,
-        phoneNumbers: m.phone_numbers || [],
-      }));
-    }
+      if (fetchedUsers && fetchedUsers.length > 0) {
+        managers = fetchedUsers;
+        try {
+          await supabase.from('quo_managers').upsert(
+            managers.map((m) => ({
+              id: m.id,
+              name: m.name || m.firstName || 'Manager',
+              email: m.email,
+              role: m.role,
+              phone_numbers: m.phoneNumbers || [],
+              updated_at: new Date().toISOString(),
+            }))
+          );
+        } catch {}
+      }
 
-    if (dbCallsRes.data && dbCallsRes.data.length > 0) {
-      calls = dbCallsRes.data.map((c: any) => ({
-        id: c.id,
-        direction: c.direction,
-        status: c.status,
-        duration: c.duration,
-        from: c.from_number,
-        to: c.to_number,
-        userId: c.manager_id,
-        userName: c.manager_name || 'Сотрудник',
-        recordingUrl: c.recording_url,
-        hasRecording: c.has_recording,
-        createdAt: c.call_created_at || c.created_at,
-      }));
+      if (fetchedCalls?.calls && fetchedCalls.calls.length > 0) {
+        const enrichedCalls = fetchedCalls.calls.map((c) => {
+          const matchedManager = managers.find((m) => m.id === c.userId);
+          return {
+            ...c,
+            userName: matchedManager?.name || c.userName || 'Сотрудник',
+          };
+        });
+        calls = enrichedCalls;
+
+        try {
+          await supabase.from('quo_calls').upsert(
+            calls.map((c) => ({
+              id: c.id,
+              direction: c.direction,
+              status: c.status,
+              duration: c.duration,
+              from_number: c.from,
+              to_number: c.to,
+              manager_id: c.userId,
+              manager_name: c.userName,
+              recording_url: c.recordingUrl,
+              has_recording: c.hasRecording,
+              call_created_at: c.createdAt,
+            }))
+          );
+        } catch (dbErr) {
+          console.warn('Failed to upsert calls into Supabase:', dbErr);
+        }
+      }
+      isLive = true;
+    } catch (err: any) {
+      console.warn('Quo sync error:', err?.message);
     }
-  } catch (e) {
-    console.warn('Could not read from Supabase cache:', e);
   }
 
-  // 2. If no calls in Supabase yet and API key exists, do initial fetch from Quo
+  // 2. Load existing saved calls and managers from Supabase if not force-refreshed or as fallback
+  if (calls.length === 0) {
+    try {
+      const [dbManagersRes, dbCallsRes] = await Promise.all([
+        supabase.from('quo_managers').select('*'),
+        supabase.from('quo_calls').select('*').order('call_created_at', { ascending: false }).limit(200),
+      ]);
+
+      if (dbManagersRes.data && dbManagersRes.data.length > 0) {
+        managers = dbManagersRes.data.map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          email: m.email,
+          role: m.role,
+          phoneNumbers: m.phone_numbers || [],
+        }));
+      }
+
+      if (dbCallsRes.data && dbCallsRes.data.length > 0) {
+        calls = dbCallsRes.data.map((c: any) => ({
+          id: c.id,
+          direction: c.direction,
+          status: c.status,
+          duration: c.duration,
+          from: c.from_number,
+          to: c.to_number,
+          userId: c.manager_id,
+          userName: c.manager_name || 'Сотрудник',
+          recordingUrl: c.recording_url,
+          hasRecording: c.has_recording,
+          createdAt: c.call_created_at || c.created_at,
+        }));
+      }
+    } catch (e) {
+      console.warn('Could not read from Supabase cache:', e);
+    }
+  }
+
+  // 3. If still no calls in Supabase yet and API key exists, do initial fetch from Quo
   if (quoApiKey && calls.length === 0) {
     try {
       const client = new QuoClient(quoApiKey);
       const [fetchedUsers, fetchedCalls] = await Promise.all([
         client.getUsers(),
-        client.getCalls({ maxResults: 40 }),
+        client.getCalls({ maxResults: 100 }),
       ]);
 
       if (fetchedUsers && fetchedUsers.length > 0) {
