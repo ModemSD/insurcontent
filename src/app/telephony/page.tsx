@@ -22,7 +22,8 @@ import {
   Award,
   Filter,
   Check,
-  Zap
+  Zap,
+  PhoneForwarded
 } from 'lucide-react';
 import { fetchTelephonyDataAction, runGptAnalysisForCallAction } from './actions';
 import { QuoCall, QuoUser, CallAnalysisResult, ManagerPerformance } from '@/types/telephony';
@@ -109,6 +110,14 @@ export default function TelephonyPage() {
   const missedCallsCount = calls.filter((c) => c.status === 'missed').length;
   const totalDuration = calls.reduce((acc, c) => acc + (c.duration || 0), 0);
   const avgDuration = completedCallsCount > 0 ? Math.round(totalDuration / completedCallsCount) : 0;
+
+  // Call Through Rate (Дозваниваемость)
+  const outboundCalls = calls.filter((c) => c.direction === 'outbound');
+  const totalOutboundCount = outboundCalls.length;
+  const answeredOutboundCount = outboundCalls.filter((c) => c.status === 'completed' && (c.duration || 0) > 0).length;
+  const outboundCallThroughRate = totalOutboundCount > 0 
+    ? Math.round((answeredOutboundCount / totalOutboundCount) * 1000) / 10 
+    : 0;
   
   const analyzedScores = Object.values(analyses).map((a) => a.score).filter(Boolean);
   const avgDepartmentScore = analyzedScores.length > 0 
@@ -176,7 +185,7 @@ export default function TelephonyPage() {
 
       <div className="max-w-7xl mx-auto px-6 pt-6 space-y-6">
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Всего звонков</span>
@@ -190,6 +199,22 @@ export default function TelephonyPage() {
             </div>
             <div className="mt-1 text-[11px] text-zinc-400">
               {missedCallsCount} пропущенных вызовов
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Дозваниваемость</span>
+              <div className="h-8 w-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+                <PhoneForwarded className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl font-black text-zinc-900">{outboundCallThroughRate}%</span>
+              <span className="text-xs text-zinc-400 font-medium">CTR</span>
+            </div>
+            <div className="mt-1 text-[11px] text-zinc-400">
+              {answeredOutboundCount} из {totalOutboundCount} набранных отвечено
             </div>
           </div>
 
@@ -234,10 +259,10 @@ export default function TelephonyPage() {
             </div>
             <div className="mt-3 flex items-baseline gap-2">
               <span className="text-2xl font-black text-zinc-900">{managers.length}</span>
-              <span className="text-xs text-zinc-400">сотрудников в Quo</span>
+              <span className="text-xs text-zinc-400">в Quo</span>
             </div>
             <div className="mt-1 text-[11px] text-zinc-400">
-              Все пользователи подключены
+              Все сотрудники подключены
             </div>
           </div>
         </div>
@@ -261,6 +286,7 @@ export default function TelephonyPage() {
                   <th className="px-6 py-3">Менеджер</th>
                   <th className="px-6 py-3">Всего звонков</th>
                   <th className="px-6 py-3">Входящие / Исходящие</th>
+                  <th className="px-6 py-3">Дозваниваемость (CTR)</th>
                   <th className="px-6 py-3">Время в звонках</th>
                   <th className="px-6 py-3">Ср. длина</th>
                   <th className="px-6 py-3">Скор качества (GPT)</th>
@@ -285,6 +311,26 @@ export default function TelephonyPage() {
                       <span className="text-blue-600 font-medium">{mgr.inboundCalls} вх</span>
                       {' / '}
                       <span className="text-indigo-600 font-medium">{mgr.outboundCalls} исх</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {mgr.outboundCalls > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded-md text-xs font-bold border ${
+                            mgr.outboundCallThroughRate >= 50
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : mgr.outboundCallThroughRate >= 25
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-zinc-100 text-zinc-600 border-zinc-200'
+                          }`}>
+                            {mgr.outboundCallThroughRate}%
+                          </span>
+                          <span className="text-[11px] text-zinc-400">
+                            ({mgr.answeredOutboundCalls}/{mgr.outboundCalls})
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-400 italic">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">{mgr.totalDurationMinutes} мин</td>
                     <td className="px-6 py-4">{mgr.averageDurationMinutes} мин</td>

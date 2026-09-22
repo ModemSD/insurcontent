@@ -170,6 +170,9 @@ export async function fetchTelephonyDataAction(): Promise<{
       missedCalls: 0,
       inboundCalls: 0,
       outboundCalls: 0,
+      answeredOutboundCalls: 0,
+      outboundCallThroughRate: 0,
+      overallCallThroughRate: 0,
       totalDurationMinutes: 0,
       averageDurationMinutes: 0,
       averageScore: 0,
@@ -188,6 +191,9 @@ export async function fetchTelephonyDataAction(): Promise<{
         missedCalls: 0,
         inboundCalls: 0,
         outboundCalls: 0,
+        answeredOutboundCalls: 0,
+        outboundCallThroughRate: 0,
+        overallCallThroughRate: 0,
         totalDurationMinutes: 0,
         averageDurationMinutes: 0,
         averageScore: 0,
@@ -201,7 +207,13 @@ export async function fetchTelephonyDataAction(): Promise<{
       if (c.status === 'completed') p.completedCalls += 1;
       if (c.status === 'missed') p.missedCalls += 1;
       if (c.direction === 'inbound') p.inboundCalls += 1;
-      if (c.direction === 'outbound') p.outboundCalls += 1;
+      if (c.direction === 'outbound') {
+        p.outboundCalls += 1;
+        // Исходящий вызов считается отвеченным человеком (дозвон), если статус completed и длительность > 0
+        if (c.status === 'completed' && (c.duration || 0) > 0) {
+          p.answeredOutboundCalls += 1;
+        }
+      }
       p.totalDurationMinutes += Math.round((c.duration || 0) / 60);
 
       // Check if call has analysis
@@ -213,11 +225,25 @@ export async function fetchTelephonyDataAction(): Promise<{
     }
   });
 
-  const performance = Object.values(performanceMap).map((p) => ({
-    ...p,
-    averageDurationMinutes: p.completedCalls > 0 ? Math.round((p.totalDurationMinutes / p.completedCalls) * 10) / 10 : 0,
-    averageScore: p.scoresCount > 0 ? Math.round(p.averageScore / p.scoresCount) : 0,
-  }));
+  const performance = Object.values(performanceMap).map((p) => {
+    // CTR по исходящим звонкам: отвеченные / всего набранных * 100%
+    const outboundCtr = p.outboundCalls > 0 
+      ? Math.round((p.answeredOutboundCalls / p.outboundCalls) * 1000) / 10 
+      : 0;
+
+    // Общий CTR по всем звонкам
+    const overallCtr = p.totalCalls > 0 
+      ? Math.round((p.completedCalls / p.totalCalls) * 1000) / 10 
+      : 0;
+
+    return {
+      ...p,
+      outboundCallThroughRate: outboundCtr,
+      overallCallThroughRate: overallCtr,
+      averageDurationMinutes: p.completedCalls > 0 ? Math.round((p.totalDurationMinutes / p.completedCalls) * 10) / 10 : 0,
+      averageScore: p.scoresCount > 0 ? Math.round(p.averageScore / p.scoresCount) : 0,
+    };
+  });
 
   return {
     success: true,

@@ -71,6 +71,9 @@ export interface ManagerPerformance {
   missedCalls: number;
   inboundCalls: number;
   outboundCalls: number;
+  answeredOutboundCalls: number; // Отвеченные человеком при исходящем наборе
+  outboundCallThroughRate: number; // % дозвона по исходящим (answeredOutbound / outboundCalls * 100)
+  overallCallThroughRate: number; // % успешного соединения от всех звонков
   totalDurationMinutes: number;
   averageDurationMinutes: number;
   averageScore: number;
