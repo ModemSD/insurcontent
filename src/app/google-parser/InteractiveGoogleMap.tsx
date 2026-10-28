@@ -126,10 +126,10 @@ export default function InteractiveGoogleMap({
           onActiveZoneCenterChange={onActiveZoneCenterChange}
         />
 
-        {/* Бело-синяя интерактивная карта */}
+        {/* Интерактивная карта (OpenStreetMap без необходимости API-ключа) */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         {/* Рендеринг всех зон (кругов и маркеров) */}
