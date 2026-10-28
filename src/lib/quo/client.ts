@@ -9,27 +9,38 @@ export class QuoClient {
     this.apiKey = apiKey || process.env.QUO_API_KEY || '';
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(path: string, options: RequestInit = {}, retries = 3): Promise<T> {
     if (!this.apiKey) {
       throw new Error('QUO_API_KEY is not configured');
     }
 
-    const res = await fetch(`${BASE_URL}${path}`, {
-      ...options,
-      headers: {
-        'Authorization': this.apiKey, // OpenPhone/Quo accepts standard raw token in Authorization header
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      next: { revalidate: 0 },
-    });
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const res = await fetch(`${BASE_URL}${path}`, {
+        ...options,
+        headers: {
+          'Authorization': this.apiKey, // OpenPhone/Quo accepts standard raw token in Authorization header
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        next: { revalidate: 0 },
+      });
 
-    if (!res.ok) {
-      const errorText = await res.text().catch(() => res.statusText);
-      throw new Error(`Quo API Error [${res.status}]: ${errorText}`);
+      if (res.status === 429 && attempt < retries) {
+        const retryAfterHeader = res.headers.get('retry-after');
+        const waitMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : 1000 * (attempt + 1);
+        await new Promise((r) => setTimeout(r, Number.isFinite(waitMs) && waitMs > 0 ? waitMs : 1000));
+        continue;
+      }
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => res.statusText);
+        throw new Error(`Quo API Error [${res.status}]: ${errorText}`);
+      }
+
+      return res.json();
     }
 
-    return res.json();
+    throw new Error(`Quo API Error [429]: Rate limit exceeded on ${path}`);
   }
 
   /**
@@ -83,8 +94,12 @@ export class QuoClient {
       const batch = conversations.slice(0, 50);
       const callMap = new Map<string, QuoCall>();
 
-      const chunkSize = 5;
+      const chunkSize = 4;
       for (let i = 0; i < batch.length; i += chunkSize) {
+        if (i > 0) {
+          // Pause between chunks so we stay safely within Quo's 10 req/s rate limit
+          await new Promise((r) => setTimeout(r, 450));
+        }
         const chunk = batch.slice(i, i + chunkSize);
         await Promise.all(
           chunk.map(async (conv) => {

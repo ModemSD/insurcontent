@@ -42,12 +42,65 @@ export interface TranscriptUtterance {
   end?: number;
 }
 
+export type InsurvoiceCallType =
+  | 'Auto'
+  | 'Confirmation / Pre-Call'
+  | 'Discovery'
+  | 'Demo'
+  | 'Discovery + Demo'
+  | 'Follow-up / Close';
+
+export type InsurvoiceScoreBand =
+  | 'Strong'
+  | 'Solid'
+  | 'Needs Coaching'
+  | 'Priority Focus';
+
+export type InsurvoiceSectionId =
+  | 'opening'
+  | 'discovery'
+  | 'pain'
+  | 'demo'
+  | 'objections'
+  | 'close'
+  | 'presence';
+
+export type CheckpointResult = 'Y' | 'N' | 'N/A';
+
+export interface EvaluatedCheckpoint {
+  id: string; // '1.1' .. '7.3'
+  sectionId: InsurvoiceSectionId;
+  sectionTitle: string;
+  title: string;
+  titleEn: string;
+  result: CheckpointResult;
+  evidence: string;
+}
+
+export interface EvaluatedSection {
+  id: InsurvoiceSectionId;
+  title: string;
+  shortTitle: string;
+  weight: number;
+  qualityRating: number; // 1-5
+  checkpointsHit: number;
+  checkpointsApplicable: number;
+  sectionScore: number | null; // 0-100 percentage, or null if skipped/N/A
+  rationale?: string;
+}
+
 export interface CallScorecard {
   greeting: number; // 0-10
   needsDiscovery: number; // 0-10
   objectionHandling: number; // 0-10
   closingAndNextStep: number; // 0-10
   politeness: number; // 0-10
+  // Insurvoice Scorecard v1.0 fields
+  rubricVersion?: string;
+  callType?: InsurvoiceCallType;
+  band?: InsurvoiceScoreBand;
+  sections?: EvaluatedSection[];
+  checkpoints?: EvaluatedCheckpoint[];
 }
 
 export interface CallAnalysisResult {

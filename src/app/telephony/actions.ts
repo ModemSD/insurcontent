@@ -1,9 +1,9 @@
 'use server';
 
 import { QuoClient } from '@/lib/quo/client';
-import { analyzeCallWithGPT } from '@/lib/ai/callAnalyzer';
+import { analyzeCallWithGPT, readCallScorerSkill, writeCallScorerSkill } from '@/lib/ai/callAnalyzer';
 import { MOCK_MANAGERS, MOCK_CALLS, MOCK_ANALYSES } from '@/lib/telephony/mockData';
-import { QuoCall, QuoUser, CallAnalysisResult, ManagerPerformance, TranscriptUtterance } from '@/types/telephony';
+import { QuoCall, QuoUser, CallAnalysisResult, ManagerPerformance, TranscriptUtterance, InsurvoiceCallType } from '@/types/telephony';
 
 import { supabase } from '@/lib/supabase';
 
@@ -14,6 +14,7 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
   calls: QuoCall[];
   analyses: Record<string, CallAnalysisResult>;
   performance: ManagerPerformance[];
+  skillContent: string;
   error?: string;
 }> {
   const quoApiKey = process.env.QUO_API_KEY;
@@ -28,7 +29,18 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
   try {
     const { data: dbAnalyses } = await supabase.from('quo_call_analyses').select('*');
     if (dbAnalyses && dbAnalyses.length > 0) {
+      const fakeCallIdsToDelete: string[] = [];
       dbAnalyses.forEach((row: any) => {
+        const summaryText = String(row.summary || '');
+        // Clean up any previously saved simulated fallback records ("3 тягача в Техасе" / old simulation)
+        if (
+          summaryText.includes('3 тягача') ||
+          summaryText.includes('успешно проконсультировал клиента, ответил на базовые вопросы по услугам')
+        ) {
+          fakeCallIdsToDelete.push(row.call_id);
+          return;
+        }
+
         analyses[row.call_id] = {
           callId: row.call_id,
           score: row.score,
@@ -49,25 +61,67 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
           transcript: row.transcript || [],
         };
       });
+
+      if (fakeCallIdsToDelete.length > 0) {
+        supabase.from('quo_call_analyses').delete().in('call_id', fakeCallIdsToDelete).then(() => {});
+      }
     }
   } catch (e) {
     // Supabase table might not be created yet, fallback gracefully
   }
 
-  // 1. If forceRefresh is requested OR no calls in Supabase, fetch fresh data from Quo
-  if (quoApiKey && forceRefresh) {
+  // 1. Load existing saved calls and managers from Supabase first
+  try {
+    const [dbManagersRes, dbCallsRes] = await Promise.all([
+      supabase.from('quo_managers').select('*'),
+      supabase.from('quo_calls').select('*').order('call_created_at', { ascending: false }).limit(200),
+    ]);
+
+    if (dbManagersRes.data && dbManagersRes.data.length > 0) {
+      managers = dbManagersRes.data.map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        email: m.email,
+        role: m.role,
+        phoneNumbers: m.phone_numbers || [],
+      }));
+    }
+
+    if (dbCallsRes.data && dbCallsRes.data.length > 0) {
+      calls = dbCallsRes.data.map((c: any) => ({
+        id: c.id,
+        direction: c.direction,
+        status: c.status,
+        duration: c.duration,
+        from: c.from_number,
+        to: c.to_number,
+        userId: c.manager_id,
+        userName: c.manager_name || 'Сотрудник',
+        recordingUrl: c.recording_url,
+        hasRecording: c.has_recording,
+        createdAt: c.call_created_at || c.created_at,
+      }));
+    }
+  } catch (e) {
+    console.warn('Could not read from Supabase cache:', e);
+  }
+
+  // 2. If forceRefresh is requested OR no calls in Supabase yet, fetch fresh data from Quo and merge
+  if (quoApiKey && (forceRefresh || calls.length === 0)) {
     try {
       const client = new QuoClient(quoApiKey);
-      const [fetchedUsers, fetchedCalls] = await Promise.all([
-        client.getUsers(),
-        client.getCalls({ maxResults: 100 }),
-      ]);
+      const fetchedUsers = await client.getUsers();
+      const fetchedCalls = await client.getCalls({ maxResults: 100 });
 
       if (fetchedUsers && fetchedUsers.length > 0) {
-        managers = fetchedUsers;
+        const managerMap = new Map<string, QuoUser>();
+        managers.forEach((m) => managerMap.set(m.id, m));
+        fetchedUsers.forEach((m) => managerMap.set(m.id, m));
+        managers = Array.from(managerMap.values());
+
         try {
           await supabase.from('quo_managers').upsert(
-            managers.map((m) => ({
+            fetchedUsers.map((m) => ({
               id: m.id,
               name: m.name || m.firstName || 'Manager',
               email: m.email,
@@ -87,11 +141,10 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
             userName: matchedManager?.name || c.userName || 'Сотрудник',
           };
         });
-        calls = enrichedCalls;
 
         try {
           await supabase.from('quo_calls').upsert(
-            calls.map((c) => ({
+            enrichedCalls.map((c) => ({
               id: c.id,
               direction: c.direction,
               status: c.status,
@@ -108,107 +161,18 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
         } catch (dbErr) {
           console.warn('Failed to upsert calls into Supabase:', dbErr);
         }
+
+        // Merge existing Supabase calls with freshly synced Quo calls by ID
+        const callMap = new Map<string, QuoCall>();
+        calls.forEach((c) => callMap.set(c.id, c));
+        enrichedCalls.forEach((c) => callMap.set(c.id, c));
+        calls = Array.from(callMap.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       }
       isLive = true;
     } catch (err: any) {
       console.warn('Quo sync error:', err?.message);
-    }
-  }
-
-  // 2. Load existing saved calls and managers from Supabase if not force-refreshed or as fallback
-  if (calls.length === 0) {
-    try {
-      const [dbManagersRes, dbCallsRes] = await Promise.all([
-        supabase.from('quo_managers').select('*'),
-        supabase.from('quo_calls').select('*').order('call_created_at', { ascending: false }).limit(200),
-      ]);
-
-      if (dbManagersRes.data && dbManagersRes.data.length > 0) {
-        managers = dbManagersRes.data.map((m: any) => ({
-          id: m.id,
-          name: m.name,
-          email: m.email,
-          role: m.role,
-          phoneNumbers: m.phone_numbers || [],
-        }));
-      }
-
-      if (dbCallsRes.data && dbCallsRes.data.length > 0) {
-        calls = dbCallsRes.data.map((c: any) => ({
-          id: c.id,
-          direction: c.direction,
-          status: c.status,
-          duration: c.duration,
-          from: c.from_number,
-          to: c.to_number,
-          userId: c.manager_id,
-          userName: c.manager_name || 'Сотрудник',
-          recordingUrl: c.recording_url,
-          hasRecording: c.has_recording,
-          createdAt: c.call_created_at || c.created_at,
-        }));
-      }
-    } catch (e) {
-      console.warn('Could not read from Supabase cache:', e);
-    }
-  }
-
-  // 3. If still no calls in Supabase yet and API key exists, do initial fetch from Quo
-  if (quoApiKey && calls.length === 0) {
-    try {
-      const client = new QuoClient(quoApiKey);
-      const [fetchedUsers, fetchedCalls] = await Promise.all([
-        client.getUsers(),
-        client.getCalls({ maxResults: 100 }),
-      ]);
-
-      if (fetchedUsers && fetchedUsers.length > 0) {
-        managers = fetchedUsers;
-        try {
-          await supabase.from('quo_managers').upsert(
-            managers.map((m) => ({
-              id: m.id,
-              name: m.name || m.firstName || 'Manager',
-              email: m.email,
-              role: m.role,
-              phone_numbers: m.phoneNumbers || [],
-              updated_at: new Date().toISOString(),
-            }))
-          );
-        } catch {}
-      }
-
-      if (fetchedCalls?.calls && fetchedCalls.calls.length > 0) {
-        const enrichedCalls = fetchedCalls.calls.map((c) => {
-          const matchedManager = managers.find((m) => m.id === c.userId);
-          return {
-            ...c,
-            userName: matchedManager?.name || c.userName || 'Сотрудник',
-          };
-        });
-        calls = enrichedCalls;
-
-        try {
-          await supabase.from('quo_calls').upsert(
-            calls.map((c) => ({
-              id: c.id,
-              direction: c.direction,
-              status: c.status,
-              duration: c.duration,
-              from_number: c.from,
-              to_number: c.to,
-              manager_id: c.userId,
-              manager_name: c.userName,
-              recording_url: c.recordingUrl,
-              has_recording: c.hasRecording,
-              call_created_at: c.createdAt,
-            }))
-          );
-        } catch {}
-      }
-      isLive = true;
-    } catch (err: any) {
-      console.warn('Quo initial sync error:', err?.message);
     }
   } else if (quoApiKey) {
     isLive = true;
@@ -283,7 +247,13 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
           if (analysis?.transcript && analysis.transcript.length > 0) {
             // Проверяем текст транскрипта
             const text = analysis.transcript.map(t => t.text).join(' ').toLowerCase();
-            const isVoicemail = text.includes('voice mail') || 
+            const isVoicemail = analysis.score === 0 ||
+                               text.includes('record your name and reason') ||
+                               text.includes('see if this person is available') ||
+                               text.includes('person is not available') ||
+                               text.includes('leave an additional message') ||
+                               text.includes('leave your message') ||
+                               text.includes('voice mail') || 
                                text.includes('voicemail') || 
                                text.includes('not available') || 
                                text.includes('leave a message') ||
@@ -341,14 +311,36 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
     calls,
     analyses,
     performance,
+    skillContent: readCallScorerSkill(),
   };
+}
+
+export async function saveCallScorerSkillAction(content: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    if (!content || !content.trim()) {
+      return { success: false, error: 'Текст скилла не может быть пустым' };
+    }
+    writeCallScorerSkill(content);
+    return { success: true };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Не удалось сохранить файл скилла SKILL.md',
+    };
+  }
 }
 
 export async function runGptAnalysisForCallAction(
   callId: string, 
   managerName?: string,
   customCriteria?: string,
-  model?: string
+  model?: string,
+  callType?: InsurvoiceCallType,
+  durationSeconds?: number,
+  lang?: 'ru' | 'en'
 ): Promise<{
   success: boolean;
   analysis?: CallAnalysisResult;
@@ -356,7 +348,7 @@ export async function runGptAnalysisForCallAction(
 }> {
   try {
     const quoApiKey = process.env.QUO_API_KEY;
-    let transcript = MOCK_ANALYSES[callId]?.transcript;
+    let transcript = MOCK_ANALYSES[callId]?.transcript || [];
 
     if (quoApiKey) {
       const client = new QuoClient(quoApiKey);
@@ -366,24 +358,15 @@ export async function runGptAnalysisForCallAction(
       }
     }
 
-    if (!transcript || transcript.length === 0) {
-      // Default transcript for demonstration if neither Quo nor Mock has it
-      transcript = [
-        { speaker: 'agent', speakerName: managerName || 'Менеджер', text: 'Здравствуйте! Компания InsurQuote, меня зовут ' + (managerName || 'консультант') + '. Слушаю вас!' },
-        { speaker: 'customer', text: 'Добрый день, хотел узнать условия по страхованию автомобиля и спецтехники.' },
-        { speaker: 'agent', speakerName: managerName || 'Менеджер', text: 'С удовольствием проконсультирую. Сколько единиц техники и какой регион эксплуатации?' },
-        { speaker: 'customer', text: '3 тягача, работают по Техасу и соседним штатам.' },
-        { speaker: 'agent', speakerName: managerName || 'Менеджер', text: 'Отлично, подготовим расчет с учетом безаварийного коэффициента и пришлем вам сегодня на почту. Договорились?' },
-        { speaker: 'customer', text: 'Да, отлично, спасибо!' }
-      ];
-    }
-
     const analysis = await analyzeCallWithGPT({
       callId,
       transcript,
       managerName,
+      durationSeconds,
       customCriteria,
       model,
+      callType,
+      lang,
     });
 
     // Save analysis to Supabase
@@ -417,35 +400,66 @@ export async function getCallTranscriptAction(callId: string): Promise<{
   recordingUrl?: string | null;
 }> {
   try {
-    // 1. Check if already in analysis in Supabase
-    const { data: dbAnalysis } = await supabase
-      .from('quo_call_analyses')
-      .select('transcript')
-      .eq('call_id', callId)
-      .maybeSingle();
-
-    if (dbAnalysis?.transcript && dbAnalysis.transcript.length > 0) {
-      return { success: true, transcript: dbAnalysis.transcript };
-    }
-
-    // 2. Fetch directly from Quo API
     const quoApiKey = process.env.QUO_API_KEY;
-    if (quoApiKey) {
-      const client = new QuoClient(quoApiKey);
-      const [liveTranscript, recordingUrl] = await Promise.all([
-        client.getCallTranscript(callId),
-        client.getCallRecordingUrl(callId),
+    const client = quoApiKey ? new QuoClient(quoApiKey) : null;
+
+    // 1. Check if transcript or recording_url already exist in Supabase
+    const [dbAnalysisRes, dbCallRes] = await Promise.all([
+      supabase.from('quo_call_analyses').select('transcript').eq('call_id', callId).maybeSingle(),
+      supabase.from('quo_calls').select('recording_url').eq('id', callId).maybeSingle(),
+    ]);
+
+    let transcript: TranscriptUtterance[] = dbAnalysisRes.data?.transcript || [];
+    let recordingUrl: string | null = dbCallRes.data?.recording_url || null;
+
+    // 2. Fetch missing recordingUrl or transcript from Quo API
+    if (client) {
+      const [liveTranscript, liveRecordingUrl] = await Promise.all([
+        transcript.length === 0 ? client.getCallTranscript(callId) : Promise.resolve(transcript),
+        !recordingUrl ? client.getCallRecordingUrl(callId) : Promise.resolve(recordingUrl),
       ]);
 
       if (liveTranscript && liveTranscript.length > 0) {
-        return { success: true, transcript: liveTranscript, recordingUrl };
+        transcript = liveTranscript;
+      }
+      if (liveRecordingUrl) {
+        recordingUrl = liveRecordingUrl;
+        // Cache recording_url in quo_calls for next time
+        supabase
+          .from('quo_calls')
+          .update({ recording_url: liveRecordingUrl, has_recording: true })
+          .eq('id', callId)
+          .then(() => {});
       }
     }
 
     // 3. Fallback to mock if available
-    const mock = MOCK_ANALYSES[callId]?.transcript || [];
-    return { success: true, transcript: mock };
+    if (transcript.length === 0) {
+      transcript = MOCK_ANALYSES[callId]?.transcript || [];
+    }
+
+    return { success: true, transcript, recordingUrl };
   } catch (err) {
     return { success: false, transcript: [] };
+  }
+}
+
+export async function deleteCallAnalysisAction(callId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const { error } = await supabase
+      .from('quo_call_analyses')
+      .delete()
+      .eq('call_id', callId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Ошибка удаления оценки звонка' };
   }
 }
