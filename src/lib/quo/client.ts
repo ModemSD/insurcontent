@@ -86,12 +86,27 @@ export class QuoClient {
    */
   async getCalls(params?: { maxResults?: number }): Promise<{ calls: QuoCall[] }> {
     try {
-      // 1. Fetch recent conversations
-      const limit = params?.maxResults || 100;
-      const convRes = await this.request<{ data: any[] }>(`/conversations?maxResults=${limit}`);
-      const conversations = convRes.data || [];
-      // 2. Query calls in smaller concurrent chunks (5 at a time) to strictly respect Quo rate limit (10 req/s)
-      const batch = conversations.slice(0, 50);
+      // 1. Fetch recent conversations with pagination support
+      const maxConversations = params?.maxResults || 150;
+      const conversations: any[] = [];
+      let nextPageToken: string | undefined = undefined;
+
+      while (conversations.length < maxConversations) {
+        const pageSize = Math.min(100, maxConversations - conversations.length);
+        const tokenParam: string = nextPageToken ? `&pageToken=${encodeURIComponent(nextPageToken)}` : '';
+        const convRes: { data: any[]; nextPageToken?: string } = await this.request<{
+          data: any[];
+          nextPageToken?: string;
+        }>(`/conversations?maxResults=${pageSize}${tokenParam}`);
+        const pageData = convRes.data || [];
+        if (pageData.length === 0) break;
+        conversations.push(...pageData);
+        if (!convRes.nextPageToken) break;
+        nextPageToken = convRes.nextPageToken;
+      }
+
+      // 2. Query calls in smaller concurrent chunks (4 at a time) to strictly respect Quo rate limit (10 req/s)
+      const batch = conversations.slice(0, maxConversations);
       const callMap = new Map<string, QuoCall>();
 
       const chunkSize = 4;

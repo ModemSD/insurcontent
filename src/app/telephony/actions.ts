@@ -13,6 +13,7 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
   managers: QuoUser[];
   calls: QuoCall[];
   analyses: Record<string, CallAnalysisResult>;
+  comments: Record<string, string>;
   performance: ManagerPerformance[];
   skillContent: string;
   error?: string;
@@ -23,9 +24,10 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
   let managers: QuoUser[] = [];
   let calls: QuoCall[] = [];
   let analyses: Record<string, CallAnalysisResult> = {};
+  const comments: Record<string, string> = {};
   let isLive = false;
 
-  // First check if we already have analyses saved in Supabase
+  // First check if we already have analyses and comments saved in Supabase
   try {
     const { data: dbAnalyses } = await supabase.from('quo_call_analyses').select('*');
     if (dbAnalyses && dbAnalyses.length > 0) {
@@ -38,6 +40,15 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
           summaryText.includes('успешно проконсультировал клиента, ответил на базовые вопросы по услугам')
         ) {
           fakeCallIdsToDelete.push(row.call_id);
+          return;
+        }
+
+        if (row.scorecard?.comment) {
+          comments[row.call_id] = String(row.scorecard.comment);
+        }
+
+        // If this row was created solely to store a comment on an unscored call, do not treat it as a GPT score
+        if (row.score === -1 || row.scorecard?.isCommentOnly || summaryText === '__COMMENT_ONLY__') {
           return;
         }
 
@@ -70,12 +81,26 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
     // Supabase table might not be created yet, fallback gracefully
   }
 
-  // 1. Load existing saved calls and managers from Supabase first
+  // 1. Load existing saved calls and managers from Supabase first (paginate in batches of 1000 so there is no 200-call cap)
   try {
-    const [dbManagersRes, dbCallsRes] = await Promise.all([
-      supabase.from('quo_managers').select('*'),
-      supabase.from('quo_calls').select('*').order('call_created_at', { ascending: false }).limit(200),
-    ]);
+    const dbManagersRes = await supabase.from('quo_managers').select('*');
+
+    const allDbCallRows: any[] = [];
+    const batchSize = 1000;
+    let from = 0;
+
+    while (true) {
+      const { data: batchRows, error: batchErr } = await supabase
+        .from('quo_calls')
+        .select('*')
+        .order('call_created_at', { ascending: false })
+        .range(from, from + batchSize - 1);
+
+      if (batchErr || !batchRows || batchRows.length === 0) break;
+      allDbCallRows.push(...batchRows);
+      if (batchRows.length < batchSize) break;
+      from += batchSize;
+    }
 
     if (dbManagersRes.data && dbManagersRes.data.length > 0) {
       managers = dbManagersRes.data.map((m: any) => ({
@@ -87,8 +112,8 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
       }));
     }
 
-    if (dbCallsRes.data && dbCallsRes.data.length > 0) {
-      calls = dbCallsRes.data.map((c: any) => ({
+    if (allDbCallRows.length > 0) {
+      calls = allDbCallRows.map((c: any) => ({
         id: c.id,
         direction: c.direction,
         status: c.status,
@@ -111,7 +136,7 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
     try {
       const client = new QuoClient(quoApiKey);
       const fetchedUsers = await client.getUsers();
-      const fetchedCalls = await client.getCalls({ maxResults: 100 });
+      const fetchedCalls = await client.getCalls({ maxResults: 150 });
 
       if (fetchedUsers && fetchedUsers.length > 0) {
         const managerMap = new Map<string, QuoUser>();
@@ -134,6 +159,7 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
       }
 
       if (fetchedCalls?.calls && fetchedCalls.calls.length > 0) {
+        const knownManagerIds = new Set(managers.map((m) => m.id));
         const enrichedCalls = fetchedCalls.calls.map((c) => {
           const matchedManager = managers.find((m) => m.id === c.userId);
           return {
@@ -151,7 +177,7 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
               duration: c.duration,
               from_number: c.from,
               to_number: c.to,
-              manager_id: c.userId,
+              manager_id: c.userId && knownManagerIds.has(c.userId) ? c.userId : null,
               manager_name: c.userName,
               recording_url: c.recordingUrl,
               has_recording: c.hasRecording,
@@ -310,6 +336,7 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
     managers,
     calls,
     analyses,
+    comments,
     performance,
     skillContent: readCallScorerSkill(),
   };
@@ -368,6 +395,27 @@ export async function runGptAnalysisForCallAction(
       callType,
       lang,
     });
+
+    // Preserve any existing comment on this call when saving/updating the GPT analysis
+    let existingComment: string | undefined = undefined;
+    let existingCommentUpdatedAt: string | undefined = undefined;
+    try {
+      const { data: existingRow } = await supabase
+        .from('quo_call_analyses')
+        .select('scorecard')
+        .eq('call_id', callId)
+        .maybeSingle();
+      if (existingRow?.scorecard?.comment) {
+        existingComment = existingRow.scorecard.comment;
+        existingCommentUpdatedAt = existingRow.scorecard.commentUpdatedAt;
+      }
+    } catch {}
+
+    analysis.scorecard = {
+      ...analysis.scorecard,
+      scoredAtMs: Date.now(),
+      ...(existingComment ? { comment: existingComment, commentUpdatedAt: existingCommentUpdatedAt } : {}),
+    };
 
     // Save analysis to Supabase
     try {
@@ -449,6 +497,38 @@ export async function deleteCallAnalysisAction(callId: string): Promise<{
   error?: string;
 }> {
   try {
+    const { data: existingRow } = await supabase
+      .from('quo_call_analyses')
+      .select('scorecard, transcript')
+      .eq('call_id', callId)
+      .maybeSingle();
+
+    const savedComment = existingRow?.scorecard?.comment;
+    if (savedComment && String(savedComment).trim().length > 0) {
+      // Keep the comment while clearing the GPT score
+      const { error } = await supabase
+        .from('quo_call_analyses')
+        .update({
+          score: -1,
+          sentiment: 'neutral',
+          summary: '__COMMENT_ONLY__',
+          key_points: [],
+          agreements: [],
+          manager_strengths: [],
+          manager_mistakes: [],
+          action_items: [],
+          scorecard: {
+            isCommentOnly: true,
+            comment: String(savedComment),
+            commentUpdatedAt: existingRow?.scorecard?.commentUpdatedAt || new Date().toISOString(),
+          },
+        })
+        .eq('call_id', callId);
+
+      if (error) throw new Error(error.message);
+      return { success: true };
+    }
+
     const { error } = await supabase
       .from('quo_call_analyses')
       .delete()
@@ -461,5 +541,199 @@ export async function deleteCallAnalysisAction(callId: string): Promise<{
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Ошибка удаления оценки звонка' };
+  }
+}
+
+export async function deleteBulkCallAnalysesAction(callIds: string[]): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    if (!callIds || callIds.length === 0) {
+      return { success: true };
+    }
+
+    const { data: existingRows } = await supabase
+      .from('quo_call_analyses')
+      .select('call_id, scorecard')
+      .in('call_id', callIds);
+
+    const idsWithComments: { call_id: string; comment: string; commentUpdatedAt?: string }[] = [];
+    const idsWithoutComments: string[] = [];
+
+    const rowMap = new Map<string, any>();
+    (existingRows || []).forEach((r: any) => rowMap.set(r.call_id, r));
+
+    for (const id of callIds) {
+      const r = rowMap.get(id);
+      const savedComment = r?.scorecard?.comment;
+      if (savedComment && String(savedComment).trim().length > 0) {
+        idsWithComments.push({
+          call_id: id,
+          comment: String(savedComment),
+          commentUpdatedAt: r?.scorecard?.commentUpdatedAt,
+        });
+      } else {
+        idsWithoutComments.push(id);
+      }
+    }
+
+    if (idsWithoutComments.length > 0) {
+      const { error } = await supabase
+        .from('quo_call_analyses')
+        .delete()
+        .in('call_id', idsWithoutComments);
+      if (error) throw new Error(error.message);
+    }
+
+    for (const item of idsWithComments) {
+      await supabase
+        .from('quo_call_analyses')
+        .update({
+          score: -1,
+          sentiment: 'neutral',
+          summary: '__COMMENT_ONLY__',
+          key_points: [],
+          agreements: [],
+          manager_strengths: [],
+          manager_mistakes: [],
+          action_items: [],
+          scorecard: {
+            isCommentOnly: true,
+            comment: item.comment,
+            commentUpdatedAt: item.commentUpdatedAt || new Date().toISOString(),
+          },
+        })
+        .eq('call_id', item.call_id);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Ошибка массового удаления оценок' };
+  }
+}
+
+export async function saveCallCommentAction(
+  callId: string,
+  comment: string
+): Promise<{
+  success: boolean;
+  comment: string;
+  error?: string;
+}> {
+  try {
+    const trimmed = (comment || '').trim();
+    const nowIso = new Date().toISOString();
+
+    const { data: existingRow } = await supabase
+      .from('quo_call_analyses')
+      .select('*')
+      .eq('call_id', callId)
+      .maybeSingle();
+
+    if (existingRow) {
+      const isCommentOnly =
+        existingRow.score === -1 ||
+        existingRow.scorecard?.isCommentOnly ||
+        existingRow.summary === '__COMMENT_ONLY__';
+
+      if (isCommentOnly && !trimmed) {
+        await supabase.from('quo_call_analyses').delete().eq('call_id', callId);
+        return { success: true, comment: '' };
+      }
+
+      const nextScorecard = {
+        ...(existingRow.scorecard || {}),
+        comment: trimmed,
+        commentUpdatedAt: nowIso,
+      };
+      if (!trimmed) {
+        delete nextScorecard.comment;
+        delete nextScorecard.commentUpdatedAt;
+      }
+
+      const { error } = await supabase
+        .from('quo_call_analyses')
+        .update({ scorecard: nextScorecard })
+        .eq('call_id', callId);
+
+      if (error) throw new Error(error.message);
+      return { success: true, comment: trimmed };
+    }
+
+    if (!trimmed) {
+      return { success: true, comment: '' };
+    }
+
+    const { error } = await supabase.from('quo_call_analyses').upsert({
+      call_id: callId,
+      score: -1,
+      sentiment: 'neutral',
+      summary: '__COMMENT_ONLY__',
+      key_points: [],
+      agreements: [],
+      manager_strengths: [],
+      manager_mistakes: [],
+      action_items: [],
+      scorecard: {
+        isCommentOnly: true,
+        comment: trimmed,
+        commentUpdatedAt: nowIso,
+      },
+      transcript: [],
+    });
+
+    if (error) throw new Error(error.message);
+    return { success: true, comment: trimmed };
+  } catch (err: any) {
+    return {
+      success: false,
+      comment: comment || '',
+      error: err?.message || 'Не удалось сохранить комментарий к звонку',
+    };
+  }
+}
+
+export async function getAnalysesByCallIdsAction(callIds: string[]): Promise<{
+  success: boolean;
+  analyses: Record<string, CallAnalysisResult>;
+}> {
+  try {
+    if (!callIds || callIds.length === 0) {
+      return { success: true, analyses: {} };
+    }
+    const { data } = await supabase
+      .from('quo_call_analyses')
+      .select('*')
+      .in('call_id', callIds);
+
+    const analyses: Record<string, CallAnalysisResult> = {};
+    if (data && data.length > 0) {
+      data.forEach((row: any) => {
+        analyses[row.call_id] = {
+          callId: row.call_id,
+          score: row.score,
+          sentiment: row.sentiment,
+          summary: row.summary,
+          keyPoints: row.key_points || [],
+          agreements: row.agreements || [],
+          managerStrengths: row.manager_strengths || [],
+          managerMistakes: row.manager_mistakes || [],
+          actionItems: row.action_items || [],
+          scorecard: row.scorecard || {
+            greeting: 8,
+            needsDiscovery: 8,
+            objectionHandling: 8,
+            closingAndNextStep: 8,
+            politeness: 9,
+          },
+          transcript: row.transcript || [],
+        };
+      });
+    }
+
+    return { success: true, analyses };
+  } catch {
+    return { success: false, analyses: {} };
   }
 }

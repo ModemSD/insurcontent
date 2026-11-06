@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { runGptAnalysisForCallAction } from '@/app/telephony/actions';
 import { InsurvoiceCallType } from '@/types/telephony';
 
+// Deduplicate in-flight GPT requests by callId so page reloads attach to the running analysis
+const inFlightAnalyses = new Map<string, Promise<any>>();
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -27,15 +30,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Не передан callId' }, { status: 400 });
     }
 
-    const result = await runGptAnalysisForCallAction(
-      callId,
-      managerName,
-      customCriteria,
-      model,
-      callType || 'Auto',
-      durationSeconds,
-      lang || 'ru'
-    );
+    let jobPromise = inFlightAnalyses.get(callId);
+    if (!jobPromise) {
+      jobPromise = runGptAnalysisForCallAction(
+        callId,
+        managerName,
+        customCriteria,
+        model,
+        callType || 'Auto',
+        durationSeconds,
+        lang || 'ru'
+      ).finally(() => {
+        inFlightAnalyses.delete(callId);
+      });
+      inFlightAnalyses.set(callId, jobPromise);
+    }
+
+    const result = await jobPromise;
 
     return NextResponse.json(result);
   } catch (err: any) {

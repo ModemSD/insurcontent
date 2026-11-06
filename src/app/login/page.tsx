@@ -33,9 +33,8 @@ export default function LoginPage() {
       const res = await loginAction(formData);
 
       if (res.success) {
-        // Refresh router context to register auth cookie state and redirect
-        router.refresh();
-        router.push('/');
+        // Hard redirect to register auth cookie state cleanly and avoid router race conditions
+        window.location.href = '/';
       } else {
         setErrorMsg(res.error || 'Неверный логин или пароль.');
         setLoading(false);

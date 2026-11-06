@@ -88,16 +88,18 @@ export function detectNonEvaluableCall(params: {
   transcript: TranscriptUtterance[];
   durationSeconds?: number;
   lang?: 'ru' | 'en';
-}): { isNonEvaluable: boolean; reason: string } {
+}): { isNonEvaluable: boolean; reason: string; reasonRu: string; reasonEn: string } {
   const { transcript, durationSeconds, lang = 'ru' } = params;
   const isEn = lang === 'en';
 
   if (!transcript || transcript.length === 0) {
+    const reasonRu = 'Стенограмма звонка пуста — разговор не состоялся или запись отсутствует.';
+    const reasonEn = 'Call transcript is empty — no live conversation occurred or recording is missing.';
     return {
       isNonEvaluable: true,
-      reason: isEn
-        ? 'Call transcript is empty — no live conversation occurred or recording is missing.'
-        : 'Стенограмма звонка пуста — разговор не состоялся или запись отсутствует.',
+      reason: isEn ? reasonEn : reasonRu,
+      reasonRu,
+      reasonEn,
     };
   }
 
@@ -122,52 +124,60 @@ export function detectNonEvaluableCall(params: {
   if (matchedVoicemail && humanCustomerUtterances.length === 0) {
     const leftMessage = agentUtterances.length > 0;
     if (isAiScreener) {
+      const reasonRu = leftMessage
+        ? 'Звонок принял ИИ-секретарь / фильтр вызовов клиента («Record your name and reason for calling... This person is not available»), после чего менеджер оставил голосовое сообщение. Живой диалог с клиентом не состоялся — оценка не применяется.'
+        : 'Звонок принял ИИ-секретарь клиента («This person is not available»). Живой диалог не состоялся.';
+      const reasonEn = leftMessage
+        ? 'Call reached an AI Call Screener ("Record your name and reason for calling... This person is not available"), and the AE left a voice message. No live prospect conversation occurred — rubric scoring is N/A.'
+        : 'Call reached the prospect\'s AI Call Screener ("This person is not available"). No live conversation occurred.';
       return {
         isNonEvaluable: true,
-        reason: isEn
-          ? leftMessage
-            ? 'Call reached an AI Call Screener ("Record your name and reason for calling... This person is not available"), and the AE left a voice message. No live prospect conversation occurred — rubric scoring is N/A.'
-            : 'Call reached the prospect\'s AI Call Screener ("This person is not available"). No live conversation occurred.'
-          : leftMessage
-          ? 'Звонок принял ИИ-секретарь / фильтр вызовов клиента («Record your name and reason for calling... This person is not available»), после чего менеджер оставил голосовое сообщение. Живой диалог с клиентом не состоялся — оценка не применяется.'
-          : 'Звонок принял ИИ-секретарь клиента («This person is not available»). Живой диалог не состоялся.',
+        reason: isEn ? reasonEn : reasonRu,
+        reasonRu,
+        reasonEn,
       };
     }
+    const reasonRu = leftMessage
+      ? 'Звонок попал на автоответчик (Voicemail). Менеджер оставил голосовое сообщение для клиента — живой диалог не состоялся, оценка по скрипту продаж не применяется.'
+      : `Звонок попал на автоответчик (Voicemail): «${fullText.slice(0, 140)}». Живой диалог с клиентом не состоялся.`;
+    const reasonEn = leftMessage
+      ? 'Call reached Voicemail. The AE left a voice message for the prospect — no live sales conversation took place (N/A).'
+      : `Call reached Voicemail: "${fullText.slice(0, 140)}". No live conversation took place.`;
     return {
       isNonEvaluable: true,
-      reason: isEn
-        ? leftMessage
-          ? 'Call reached Voicemail. The AE left a voice message for the prospect — no live sales conversation took place (N/A).'
-          : `Call reached Voicemail: "${fullText.slice(0, 140)}". No live conversation took place.`
-        : leftMessage
-        ? 'Звонок попал на автоответчик (Voicemail). Менеджер оставил голосовое сообщение для клиента — живой диалог не состоялся, оценка по скрипту продаж не применяется.'
-        : `Звонок попал на автоответчик (Voicemail): «${fullText.slice(0, 140)}». Живой диалог с клиентом не состоялся.`,
+      reason: isEn ? reasonEn : reasonRu,
+      reasonRu,
+      reasonEn,
     };
   }
 
   if (typeof durationSeconds === 'number' && durationSeconds > 0 && durationSeconds < 20) {
+    const reasonRu = `Длительность звонка всего ${durationSeconds} сек. Полноценный диалог по скрипту продаж за это время не состоялся.`;
+    const reasonEn = `Call duration is only ${durationSeconds}s. Too short for a live sales conversation.`;
     return {
       isNonEvaluable: true,
-      reason: isEn
-        ? `Call duration is only ${durationSeconds}s. Too short for a live sales conversation.`
-        : `Длительность звонка всего ${durationSeconds} сек. Полноценный диалог по скрипту продаж за это время не состоялся.`,
+      reason: isEn ? reasonEn : reasonRu,
+      reasonRu,
+      reasonEn,
     };
   }
 
   if (agentUtterances.length === 0 || customerUtterances.length === 0) {
+    const reasonRu = matchedVoicemail
+      ? `Звонок попал на голосовую почту (Voicemail): «${fullText.slice(0, 140)}».`
+      : 'В стенограмме присутствуют реплики только одной стороны — двусторонний диалог между менеджером и клиентом не состоялся.';
+    const reasonEn = matchedVoicemail
+      ? `Call reached Voicemail: "${fullText.slice(0, 140)}".`
+      : 'Transcript only contains one speaker — no two-way conversation occurred between AE and prospect.';
     return {
       isNonEvaluable: true,
-      reason: isEn
-        ? matchedVoicemail
-          ? `Call reached Voicemail: "${fullText.slice(0, 140)}".`
-          : 'Transcript only contains one speaker — no two-way conversation occurred between AE and prospect.'
-        : matchedVoicemail
-        ? `Звонок попал на голосовую почту (Voicemail): «${fullText.slice(0, 140)}».`
-        : 'В стенограмме присутствуют реплики только одной стороны — двусторонний диалог между менеджером и клиентом не состоялся.',
+      reason: isEn ? reasonEn : reasonRu,
+      reasonRu,
+      reasonEn,
     };
   }
 
-  return { isNonEvaluable: false, reason: '' };
+  return { isNonEvaluable: false, reason: '', reasonRu: '', reasonEn: '' };
 }
 
 /**
@@ -177,6 +187,8 @@ export function buildNonEvaluableAnalysis(params: {
   callId: string;
   transcript: TranscriptUtterance[];
   reason: string;
+  reasonRu?: string;
+  reasonEn?: string;
   callType?: InsurvoiceCallType;
   lang?: 'ru' | 'en';
 }): CallAnalysisResult {
@@ -184,6 +196,9 @@ export function buildNonEvaluableAnalysis(params: {
   const callType: Exclude<InsurvoiceCallType, 'Auto'> =
     params.callType && params.callType !== 'Auto' ? params.callType : 'Discovery + Demo';
   const weights = CALL_TYPE_WEIGHTS[callType];
+
+  const rationaleRu = 'Не применимо (разговор не состоялся / автоответчик)';
+  const rationaleEn = 'Not applicable (Voicemail / no live conversation)';
 
   const sections: EvaluatedSection[] = INSURVOICE_SECTIONS.map((sec) => ({
     id: sec.id,
@@ -194,10 +209,13 @@ export function buildNonEvaluableAnalysis(params: {
     checkpointsHit: 0,
     checkpointsApplicable: 0,
     sectionScore: null,
-    rationale: isEn
-      ? 'Not applicable (Voicemail / no live conversation)'
-      : 'Не применимо (разговор не состоялся / автоответчик)',
+    rationale: isEn ? rationaleEn : rationaleRu,
+    rationaleRu,
+    rationaleEn,
   }));
+
+  const evidenceRu = 'Разговор с клиентом не состоялся (Voicemail / короткий звонок)';
+  const evidenceEn = 'No live conversation with prospect (Voicemail / short call)';
 
   const checkpoints: EvaluatedCheckpoint[] = INSURVOICE_CHECKPOINTS.map((cp) => ({
     id: cp.id,
@@ -206,29 +224,48 @@ export function buildNonEvaluableAnalysis(params: {
     title: cp.title,
     titleEn: cp.titleEn,
     result: 'N/A',
-    evidence: isEn
-      ? 'No live conversation with prospect (Voicemail / short call)'
-      : 'Разговор с клиентом не состоялся (Voicemail / короткий звонок)',
+    evidence: isEn ? evidenceEn : evidenceRu,
+    evidenceRu,
+    evidenceEn,
   }));
+
+  const summaryRu =
+    params.reasonRu ||
+    'Звонок попал на автоответчик (Voicemail) или живой диалог с клиентом не состоялся — оценка по скрипту продаж не применяется.';
+  const summaryEn =
+    params.reasonEn ||
+    'Call reached Voicemail or no live conversation with the prospect took place — sales rubric scoring is N/A.';
+
+  const ruText = {
+    summary: summaryRu,
+    keyPoints: ['Двусторонний разговор с клиентом не состоялся'],
+    agreements: [],
+    managerStrengths: [],
+    managerMistakes: [],
+    actionItems: ['Перезвонить клиенту или отправить SMS/email после попадания на автоответчик'],
+  };
+
+  const enText = {
+    summary: summaryEn,
+    keyPoints: ['No two-way conversation took place with the prospect'],
+    agreements: [],
+    managerStrengths: [],
+    managerMistakes: [],
+    actionItems: ['Follow up via phone or SMS/email after reaching voicemail'],
+  };
+
+  const activeText = isEn ? enText : ruText;
 
   return {
     callId: params.callId,
     score: 0,
     sentiment: 'neutral',
-    summary: params.reason,
-    keyPoints: [
-      isEn
-        ? 'No two-way conversation took place with the prospect'
-        : 'Двусторонний разговор с клиентом не состоялся',
-    ],
-    agreements: [],
-    managerStrengths: [],
-    managerMistakes: [],
-    actionItems: [
-      isEn
-        ? 'Follow up via phone or SMS/email after reaching voicemail'
-        : 'Перезвонить клиенту или отправить SMS/email после попадания на автоответчик',
-    ],
+    summary: activeText.summary,
+    keyPoints: activeText.keyPoints,
+    agreements: activeText.agreements,
+    managerStrengths: activeText.managerStrengths,
+    managerMistakes: activeText.managerMistakes,
+    actionItems: activeText.actionItems,
     scorecard: {
       greeting: 0,
       needsDiscovery: 0,
@@ -240,6 +277,10 @@ export function buildNonEvaluableAnalysis(params: {
       band: 'Priority Focus',
       sections,
       checkpoints,
+      i18n: {
+        ru: ruText,
+        en: enText,
+      },
     },
     transcript: params.transcript,
   };
@@ -270,6 +311,8 @@ export async function analyzeCallWithGPT(params: {
       callId: params.callId,
       transcript: params.transcript,
       reason: check.reason,
+      reasonRu: check.reasonRu,
+      reasonEn: check.reasonEn,
       callType: params.callType,
       lang,
     });
@@ -304,9 +347,10 @@ export async function analyzeCallWithGPT(params: {
     (cp) => `- "${cp.id}" (${cp.sectionTitle}): ${cp.title} [Original: ${cp.titleEn}]`
   ).join('\n');
 
-  const languageInstruction = isEn
-    ? 'IMPORTANT LANGUAGE RULE: Write ALL text fields (summary, keyPoints, agreements, managerStrengths, managerMistakes, actionItems, sectionRatings.*.rationale, checkpoints.*.evidence) STRICTLY IN ENGLISH.'
-    : 'ВАЖНОЕ ПРАВИЛО ЯЗЫКА: Все текстовые поля (summary, keyPoints, agreements, managerStrengths, managerMistakes, actionItems, rationale, evidence) пиши НА РУССКОМ ЯЗЫКЕ (допускается сохранять профильные термины: P&C, L&H, EZLynx, GHL, 90-day pilot, Caller ID и короткие цитаты из речи).';
+  const languageInstruction = `ВАЖНОЕ ДВУЯЗЫЧНОЕ ПРАВИЛО (BILINGUAL OUTPUT RULE):
+Ты должен заполнить ВСЕ текстовые поля СРАЗУ НА ДВУХ ЯЗЫКАХ (русском и английском), чтобы пользователь в интерфейсе мог мгновенно переключать язык RU ↔ EN без повторного запроса к API:
+- Поля без суффикса (summary, keyPoints, agreements, managerStrengths, managerMistakes, actionItems, rationale, evidence) — пиши НА РУССКОМ ЯЗЫКЕ (сохраняя термины P&C, L&H, EZLynx, GHL, 90-day pilot, Caller ID и точные цитаты из речи).
+- Поля с суффиксом En (summaryEn, keyPointsEn, agreementsEn, managerStrengthsEn, managerMistakesEn, actionItemsEn, rationaleEn, evidenceEn) — пиши СТРОГО НА АНГЛИЙСКОМ ЯЗЫКЕ (STRICTLY IN ENGLISH).`;
 
   const systemPrompt = `Ты — строгий аудитор качества звонков отдела продаж Insurvoice.ai (AE Sales Call Scorecard Rubric v1.0, калибровка Kyle & Adithya).
 Твоя задача — проанализировать стенограмму звонка между Account Executive (AE) и страховым агентством (Prospect) и оценить звонок СТРОГО по официальному скиллу (SKILL.md) ниже.
@@ -322,48 +366,54 @@ ${languageInstruction}
   "isVoicemailOrUnconnected": boolean, // true, если звонок попал на автоответчик/голосовую почту, ИИ-секретаря, IVR или клиент не ответил (даже если менеджер наговорил голосовое сообщение)
   "callType": "Confirmation / Pre-Call" | "Discovery" | "Demo" | "Discovery + Demo" | "Follow-up / Close",
   "sentiment": "positive" | "neutral" | "negative",
-  "summary": "Емкое резюме реального звонка (2-3 предложения)",
-  "keyPoints": ["тезис 1", "тезис 2"],
-  "agreements": ["договоренность 1", "договоренность 2"],
-  "managerStrengths": ["Сильная сторона 1", "Сильная сторона 2"],
-  "managerMistakes": ["Ошибка / зона роста 1", "Ошибка / зона роста 2"],
-  "actionItems": ["конкретный шаг 1", "конкретный шаг 2"],
+  "summary": "Емкое резюме реального звонка на русском (2-3 предложения)",
+  "summaryEn": "Concise summary of the actual call in English (2-3 sentences)",
+  "keyPoints": ["тезис 1 на русском", "тезис 2 на русском"],
+  "keyPointsEn": ["key point 1 in English", "key point 2 in English"],
+  "agreements": ["договоренность 1 на русском", "договоренность 2 на русском"],
+  "agreementsEn": ["agreement 1 in English", "agreement 2 in English"],
+  "managerStrengths": ["Сильная сторона 1 на русском", "Сильная сторона 2 на русском"],
+  "managerStrengthsEn": ["Strength 1 in English", "Strength 2 in English"],
+  "managerMistakes": ["Ошибка / зона роста 1 на русском", "Ошибка / зона роста 2 на русском"],
+  "managerMistakesEn": ["Mistake / coaching area 1 in English", "Mistake / coaching area 2 in English"],
+  "actionItems": ["конкретный шаг 1 на русском", "конкретный шаг 2 на русском"],
+  "actionItemsEn": ["concrete action item 1 in English", "concrete action item 2 in English"],
   "sectionRatings": {
-    "opening": { "qualityRating": 1..5, "rationale": "краткое обоснование оценки 1-5" },
-    "discovery": { "qualityRating": 1..5, "rationale": "краткое обоснование оценки 1-5" },
-    "pain": { "qualityRating": 1..5, "rationale": "краткое обоснование оценки 1-5" },
-    "demo": { "qualityRating": 1..5, "rationale": "краткое обоснование оценки 1-5" },
-    "objections": { "qualityRating": 1..5, "rationale": "краткое обоснование оценки 1-5" },
-    "close": { "qualityRating": 1..5, "rationale": "краткое обоснование оценки 1-5" },
-    "presence": { "qualityRating": 1..5, "rationale": "краткое обоснование оценки 1-5" }
+    "opening": { "qualityRating": 1..5, "rationale": "краткое обоснование на русском", "rationaleEn": "brief rationale in English" },
+    "discovery": { "qualityRating": 1..5, "rationale": "...", "rationaleEn": "..." },
+    "pain": { "qualityRating": 1..5, "rationale": "...", "rationaleEn": "..." },
+    "demo": { "qualityRating": 1..5, "rationale": "...", "rationaleEn": "..." },
+    "objections": { "qualityRating": 1..5, "rationale": "...", "rationaleEn": "..." },
+    "close": { "qualityRating": 1..5, "rationale": "...", "rationaleEn": "..." },
+    "presence": { "qualityRating": 1..5, "rationale": "...", "rationaleEn": "..." }
   },
   "checkpoints": {
-    "1.1": { "result": "Y" | "N" | "N/A", "evidence": "цитата или факт из стенограммы" },
-    "1.2": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "1.3": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "2.1": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "2.2": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "2.3": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "2.4": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "2.5": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "3.1": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "3.2": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "3.3": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "3.4": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "4.1": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "4.2": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "4.3": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "4.4": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "5.1": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "5.2": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "5.3": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "6.1": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "6.2": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "6.3": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "6.4": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "7.1": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "7.2": { "result": "Y" | "N" | "N/A", "evidence": "..." },
-    "7.3": { "result": "Y" | "N" | "N/A", "evidence": "..." }
+    "1.1": { "result": "Y" | "N" | "N/A", "evidence": "цитата или факт (RU)", "evidenceEn": "quote or fact (EN)" },
+    "1.2": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "1.3": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "2.1": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "2.2": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "2.3": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "2.4": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "2.5": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "3.1": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "3.2": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "3.3": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "3.4": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "4.1": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "4.2": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "4.3": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "4.4": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "5.1": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "5.2": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "5.3": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "6.1": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "6.2": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "6.3": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "6.4": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "7.1": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "7.2": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." },
+    "7.3": { "result": "Y" | "N" | "N/A", "evidence": "...", "evidenceEn": "..." }
   }
 }`;
 
@@ -372,49 +422,114 @@ ${languageInstruction}
   const explicitCallType =
     params.callType && params.callType !== 'Auto' ? params.callType : undefined;
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        {
-          role: 'user',
-          content: `${
-            explicitCallType
-              ? `Заданный тип звонка (Call Type): ${explicitCallType}\n`
-              : 'Определи наиболее подходящий тип звонка (Call Type) автоматически по содержанию диалога (например, "Confirmation / Pre-Call" для короткого звонка-подтверждения встречи в Google Meet, либо "Discovery", "Discovery + Demo", "Follow-up / Close").\n'
-          }${
-            params.durationSeconds ? `Длительность звонка: ${params.durationSeconds} сек.\n` : ''
-          }\nСтенограмма звонка:\n${formattedDialog}`,
-        },
-      ],
-      response_format: { type: 'json_object' },
-    }),
+  const requestPayload = JSON.stringify({
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      {
+        role: 'user',
+        content: `${
+          explicitCallType
+            ? `Заданный тип звонка (Call Type): ${explicitCallType}\n`
+            : 'Определи наиболее подходящий тип звонка (Call Type) автоматически по содержанию диалога (например, "Confirmation / Pre-Call" для короткого звонка-подтверждения встречи в Google Meet, либо "Discovery", "Discovery + Demo", "Follow-up / Close").\n'
+        }${
+          params.durationSeconds ? `Длительность звонка: ${params.durationSeconds} сек.\n` : ''
+        }\nСтенограмма звонка:\n${formattedDialog}`,
+      },
+    ],
+    response_format: { type: 'json_object' },
   });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error('OpenAI Error:', errText);
-    throw new Error(`Ошибка OpenAI API (${response.status}): ${errText}`);
+  const maxAttempts = 3;
+  let lastStatus = 0;
+  let lastErrorText = '';
+  let data: any = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: requestPayload,
+      });
+
+      if (response.ok) {
+        data = await response.json();
+        break;
+      }
+
+      lastStatus = response.status;
+      lastErrorText = await response.text();
+      console.warn(`OpenAI attempt ${attempt}/${maxAttempts} failed (${lastStatus}):`, lastErrorText);
+
+      const isRetryable = [429, 500, 502, 503, 504].includes(lastStatus);
+      if (!isRetryable || attempt === maxAttempts) {
+        break;
+      }
+    } catch (fetchErr: any) {
+      lastStatus = 0;
+      lastErrorText = fetchErr?.message || 'Network error';
+      console.warn(`OpenAI network error on attempt ${attempt}/${maxAttempts}:`, lastErrorText);
+      if (attempt === maxAttempts) {
+        break;
+      }
+    }
+
+    // Wait 1.5s on attempt 1, 3s on attempt 2 before retrying
+    await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
   }
 
-  const data = await response.json();
+  if (!data) {
+    let parsedOpenAiMsg = '';
+    try {
+      const errJson = JSON.parse(lastErrorText);
+      parsedOpenAiMsg = errJson?.error?.message || errJson?.error?.code || '';
+    } catch {
+      parsedOpenAiMsg = lastErrorText.slice(0, 200);
+    }
+
+    if (lastStatus >= 500) {
+      throw new Error(
+        isEn
+          ? `OpenAI servers are temporarily overloaded (HTTP ${lastStatus}${parsedOpenAiMsg ? `: ${parsedOpenAiMsg}` : ''}). Auto-retried ${maxAttempts} times. Please try scoring this call again in a few seconds.`
+          : `Серверы OpenAI временно перегружены (ошибка ${lastStatus}${parsedOpenAiMsg ? `: ${parsedOpenAiMsg}` : ''}). Выполнено ${maxAttempts} автоматических попытки. Пожалуйста, попробуйте повторить оценку через несколько секунд.`
+      );
+    }
+
+    if (lastStatus === 429) {
+      throw new Error(
+        isEn
+          ? `OpenAI rate limit reached (HTTP 429${parsedOpenAiMsg ? `: ${parsedOpenAiMsg}` : ''}). Please wait 10–20 seconds before scoring more calls.`
+          : `Превышен лимит запросов к OpenAI (HTTP 429${parsedOpenAiMsg ? `: ${parsedOpenAiMsg}` : ''}). Подождите 10–20 секунд и попробуйте снова.`
+      );
+    }
+
+    throw new Error(
+      isEn
+        ? `OpenAI API error${lastStatus ? ` (${lastStatus})` : ''}: ${parsedOpenAiMsg || 'Failed to complete analysis.'}`
+        : `Ошибка обращения к OpenAI API${lastStatus ? ` (${lastStatus})` : ''}: ${parsedOpenAiMsg || 'Не удалось выполнить анализ звонка.'}`
+    );
+  }
+
   const parsed = JSON.parse(data.choices[0].message.content);
 
   if (parsed.isVoicemailOrUnconnected) {
+    const reasonRu =
+      parsed.summary ||
+      'Звонок попал на автоответчик (Voicemail) или живой диалог с клиентом не состоялся — оценка по матрице продаж не применяется.';
+    const reasonEn =
+      parsed.summaryEn ||
+      parsed.summary ||
+      'Call reached Voicemail or no live conversation with the prospect took place — sales rubric scoring is N/A.';
     return buildNonEvaluableAnalysis({
       callId: params.callId,
       transcript: params.transcript,
-      reason:
-        parsed.summary ||
-        (isEn
-          ? 'Call reached Voicemail or no live conversation with the prospect took place — sales rubric scoring is N/A.'
-          : 'Звонок попал на автоответчик (Voicemail) или живой диалог с клиентом не состоялся — оценка по матрице продаж не применяется.'),
+      reason: isEn ? reasonEn : reasonRu,
+      reasonRu,
+      reasonEn,
       callType: explicitCallType,
       lang,
     });
@@ -423,22 +538,46 @@ ${languageInstruction}
   const resolvedCallType: InsurvoiceCallType =
     explicitCallType || parsed.callType || 'Discovery + Demo';
 
-  const { totalScore, scorecard } = calculateInsurvoiceScorecard({
-    callType: resolvedCallType,
-    rawCheckpoints: parsed.checkpoints,
-    rawSectionRatings: parsed.sectionRatings,
-  });
-
-  return {
-    callId: params.callId,
-    score: totalScore,
-    sentiment: parsed.sentiment || 'neutral',
+  const ruText = {
     summary: parsed.summary || 'Разговор проанализирован по матрице Insurvoice v1.0',
     keyPoints: parsed.keyPoints || [],
     agreements: parsed.agreements || [],
     managerStrengths: parsed.managerStrengths || [],
     managerMistakes: parsed.managerMistakes || [],
     actionItems: parsed.actionItems || [],
+  };
+
+  const enText = {
+    summary: parsed.summaryEn || parsed.summary || 'Call analyzed using the Insurvoice v1.0 rubric',
+    keyPoints: parsed.keyPointsEn || parsed.keyPoints || [],
+    agreements: parsed.agreementsEn || parsed.agreements || [],
+    managerStrengths: parsed.managerStrengthsEn || parsed.managerStrengths || [],
+    managerMistakes: parsed.managerMistakesEn || parsed.managerMistakes || [],
+    actionItems: parsed.actionItemsEn || parsed.actionItems || [],
+  };
+
+  const { totalScore, scorecard } = calculateInsurvoiceScorecard({
+    callType: resolvedCallType,
+    rawCheckpoints: parsed.checkpoints,
+    rawSectionRatings: parsed.sectionRatings,
+    i18n: {
+      ru: ruText,
+      en: enText,
+    },
+  });
+
+  const activeText = isEn ? enText : ruText;
+
+  return {
+    callId: params.callId,
+    score: totalScore,
+    sentiment: parsed.sentiment || 'neutral',
+    summary: activeText.summary,
+    keyPoints: activeText.keyPoints,
+    agreements: activeText.agreements,
+    managerStrengths: activeText.managerStrengths,
+    managerMistakes: activeText.managerMistakes,
+    actionItems: activeText.actionItems,
     scorecard,
     transcript: params.transcript,
   };

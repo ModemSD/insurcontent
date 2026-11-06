@@ -1,52 +1,52 @@
 ---
 name: insurvoice-call-scorer
-description: Оценка и аудит звонков отдела продаж Insurvoice.ai по официальной матрице AE Sales Call Scorecard (Rubric v1.0, Workbook v1.2). Используй этот скилл для анализа расшифровок звонков, проверки 26 чекпоинтов (Y/N/N/A) с доказательствами, расчёта весов по формуле 60/40 и калибровки AI-скоринга.
+description: Evaluate and audit Insurvoice.ai sales calls using the official AE Sales Call Scorecard (Rubric v1.0, Workbook v1.2). Use this skill to analyze call transcripts, verify the 26 checkpoints (Y/N/N/A) with transcript evidence, calculate weighted scores using the 60/40 formula, and calibrate AI call scoring.
 ---
 
 # Insurvoice.ai — AE Sales Call Scorecard (Rubric v1.0)
 
-Официальный стандарт оценки звонков Account Executive (AE) компании **Insurvoice.ai** (Workbook v1.2, калибровка Kyle & Adithya).
+Official standard for evaluating Account Executive (AE) sales calls at **Insurvoice.ai** (Workbook v1.2, calibrated by Kyle & Adithya).
 
 ---
 
-## 1. Главные правила калибровки (КРИТИЧЕСКИ ВАЖНО)
+## 1. Core Calibration Rules (CRITICAL)
 
-1. **Правило доказательств (`Evidence Rule`):**
-   - Оценивай **ТОЛЬКО реальное поведение**, подтверждённое цитатой в стенограмме, а не намерения (*"Score the behavior you can evidence in the transcript, not intent"*).
-   - Для каждого из 26 чекпоинтов обязательно укажи `"result": "Y" | "N" | "N/A"` и `"evidence"` (короткую цитату или точный факт из диалога).
-   - **Нет доказательства в тексте = ставь строго `"N"`** (*"Every score needs a quote or timestamp. No evidence = score it N"*). Никогда не додумывай факты, которых не было в разговоре.
+1. **Evidence Rule:**
+   - Score **ONLY observable behavior** supported by a quote in the transcript, not intent (*"Score the behavior you can evidence in the transcript, not intent"*).
+   - For each of the 26 checkpoints, you must provide `"result": "Y" | "N" | "N/A"` and `"evidence"` (a brief verbatim quote or specific fact from the dialogue).
+   - **No evidence in the transcript = score it strictly `"N"`** (*"Every score needs a quote or timestamp. No evidence = score it N"*). Never assume or infer facts that were not spoken on the call.
 
-2. **Правило автоответчиков и ИИ-секретарей (`Voicemail / Call Screening`):**
-   - Если звонок попал на автоответчик (*"Please leave your message..."*, *"after the tone"*), на ИИ-фильтр вызовов (*"Record your name and reason for calling, I'll see if this person is available"*, *"This person is not available"*) или длился менее 20 секунд без двустороннего диалога — ставь `"isVoicemailOrUnconnected": true`. Такие звонки получают статус `N/A` и не занижают рейтинг менеджера.
+2. **Voicemail / Call Screening Rule:**
+   - If the call reached voicemail (*"Please leave your message..."*, *"after the tone"*), an AI call-screening assistant (*"Record your name and reason for calling, I'll see if this person is available"*, *"This person is not available"*), or lasted under 20 seconds without a two-way conversation — set `"isVoicemailOrUnconnected": true`. Such calls are treated as `N/A` and do not penalize the AE's score.
 
-3. **Когда использовать `"N/A"` (Неприменимо):**
-   - **Короткий звонок-подтверждение встречи (`Confirmation / Pre-Call`, 1–4 мин по телефону перед Google Meet):**
-     Если менеджер звонит подтвердить время уже забронированной встречи в Google Meet / Zoom (*"booked a meeting for 08:45 Pacific, just wanted to confirm that time"*) и проводит короткую предквалификацию:
-     - Укажи `"callType": "Confirmation / Pre-Call"`.
-     - Чекпоинт `1.1` = `"Y"`, если менеджер представился и назвал цель звонка (подтвердить время встречи).
-     - Чекпоинт `2.1` = `"Y"`, если выяснил направление страхования (например, `life insurance`) и опыт агента.
-     - Чекпоинт `2.2` = `"Y"`, если уточнил наличие базы/лидов и объяснил, что Insurvoice не продаёт лиды, а квалифицирует их через AI.
-     - Чекпоинт `6.4` = `"Y"`, если клиент подтвердил присутствие на назначенной встрече в Google Meet.
-     - Все этапы полной встречи, которые переносятся на сам Google Meet (*"We'll discuss more during the meeting"*) — CRM-стек (`2.3`), конкуренты (`2.4`), ЛПР (`2.5`), расчёт 12-месячных потерь (`3.1–3.4`), Демо (`4.1–4.4`) и закрытие в оплату (`6.1–6.3`) — ставь СТРОГО **`"N/A"`** (а не `"N"`!).
-   - **Прецедент `C-002` (Новичок в страховании / Fresh Agent):**
-     Если клиент говорит, что он новый агент / только начинает или перезапускается (*"I'm new"*, *"starting fresh"*) и у него ещё нет действующей базы и цифр:
-     - Чекпоинт `2.1` = `"Y"` (выяснил нишу и то, что агент начинающий).
-     - Чекпоинты `3.1`, `3.2`, `3.3` = **`"N/A"`** (так как у новичка ещё нет статистики лидов, квот и комиссий).
-   - **Отсутствие Демо (`4.1–4.4`) или Возражений (`5.1–5.3`):**
-     - Если на звонке вообще не проводилась презентация/демонстрация продукта — ставь всем чекпоинтам `4.1–4.4` статус **`"N/A"`** (никогда не ставь `"Y"` за `4.2` и `4.3`, если демо вообще не было!).
-     - Если клиент не выдвигал возражений — ставь `5.1–5.3` статус **`"N/A"`**.
+3. **When to Use `"N/A"` (Not Applicable):**
+   - **Short Confirmation / Pre-Call (1–4 min phone call before a scheduled Google Meet):**
+     If the AE calls to confirm the time of an already booked Google Meet / Zoom meeting (*"booked a meeting for 08:45 Pacific, just wanted to confirm that time"*) and does brief pre-qualification:
+     - Set `"callType": "Confirmation / Pre-Call"`.
+     - Checkpoint `1.1` = `"Y"` if the AE introduced themselves and stated the goal of the call (confirming the meeting time).
+     - Checkpoint `2.1` = `"Y"` if the AE learned the insurance line (e.g., `life insurance`) and the agent's experience level.
+     - Checkpoint `2.2` = `"Y"` if the AE asked about existing leads/book of business and clarified that Insurvoice does not sell leads, but qualifies them using AI.
+     - Checkpoint `6.4` = `"Y"` if the prospect confirmed attendance for the scheduled Google Meet.
+     - All full-meeting stages deferred to the upcoming Google Meet (*"We'll discuss more during the meeting"*) — tech stack (`2.3`), competitors (`2.4`), decision makers (`2.5`), 12-month loss math (`3.1–3.4`), Demo (`4.1–4.4`), and asking for the sale (`6.1–6.3`) — must be scored STRICTLY **`"N/A"`** (not `"N"`!).
+   - **Precedent `C-002` (Fresh / Brand-New Insurance Agent):**
+     If the prospect states they are a brand-new agent or restarting from scratch (*"I'm new"*, *"starting fresh"*) and has no active book or historical metrics yet:
+     - Checkpoint `2.1` = `"Y"` (identified the niche and that the agent is brand new).
+     - Checkpoints `3.1`, `3.2`, `3.3` = **`"N/A"`** (since a brand-new agent has no historical lead, quote, or commission counts).
+   - **No Demo (`4.1–4.4`) or No Objections (`5.1–5.3`):**
+     - If no product presentation/demo took place on the call — score all checkpoints `4.1–4.4` as **`"N/A"`** (never score `"Y"` for `4.2` and `4.3` if no demo occurred at all!).
+     - If the prospect raised no objections — score `5.1–5.3` as **`"N/A"`**.
 
 ---
 
-## 2. Математическая формула и веса по типам звонков
+## 2. Scoring Formula & Call Type Weights
 
-1. **Балл секции (`Section Score`):**
+1. **Section Score:**
    $$\text{Section Score} = 0.60 \times \frac{\text{Checkpoints Y}}{\text{Checkpoints Y + N}} + 0.40 \times \frac{\text{Quality Rating (1..5)}}{5}$$
-   *(Секции с весом 0 или всеми чекпоинтами `N/A` исключаются, а веса остальных секций пропорционально масштабируются до 100%).*
+   *(Sections with 0% weight or where all checkpoints are `N/A` are excluded, and the remaining active section weights are proportionally rescaled to 100%).*
 
-2. **Веса секций по типу звонка (`Call Type`):**
+2. **Section Weights by Call Type:**
 
-| Секция | `Confirmation / Pre-Call` | `Discovery` | `Demo` | `Discovery + Demo` | `Follow-up / Close` |
+| Section | `Confirmation / Pre-Call` | `Discovery` | `Demo` | `Discovery + Demo` | `Follow-up / Close` |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **1. Opening & Rapport** | 25% | 15% | 10% | **10%** | 5% |
 | **2. Discovery** | 35% | 35% | 15% | **25%** | 10% |
@@ -56,82 +56,82 @@ description: Оценка и аудит звонков отдела продаж
 | **6. Close & Next Steps** | 20% | 15% | 15% | **15%** | 30% |
 | **7. Presence** | 10% | 5% | 5% | **5%** | 5% |
 
-3. **Грейды (`Band`):**
-   - **85%+** — `Strong` (Сильный звонок)
-   - **70–84%** — `Solid` (Хороший уровень)
-   - **55–69%** — `Needs Coaching` (Нужен коучинг)
-   - **< 55%** — `Priority Focus` (Приоритетный разбор)
+3. **Score Bands (`Band`):**
+   - **85%+** — `Strong`
+   - **70–84%** — `Solid`
+   - **55–69%** — `Needs Coaching`
+   - **< 55%** — `Priority Focus`
 
 ---
 
-## 3. Рубрика оценки 7 секций (Quality Rating 1–5) и 26 чекпоинтов
+## 3. 7-Section Rubric (Quality Rating 1–5) & 26 Checkpoints
 
-*(Уровень 2 ставится между 1 и 3; уровень 4 ставится между 3 и 5).*
+*(Use 2 and 4 when performance sits between the anchors below).*
 
-### Секция 1: Opening & Rapport (Открытие и контакт)
-- **Уровень 5 (Отлично):** Подтверждает тайминг, озвучивает адженду и цель звонка. Спрашивает, что побудило обратиться и как клиент видит использование AI. Начинает с открытого вопроса «Расскажите о вашем агентстве» (*"Tell me about your agency"*) и развивает историю клиента. Первые 5 минут больше говорит клиент.
-- **Уровень 3 (Средне):** Дружелюбно и профессионально, но пропускает адженду или задаёт закрытые/наводящие вопросы об агентстве (*«Вы занимаетесь P&C или L&H?»*).
-- **Уровень 1 (Плохо):** Сразу переходит к питчу или демо без адженды и интереса к бизнесу агентства.
-- **Чекпоинты:**
-  - `1.1` — Озвучил адженду, доступное время и цель звонка (*Set the agenda, time available and goal for the call*). На полном звонке просто сказать «у нас 30 минут» без плана звонка — это `N`.
-  - `1.2` — Спросил, что побудило обратиться и как клиент представляет использование AI (*Asked what prompted the inquiry and how they picture using AI*).
-  - `1.3` — Начал знакомство с открытого вопроса (*"Tell me about your agency"*), а не закрытого/наводящего (вопрос *«Are you P&C or L&H?»* или *«Are you a life insurance agent?»* без открытого вопроса — это `N`).
+### Section 1: Opening & Rapport
+- **Level 5 (Strong):** Confirms time, sets a clear agenda and states the goal of the call. Asks what prompted the inquiry and how the prospect pictures using AI. Opens agency discovery with an open-ended question (*"Tell me about your agency"*) and builds on their story (how they started, size, staff). Prospect talks more than the AE in the first 5 minutes.
+- **Level 3 (Acceptable):** Friendly and professional, but skips the agenda or asks narrow/leading questions about the agency (*"Are you P&C or L&H?"*).
+- **Level 1 (Needs Work):** Jumps straight into pitching or demoing. No agenda set, no curiosity about the agency.
+- **Checkpoints:**
+  - `1.1` — Set the agenda, time available and goal for the call (merely stating "we have 30 minutes" on a full call without an agenda is `N`).
+  - `1.2` — Asked what prompted the inquiry and how they picture using AI.
+  - `1.3` — Opened agency discovery with an open-ended question (*"Tell me about your agency"*), not a leading/closed one (asking *"Are you P&C or L&H?"* or *"Are you a life insurance agent?"* without an open question is `N`).
 
-### Секция 2: Discovery (Квалификация и разведка)
-- **Уровень 5 (Отлично):** Полностью картирует агентство: структура портфеля (P&C / L&H), кол-во клиентов и активных полисов, источники лидов (рефералы, соцсети, платный трафик), текущий процесс прозвона, ИТ-стек (AMS/CRM: EZLynx, GHL), языковые потребности (например, Spanish-speaking). Выясняет, как давно смотрят AI и кого ещё оценивали. Определяет ЛПР и процесс согласования (например, 90-day pilot).
-- **Уровень 3 (Средне):** Покрывает базу (размер, микс, источники лидов), но упускает конкурентов или процесс принятия решения.
-- **Уровень 1 (Плохо):** Мало вопросов или их нет, додумывает потребности за клиента.
-- **Чекпоинты:**
-  - `2.1` — Выяснил структуру портфеля и размер агентства (*Learned book mix and size: P&C / L&H split, # clients, staff*).
-  - `2.2` — Выяснил источники лидов и текущий процесс прозвона / follow-up (*Learned lead sources and current calling / follow-up process*).
-  - `2.3` — Выяснил текущий ИТ-стек (*Learned tech stack: AMS / CRM, e.g. EZLynx, GHL*).
-  - `2.4` — Спросил, как давно рассматривают AI и кого ещё оценивали (*Asked how long they've considered AI and who else they've evaluated*).
-  - `2.5` — Определил ЛПР и процесс принятия решения / согласования (*Identified decision maker(s) and buying / approval process*).
+### Section 2: Discovery
+- **Level 5 (Strong):** Maps the full agency: book mix (P&C / L&H), # clients and active policies, lead sources (referrals, social, paid), current calling/follow-up process and who handles it, tech stack (AMS/CRM: EZLynx, GHL), language needs (e.g., Spanish-speaking). Asks how long they've looked at AI and who else they've evaluated. Identifies all decision makers and the approval process (e.g., 90-day pilot, board sign-off). Asks thoughtful follow-ups instead of reading a checklist.
+- **Level 3 (Acceptable):** Covers basics (size, mix, lead sources) but misses competitors or decision process. Follow-up questions are surface-level.
+- **Level 1 (Needs Work):** Few or no discovery questions; assumes needs and pitches generic features.
+- **Checkpoints:**
+  - `2.1` — Learned book mix and size (P&C / L&H split, # clients, staff).
+  - `2.2` — Learned lead sources and current calling / follow-up process.
+  - `2.3` — Learned tech stack (AMS / CRM, e.g. EZLynx, GHL).
+  - `2.4` — Asked how long they've considered AI and who else they've evaluated.
+  - `2.5` — Identified decision maker(s) and buying / approval process.
 
-### Секция 3: Pain & Impact (Боль и цена проблемы)
-- **Уровень 5 (Отлично):** Переводит каждую боль в твёрдые цифры: «10 after-hours лидов в неделю, 6 квот, 2 продажи — значит ~500 лидов в год». Выясняет среднюю премию/комиссию и считает упущенную выгоду на 12+ месяцев, включая стоимость найма и текучки людей. Клиент сам вслух проговаривает цену проблемы.
-- **Уровень 3 (Средне):** Собирает часть цифр, но оставляет их в процентах, не суммирует за год или не переводит в доллары.
-- **Уровень 1 (Плохо):** Боли просто упоминаются без единой цифры.
-- **Чекпоинты:**
-  - `3.1` — Получил твёрдые цифры в штуках (лиды, квоты, продажи), а не просто проценты (*Got hard counts, not just percentages*).
-  - `3.2` — Выяснил среднюю страховую премию или комиссию со сделки (*Got average premium or commission per sale*).
-  - `3.3` — Экстраполировал потери на 12+ месяцев вперёд, сделав цифру масштабной (*Projected the loss over 12+ months — made the number big*).
-  - `3.4` — Клиент сам проговорил стоимость проблемы своими словами (*Prospect stated the cost of the problem in their own words*).
+### Section 3: Pain & Impact
+- **Level 5 (Strong):** Turns every pain into hard numbers: *"10 after-hours leads a week, you quote 6, close 2 — so ~500 leads a year."* Gets show rate, close rate, and average premium/commission to calculate opportunity cost. Quantifies secondary pains too (hiring, training, seasonal turnover). Gets the prospect to state the cost of the problem in their own words.
+- **Level 3 (Acceptable):** Identifies pains and collects some numbers, but leaves them as percentages, doesn't annualize over 12+ months, or doesn't translate into dollars.
+- **Level 1 (Needs Work):** Pains are acknowledged (*"Yeah, that's tough"*) with zero numbers attached.
+- **Checkpoints:**
+  - `3.1` — Got hard counts (leads, quotes, closes), not just percentages.
+  - `3.2` — Got average premium or commission per sale.
+  - `3.3` — Projected the loss over 12+ months (made the number big).
+  - `3.4` — Prospect stated the cost of the problem in their own words.
 
-### Секция 4: Solution Fit / Demo (Презентация и Демо)
-- **Уровень 5 (Отлично):** Показывает только то, что решает названные клиентом боли, и ссылается на его слова. Объясняет загрузку данных простым языком (выгрузка CSV с именем, адресом и полисом). Про интеграции и API говорит только если спросили. Никогда не обещает будущие фичи или интеграции.
-- **Уровень 3 (Средне):** Шаблонное демо, сам поднимает ненужные технические темы или слабо привязывает к болям.
-- **Уровень 1 (Плохо):** Свалка фич, уход в запутанный технарь или обещание несуществующих интеграций.
-- **Чекпоинты:**
-  - `4.1` — Демо напрямую привязано к болям, которые ранее озвучил клиент (*Demo tied directly to pains the prospect stated*).
-  - `4.2` — Не поднимал технические темы без запроса клиента (*No unprompted technical topics: integrations, open API, back end*). Если менеджер сам начал говорить про интеграцию с CRM/API — ставь `N`.
-  - `4.3` — Не обещал будущих функций или интеграций (*No promises of future features or integrations*, например с EZLynx / GHL).
-  - `4.4` — Объяснил загрузку данных (CSV) и настройку простым языком (*Explained data and setup in plain language*).
+### Section 4: Solution Fit / Demo
+- **Level 5 (Strong):** Shows only what solves the pains the prospect stated and echoes their exact words (*"You mentioned after-hours leads — here's how that works..."*). Uses real agency case studies to explain why it's built for insurance. Explains data setup in plain language (uploading a CSV with name, address, prior policies). Discusses integrations/APIs only if asked. Never promises future features or integrations.
+- **Level 3 (Acceptable):** Generic feature walkthrough; brings up unprompted technical topics or misses chances to tie features back to stated pains.
+- **Level 1 (Needs Work):** Feature dump or confusing technical jargon; promises future features or integrations that do not exist today.
+- **Checkpoints:**
+  - `4.1` — Demo tied directly to pains the prospect stated.
+  - `4.2` — No unprompted technical topics (integrations, open API, back end). Score `N` if the AE brought up CRM/API integrations unprompted.
+  - `4.3` — No promises of future features or integrations (e.g., promising upcoming EZLynx / GHL integrations).
+  - `4.4` — Explained data and setup (CSV upload) in plain language.
 
-### Секция 5: Objection Handling (Отработка возражений)
-- **Уровень 5 (Отлично):** Принимает возражение, задаёт вопрос для прояснения истинного сомнения, отвечает релевантным аргументом (период внедрения на «нет времени», комплаенс записи, брендированный Caller ID на «не берут незнакомые номера»), затем обязательно проверяет, снято ли возражение (*«Does that address it?»*).
-- **Уровень 3 (Средне):** Отвечает на возражение, но не подтверждает у клиента, что сомнение снято.
-- **Уровень 1 (Плохо):** Спорит, уходит в защиту, игнорирует возражение или сразу даёт скидку.
-- **Чекпоинты:**
-  - `5.1` — Принял и прояснил возражение, нашёл истинную причину сомнения (*Acknowledged and clarified the objection*).
-  - `5.2` — Ответил релевантным аргументом (*Answered with a relevant point: implementation period, compliance, caller ID label, etc.*).
-  - `5.3` — Явно подтвердил у клиента, что возражение снято (*Confirmed the objection was resolved* — без вопроса *«Does that make sense / address it?»* ставь `N`).
+### Section 5: Objection Handling
+- **Level 5 (Strong):** Acknowledges the objection, asks a clarifying question to uncover the real concern, answers with a relevant point (implementation period for "no time to try it", recording compliance, branded Caller ID label for "nobody answers unknown numbers"), and explicitly confirms the concern is resolved (*"Does that address it?"*).
+- **Level 3 (Acceptable):** Answers the objection, but doesn't confirm with the prospect that the concern is resolved.
+- **Level 1 (Needs Work):** Gets defensive, argues, brushes past the objection, or immediately discounts the price.
+- **Checkpoints:**
+  - `5.1` — Acknowledged and clarified the objection (found the real concern).
+  - `5.2` — Answered with a relevant point (implementation period, compliance, caller ID label, etc.).
+  - `5.3` — Confirmed the objection was resolved (without asking *"Does that make sense / address it?"*, score `N`).
 
-### Секция 6: Close & Next Steps (Закрытие и следующий шаг)
-- **Уровень 5 (Отлично):** Формулирует ROI на цифрах клиента («1–2 продажи окупают решение» — именно продажи, а не «комиссионные чеки»). Снимает риск («Мы сами собираем агента и проводим онбординг»), прямо предлагает старт с конкретной датой («Можем запуститься в понедельник — подходит?») и ждёт ответа. Если не готов — до конца звонка бронирует точную дату и время следующей встречи с ЛПР.
-- **Уровень 3 (Средне):** Назначает встречу, но ни разу прямо не предлагает купить, либо следующий шаг размытый («пришлю информацию»).
-- **Уровень 1 (Плохо):** Звонок заканчивается без предложения сделки и без назначенного следующего шага.
-- **Чекпоинты:**
-  - `6.1` — Сформулировал ROI на цифрах клиента: «1–2 продажи окупают решение» (*Framed ROI with the prospect's own numbers: "1-2 sales covers it"*).
-  - `6.2` — Прямо предложил закрыть сделку / купить (*Explicitly asked for the sale*).
-  - `6.3` — Предложил конкретную дату запуска (*Proposed a specific start date*, например «в понедельник», а не размытое «на следующей неделе»).
-  - `6.4` — Назначил или подтвердил точную дату и время следующей встречи до завершения звонка (*Booked a dated next meeting before the call ended*).
+### Section 6: Close & Next Steps
+- **Level 5 (Strong):** Frames ROI using the prospect's own numbers (*"1–2 sales covers it"* — specifically sales, not "commission checks"). Summarizes value, removes risk (*"We build the agent, run onboarding, and set up the number"*), asks directly for the business with a specific start date (*"We can get you started Monday — does that work?"*) and waits for the answer. If not ready to buy today, books a concrete date and time for the next meeting with all decision makers before hanging up.
+- **Level 3 (Acceptable):** Books a follow-up meeting but never explicitly asks for the sale, or leaves the next step vague (*"I'll send over some info"*).
+- **Level 1 (Needs Work):** Call ends without asking for the sale and without a dated next step on the calendar.
+- **Checkpoints:**
+  - `6.1` — Framed ROI with the prospect's own numbers (*"1-2 sales covers it"*).
+  - `6.2` — Explicitly asked for the sale.
+  - `6.3` — Proposed a specific start date (e.g., *"Monday"*, not a vague *"next week"*).
+  - `6.4` — Booked or confirmed a dated next meeting before the call ended.
 
-### Секция 7: Presence (Подача и ведение звонка)
-- **Уровень 5 (Отлично):** Профессиональная подача, подстраивается под темп и тон клиента с живым энтузиазмом. Даёт клиенту договорить каждую фразу до конца (не перебивает). Держится уверенно на технических вопросах, не упоминает, что недавно работает в компании.
-- **Уровень 3 (Средне):** Профессионально, но сухо/монотонно, либо изредка перебивает.
-- **Уровень 1 (Плохо):** Часто перебивает, звучит неуверенно, уходит в длинные монологи или теряет управление звонком.
-- **Чекпоинты:**
-  - `7.1` — Давал клиенту договаривать фразы до конца, не перебивал (*Let the prospect finish their sentences — no talking over*).
-  - `7.2` — Подстроился под темп и тон собеседника (*Matched the prospect's pace and tone*).
-  - `7.3` — Демонстрировал энергию, энтузиазм и уверенность на протяжении всего звонка (*Showed energy, enthusiasm and confidence throughout*).
+### Section 7: Presence
+- **Level 5 (Strong):** Professional delivery. Matches the prospect's pace and tone while keeping genuine energy and enthusiasm. Lets the prospect finish every sentence without talking over them. Stays composed on technical questions and keeps the call focused with clear framing. Never mentions being "new to the company."
+- **Level 3 (Acceptable):** Professional, but flat/monotone or occasionally talks over the prospect.
+- **Level 1 (Needs Work):** Frequently interrupts, sounds unsure, rambles in long monologues, or loses control of the call.
+- **Checkpoints:**
+  - `7.1` — Let the prospect finish their sentences (no talking over).
+  - `7.2` — Matched the prospect's pace and tone.
+  - `7.3` — Showed energy, enthusiasm and confidence throughout.

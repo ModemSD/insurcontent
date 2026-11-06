@@ -385,8 +385,9 @@ export function getBandForScore(score0to100: number): InsurvoiceScoreBand {
  */
 export function calculateInsurvoiceScorecard(params: {
   callType?: InsurvoiceCallType;
-  rawCheckpoints?: Record<string, { result?: string; evidence?: string }>;
-  rawSectionRatings?: Record<string, { qualityRating?: number; rationale?: string }>;
+  rawCheckpoints?: Record<string, { result?: string; evidence?: string; evidenceRu?: string; evidenceEn?: string }>;
+  rawSectionRatings?: Record<string, { qualityRating?: number; rationale?: string; rationaleRu?: string; rationaleEn?: string }>;
+  i18n?: CallScorecard['i18n'];
 }): {
   totalScore: number;
   band: InsurvoiceScoreBand;
@@ -407,11 +408,16 @@ export function calculateInsurvoiceScorecard(params: {
     else if (normalizedResult === 'N/A' || normalizedResult === 'NA') result = 'N/A';
     else result = 'N';
 
-    const evidence = (raw?.evidence || '').trim();
+    const evidenceRu = (raw?.evidenceRu || raw?.evidence || '').trim();
+    const evidenceEn = (raw?.evidenceEn || raw?.evidence || '').trim();
+    const primaryEvidence = evidenceRu || evidenceEn;
     // Rule from Instructions row 37: "Every score needs a quote or timestamp. No evidence = score it N."
-    if (result === 'Y' && (!evidence || evidence.length < 3)) {
+    if (result === 'Y' && (!primaryEvidence || primaryEvidence.length < 3)) {
       result = 'N';
     }
+
+    const fallbackRu = result === 'N/A' ? 'Не применимо к данному звонку' : 'Не зафиксировано в стенограмме';
+    const fallbackEn = result === 'N/A' ? 'Not applicable to this call' : 'Not evidenced in transcript';
 
     return {
       id: cp.id,
@@ -420,7 +426,9 @@ export function calculateInsurvoiceScorecard(params: {
       title: cp.title,
       titleEn: cp.titleEn,
       result,
-      evidence: evidence || (result === 'N/A' ? 'Не применимо к данному звонку' : 'Не зафиксировано в стенограмме'),
+      evidence: evidenceRu || fallbackRu,
+      evidenceRu: evidenceRu || fallbackRu,
+      evidenceEn: evidenceEn || fallbackEn,
     };
   });
 
@@ -463,6 +471,10 @@ export function calculateInsurvoiceScorecard(params: {
       countedWeightSum += weight;
     }
 
+    const rawSec = params.rawSectionRatings?.[sec.id];
+    const rationaleRu = rawSec?.rationaleRu || rawSec?.rationale;
+    const rationaleEn = rawSec?.rationaleEn || rawSec?.rationale;
+
     return {
       id: sec.id,
       title: sec.title,
@@ -472,7 +484,9 @@ export function calculateInsurvoiceScorecard(params: {
       checkpointsHit,
       checkpointsApplicable,
       sectionScore,
-      rationale: params.rawSectionRatings?.[sec.id]?.rationale,
+      rationale: rationaleRu,
+      rationaleRu,
+      rationaleEn,
     };
   });
 
@@ -499,6 +513,7 @@ export function calculateInsurvoiceScorecard(params: {
     band,
     sections: evaluatedSections,
     checkpoints: evaluatedCheckpoints,
+    i18n: params.i18n,
   };
 
   return {

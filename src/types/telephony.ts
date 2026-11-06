@@ -75,6 +75,8 @@ export interface EvaluatedCheckpoint {
   titleEn: string;
   result: CheckpointResult;
   evidence: string;
+  evidenceRu?: string;
+  evidenceEn?: string;
 }
 
 export interface EvaluatedSection {
@@ -87,6 +89,17 @@ export interface EvaluatedSection {
   checkpointsApplicable: number;
   sectionScore: number | null; // 0-100 percentage, or null if skipped/N/A
   rationale?: string;
+  rationaleRu?: string;
+  rationaleEn?: string;
+}
+
+export interface LocalizedCallAnalysisText {
+  summary: string;
+  keyPoints: string[];
+  agreements: string[];
+  managerStrengths: string[];
+  managerMistakes: string[];
+  actionItems: string[];
 }
 
 export interface CallScorecard {
@@ -101,6 +114,14 @@ export interface CallScorecard {
   band?: InsurvoiceScoreBand;
   sections?: EvaluatedSection[];
   checkpoints?: EvaluatedCheckpoint[];
+  scoredAtMs?: number;
+  comment?: string;
+  commentUpdatedAt?: string;
+  isCommentOnly?: boolean;
+  i18n?: {
+    ru?: LocalizedCallAnalysisText;
+    en?: LocalizedCallAnalysisText;
+  };
 }
 
 export interface CallAnalysisResult {

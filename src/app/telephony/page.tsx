@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   Headphones, 
   PhoneCall, 
@@ -25,16 +25,33 @@ import {
   Zap,
   PhoneForwarded,
   Trash2,
-  BarChart3
+  BarChart3,
+  MessageSquare,
+  Pencil,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { 
   fetchTelephonyDataAction, 
   runGptAnalysisForCallAction,
   getCallTranscriptAction,
   deleteCallAnalysisAction,
+  deleteBulkCallAnalysesAction,
+  saveCallCommentAction,
   saveCallScorerSkillAction
 } from './actions';
 import { QuoCall, QuoUser, CallAnalysisResult, ManagerPerformance, TranscriptUtterance, InsurvoiceCallType } from '@/types/telephony';
+
+interface ScoringQueueItem {
+  callId: string;
+  userName?: string;
+  duration?: number;
+  addedAt: number;
+  status: 'queued' | 'processing';
+}
+
+const SCORING_QUEUE_STORAGE_KEY = 'telephony_scoring_queue_v1';
+const MAX_CONCURRENT_SCORING = 2;
 
 export default function TelephonyPage() {
   const [loading, setLoading] = useState(true);
@@ -66,7 +83,34 @@ export default function TelephonyPage() {
   const [skillSavedStatus, setSkillSavedStatus] = useState<string | null>(null);
   const [showCriteriaDrawer, setShowCriteriaDrawer] = useState(false);
   const [showChangelogModal, setShowChangelogModal] = useState(false);
+  const [openChangelogDates, setOpenChangelogDates] = useState<Record<string, boolean>>({
+    'nov-6': true,
+    'oct-27': false,
+  });
   const [activeChartMetric, setActiveChartMetric] = useState<'calls' | 'ctr' | 'duration' | 'score' | 'managers' | null>(null);
+  const [errorModal, setErrorModal] = useState<{
+    title: string;
+    message: string;
+    retryCall?: QuoCall;
+  } | null>(null);
+
+  // Bulk selection & persistent scoring queue
+  const [selectedCallIds, setSelectedCallIds] = useState<Record<string, boolean>>({});
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [scoringQueue, setScoringQueue] = useState<ScoringQueueItem[]>([]);
+  const [queueHydrated, setQueueHydrated] = useState(false);
+  const [queueCompletedCount, setQueueCompletedCount] = useState(0);
+  const activeWorkerIdsRef = useRef<Set<string>>(new Set());
+
+  // Pagination for Call Log table
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+
+  // Call comments state
+  const [callComments, setCallComments] = useState<Record<string, string>>({});
+  const [editingCommentCallId, setEditingCommentCallId] = useState<string | null>(null);
+  const [commentDraft, setCommentDraft] = useState<string>('');
+  const [savingCommentCallId, setSavingCommentCallId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -95,9 +139,42 @@ export default function TelephonyPage() {
         setManagers(res.managers);
         setCalls(res.calls);
         setAnalyses(res.analyses);
+        setCallComments(res.comments || {});
         setPerformance(res.performance);
         if (res.skillContent && !isRefresh) {
           setCustomCriteria(res.skillContent);
+        }
+
+        // Hydrate persistent scoring queue on initial load so page refresh never loses active/queued GPT jobs
+        if (!isRefresh) {
+          try {
+            const rawQueue = window.localStorage.getItem(SCORING_QUEUE_STORAGE_KEY);
+            if (rawQueue) {
+              const parsedQueue: ScoringQueueItem[] = JSON.parse(rawQueue);
+              if (Array.isArray(parsedQueue) && parsedQueue.length > 0) {
+                const remainingQueue = parsedQueue
+                  .filter((item) => {
+                    if (!item?.callId) return false;
+                    const existingAnalysis = res.analyses[item.callId];
+                    const scoredAtMs = existingAnalysis?.scorecard?.scoredAtMs;
+                    // If the server already finished saving this analysis while the page was reloading, skip it
+                    if (scoredAtMs && item.addedAt && scoredAtMs >= item.addedAt - 2000) {
+                      return false;
+                    }
+                    return true;
+                  })
+                  .map((item) => ({
+                    ...item,
+                    status: 'queued' as const,
+                  }));
+                setScoringQueue(remainingQueue);
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to restore scoring queue:', e);
+          } finally {
+            setQueueHydrated(true);
+          }
         }
       }
     } catch (err) {
@@ -121,7 +198,10 @@ export default function TelephonyPage() {
         );
         setTimeout(() => setSkillSavedStatus(null), 4000);
       } else if (res.error) {
-        alert(res.error);
+        setErrorModal({
+          title: isEn ? 'Failed to Save Skill' : 'Не удалось сохранить скилл',
+          message: res.error,
+        });
       }
     } catch (err) {
       console.error('Failed to save skill', err);
@@ -171,19 +251,46 @@ export default function TelephonyPage() {
     }
   };
 
+  const enqueueCallsForScoring = (callsToEnqueue: QuoCall[]) => {
+    if (!callsToEnqueue || callsToEnqueue.length === 0) return;
+
+    setScoringQueue((prev) => {
+      const existingIds = new Set(prev.map((q) => q.callId));
+      const now = Date.now();
+      const newItems: ScoringQueueItem[] = [];
+      for (const c of callsToEnqueue) {
+        if (!existingIds.has(c.id)) {
+          existingIds.add(c.id);
+          newItems.push({
+            callId: c.id,
+            userName: c.userName,
+            duration: c.duration,
+            addedAt: now,
+            status: 'queued',
+          });
+        }
+      }
+      if (newItems.length === 0) return prev;
+      return [...prev, ...newItems];
+    });
+  };
+
   const handleRunAnalysis = async (call: QuoCall) => {
-    setAnalyzingCallIds((prev) => ({ ...prev, [call.id]: true }));
+    enqueueCallsForScoring([call]);
+  };
+
+  const executeSingleQueueItem = async (item: ScoringQueueItem) => {
     try {
       const response = await fetch('/api/telephony/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          callId: call.id,
-          managerName: call.userName,
+          callId: item.callId,
+          managerName: item.userName,
           customCriteria,
           model: selectedModel,
           callType: 'Auto',
-          durationSeconds: call.duration,
+          durationSeconds: item.duration,
           lang,
         }),
       });
@@ -191,19 +298,136 @@ export default function TelephonyPage() {
       if (res.success && res.analysis) {
         setAnalyses((prev) => ({
           ...prev,
-          [call.id]: res.analysis!,
+          [item.callId]: res.analysis!,
         }));
       } else if (res.error) {
-        alert(res.error);
+        const retryCallObj = calls.find((c) => c.id === item.callId) || {
+          id: item.callId,
+          direction: 'outbound' as const,
+          status: 'completed' as const,
+          duration: item.duration || 0,
+          createdAt: new Date().toISOString(),
+          from: '',
+          to: '',
+          userName: item.userName,
+        };
+        setErrorModal({
+          title: isEn ? 'Call Scoring Error' : 'Не удалось выполнить оценку звонка',
+          message: res.error,
+          retryCall: retryCallObj,
+        });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to analyze call', err);
-    } finally {
-      setAnalyzingCallIds((prev) => {
-        const next = { ...prev };
-        delete next[call.id];
-        return next;
+      const retryCallObj = calls.find((c) => c.id === item.callId);
+      setErrorModal({
+        title: isEn ? 'Call Scoring Error' : 'Не удалось выполнить оценку звонка',
+        message:
+          err?.message ||
+          (isEn
+            ? 'Network error while communicating with the scoring server.'
+            : 'Сетевая ошибка при обращении к серверу оценки.'),
+        retryCall: retryCallObj,
       });
+    } finally {
+      activeWorkerIdsRef.current.delete(item.callId);
+      setQueueCompletedCount((c) => c + 1);
+      setScoringQueue((prev) => prev.filter((q) => q.callId !== item.callId));
+    }
+  };
+
+  // Persist scoringQueue to localStorage and schedule up to MAX_CONCURRENT_SCORING workers
+  useEffect(() => {
+    if (!queueHydrated) return;
+
+    try {
+      if (scoringQueue.length === 0) {
+        window.localStorage.removeItem(SCORING_QUEUE_STORAGE_KEY);
+        setQueueCompletedCount(0);
+      } else {
+        window.localStorage.setItem(SCORING_QUEUE_STORAGE_KEY, JSON.stringify(scoringQueue));
+      }
+    } catch {}
+
+    // Sync analyzingCallIds for active 'processing' items
+    const activeMap: Record<string, boolean> = {};
+    scoringQueue.forEach((item) => {
+      if (item.status === 'processing') {
+        activeMap[item.callId] = true;
+      }
+    });
+    setAnalyzingCallIds(activeMap);
+
+    // Start workers for any 'processing' items not yet running in activeWorkerIdsRef
+    scoringQueue.forEach((item) => {
+      if (item.status === 'processing' && !activeWorkerIdsRef.current.has(item.callId)) {
+        activeWorkerIdsRef.current.add(item.callId);
+        executeSingleQueueItem(item);
+      }
+    });
+
+    // Promote 'queued' items to 'processing' if slots are available
+    const processingCount = scoringQueue.filter((q) => q.status === 'processing').length;
+    const availableSlots = MAX_CONCURRENT_SCORING - processingCount;
+    if (availableSlots > 0) {
+      const queuedItems = scoringQueue.filter((q) => q.status === 'queued');
+      if (queuedItems.length > 0) {
+        const idsToPromote = new Set(queuedItems.slice(0, availableSlots).map((q) => q.callId));
+        setScoringQueue((prev) =>
+          prev.map((q) => (idsToPromote.has(q.callId) ? { ...q, status: 'processing' } : q))
+        );
+      }
+    }
+  }, [scoringQueue, queueHydrated]);
+
+  const handleCancelQueue = () => {
+    setScoringQueue((prev) => prev.filter((q) => q.status === 'processing'));
+  };
+
+  const handleStartEditComment = (callId: string) => {
+    setEditingCommentCallId(callId);
+    setCommentDraft(callComments[callId] || '');
+  };
+
+  const handleSaveComment = async (callId: string, nextText?: string) => {
+    const textToSave = typeof nextText === 'string' ? nextText : commentDraft;
+    setSavingCommentCallId(callId);
+    try {
+      const res = await saveCallCommentAction(callId, textToSave);
+      if (res.success) {
+        setCallComments((prev) => {
+          const next = { ...prev };
+          if (res.comment) {
+            next[callId] = res.comment;
+          } else {
+            delete next[callId];
+          }
+          return next;
+        });
+        setAnalyses((prev) => {
+          if (!prev[callId]) return prev;
+          return {
+            ...prev,
+            [callId]: {
+              ...prev[callId],
+              scorecard: {
+                ...prev[callId].scorecard,
+                comment: res.comment || undefined,
+              },
+            },
+          };
+        });
+        setEditingCommentCallId(null);
+      } else if (res.error) {
+        setErrorModal({
+          title: isEn ? 'Error Saving Comment' : 'Ошибка сохранения комментария',
+          message: res.error,
+        });
+      }
+    } catch (err: any) {
+      console.error('Failed to save comment', err);
+    } finally {
+      setSavingCommentCallId(null);
     }
   };
 
@@ -223,7 +447,10 @@ export default function TelephonyPage() {
           return next;
         });
       } else if (res.error) {
-        alert(res.error);
+        setErrorModal({
+          title: isEn ? 'Error Removing Score' : 'Ошибка удаления оценки',
+          message: res.error,
+        });
       }
     } catch (err) {
       console.error('Failed to remove analysis', err);
@@ -242,6 +469,105 @@ export default function TelephonyPage() {
     if (selectedStatus !== 'all' && call.status !== selectedStatus) return false;
     return true;
   });
+
+  const totalFilteredCalls = filteredCalls.length;
+  const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(totalFilteredCalls / pageSize)) : 1;
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedCalls =
+    pageSize > 0
+      ? filteredCalls.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize)
+      : filteredCalls;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedManagerId, selectedStatus, pageSize]);
+
+  // Bulk Selection Helpers
+  const selectedFilteredCalls = filteredCalls.filter((c) => !!selectedCallIds[c.id]);
+  const selectedCallsCount = selectedFilteredCalls.length;
+  const allPageSelected =
+    paginatedCalls.length > 0 && paginatedCalls.every((c) => !!selectedCallIds[c.id]);
+  const selectedWithScores = selectedFilteredCalls.filter((c) => !!analyses[c.id]);
+  const selectedWithoutScores = selectedFilteredCalls.filter((c) => !analyses[c.id]);
+
+  const handleToggleSelectCall = (callId: string) => {
+    setSelectedCallIds((prev) => {
+      const next = { ...prev };
+      if (next[callId]) {
+        delete next[callId];
+      } else {
+        next[callId] = true;
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAllFiltered = () => {
+    if (allPageSelected) {
+      setSelectedCallIds((prev) => {
+        const next = { ...prev };
+        paginatedCalls.forEach((c) => delete next[c.id]);
+        return next;
+      });
+    } else {
+      setSelectedCallIds((prev) => {
+        const next = { ...prev };
+        paginatedCalls.forEach((c) => {
+          next[c.id] = true;
+        });
+        return next;
+      });
+    }
+  };
+
+  const handleBulkScoreSelected = () => {
+    const targets = selectedWithoutScores.length > 0 ? selectedWithoutScores : selectedFilteredCalls;
+    enqueueCallsForScoring(targets);
+  };
+
+  const handleBulkRescoreSelected = () => {
+    enqueueCallsForScoring(selectedFilteredCalls);
+  };
+
+  const handleBulkDeleteScores = async () => {
+    const idsToDelete = selectedWithScores.map((c) => c.id);
+    if (idsToDelete.length === 0) return;
+
+    setBulkDeleting(true);
+    setDeletingCallIds((prev) => {
+      const next = { ...prev };
+      idsToDelete.forEach((id) => {
+        next[id] = true;
+      });
+      return next;
+    });
+
+    try {
+      const res = await deleteBulkCallAnalysesAction(idsToDelete);
+      if (res.success) {
+        setAnalyses((prev) => {
+          const next = { ...prev };
+          idsToDelete.forEach((id) => delete next[id]);
+          return next;
+        });
+        setScoringQueue((prev) => prev.filter((q) => !idsToDelete.includes(q.callId)));
+      } else if (res.error) {
+        setErrorModal({
+          title: isEn ? 'Bulk Remove Error' : 'Ошибка массового удаления оценок',
+          message: res.error,
+        });
+      }
+    } catch (err: any) {
+      console.error('Failed to bulk remove analyses', err);
+    } finally {
+      setBulkDeleting(false);
+      setDeletingCallIds((prev) => {
+        const next = { ...prev };
+        idsToDelete.forEach((id) => delete next[id]);
+        return next;
+      });
+    }
+  };
 
   // Aggregated KPIs
   const totalCallsCount = calls.length;
@@ -462,6 +788,80 @@ export default function TelephonyPage() {
     return enTitles[sec.id] || sec.shortTitle || sec.title;
   };
 
+  const getLocalizedAnalysis = (analysis: CallAnalysisResult) => {
+    const langBlock = isEn ? analysis.scorecard?.i18n?.en : analysis.scorecard?.i18n?.ru;
+
+    // Fallback translation for older Voicemail / N/A records saved before bilingual i18n
+    let fallbackSummary = analysis.summary;
+    if (!langBlock?.summary && analysis.score === 0) {
+      if (isEn && /[а-яА-ЯёЁ]/.test(analysis.summary || '')) {
+        if (analysis.summary.includes('ИИ-секретарь')) {
+          fallbackSummary =
+            'Call reached an AI Call Screener ("Record your name and reason for calling... This person is not available"), and the AE left a voice message. No live prospect conversation occurred — rubric scoring is N/A.';
+        } else {
+          fallbackSummary =
+            'Call reached Voicemail. The AE left a voice message for the prospect — no live sales conversation took place (N/A).';
+        }
+      } else if (!isEn && !/[а-яА-ЯёЁ]/.test(analysis.summary || '')) {
+        if ((analysis.summary || '').includes('AI Call Screener')) {
+          fallbackSummary =
+            'Звонок принял ИИ-секретарь / фильтр вызовов клиента («Record your name and reason for calling... This person is not available»), после чего менеджер оставил голосовое сообщение. Живой диалог с клиентом не состоялся — оценка не применяется.';
+        } else {
+          fallbackSummary =
+            'Звонок попал на автоответчик (Voicemail). Менеджер оставил голосовое сообщение для клиента — живой диалог не состоялся, оценка по скрипту продаж не применяется.';
+        }
+      }
+    }
+
+    return {
+      summary: langBlock?.summary || fallbackSummary,
+      keyPoints: langBlock?.keyPoints && langBlock.keyPoints.length > 0 ? langBlock.keyPoints : analysis.keyPoints || [],
+      agreements:
+        langBlock?.agreements && langBlock.agreements.length > 0 ? langBlock.agreements : analysis.agreements || [],
+      managerStrengths:
+        langBlock?.managerStrengths && langBlock.managerStrengths.length > 0
+          ? langBlock.managerStrengths
+          : analysis.managerStrengths || [],
+      managerMistakes:
+        langBlock?.managerMistakes && langBlock.managerMistakes.length > 0
+          ? langBlock.managerMistakes
+          : analysis.managerMistakes || [],
+      actionItems:
+        langBlock?.actionItems && langBlock.actionItems.length > 0 ? langBlock.actionItems : analysis.actionItems || [],
+    };
+  };
+
+  const getLocalizedSectionRationale = (sec: { rationale?: string; rationaleRu?: string; rationaleEn?: string }) => {
+    const raw = isEn ? sec.rationaleEn || sec.rationale : sec.rationaleRu || sec.rationale;
+    if (!raw) return '';
+    if (isEn && raw === 'Не применимо (разговор не состоялся / автоответчик)') {
+      return 'Not applicable (Voicemail / no live conversation)';
+    }
+    if (!isEn && raw === 'Not applicable (Voicemail / no live conversation)') {
+      return 'Не применимо (разговор не состоялся / автоответчик)';
+    }
+    return raw;
+  };
+
+  const getLocalizedCheckpointEvidence = (cp: { evidence: string; evidenceRu?: string; evidenceEn?: string }) => {
+    const raw = isEn ? cp.evidenceEn || cp.evidence : cp.evidenceRu || cp.evidence;
+    if (!raw) return '';
+    if (isEn) {
+      if (raw === 'Не применимо к данному звонку') return 'Not applicable to this call';
+      if (raw === 'Не зафиксировано в стенограмме') return 'Not evidenced in transcript';
+      if (raw === 'Разговор с клиентом не состоялся (Voicemail / короткий звонок)') {
+        return 'No live conversation with prospect (Voicemail / short call)';
+      }
+    } else {
+      if (raw === 'Not applicable to this call') return 'Не применимо к данному звонку';
+      if (raw === 'Not evidenced in transcript') return 'Не зафиксировано в стенограмме';
+      if (raw === 'No live conversation with prospect (Voicemail / short call)') {
+        return 'Разговор с клиентом не состоялся (Voicemail / короткий звонок)';
+      }
+    }
+    return raw;
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50/50 pb-16">
       {/* Top Banner & Title */}
@@ -519,9 +919,6 @@ export default function TelephonyPage() {
             >
               <FileText className="h-3.5 w-3.5 text-zinc-500" />
               {isEn ? 'Changelog' : 'Лог изменений'}
-              <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
-                {isEn ? 'Oct 27' : '27 окт'}
-              </span>
             </button>
 
             <button
@@ -1045,12 +1442,16 @@ export default function TelephonyPage() {
 
             {/* Filter controls */}
             <div className="flex flex-wrap items-center gap-3">
-              {Object.keys(analyzingCallIds).length > 0 && (
+              {scoringQueue.length > 0 && (
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 border border-purple-200 px-2.5 py-1 text-[11px] font-bold text-purple-700">
                   <Sparkles className="h-3 w-3 animate-spin" />
                   {isEn
-                    ? `Scoring in parallel: ${Object.keys(analyzingCallIds).length}`
-                    : `В параллельной оценке: ${Object.keys(analyzingCallIds).length} зв.`}
+                    ? `Active: ${scoringQueue.filter((q) => q.status === 'processing').length} • Queued: ${
+                        scoringQueue.filter((q) => q.status === 'queued').length
+                      }`
+                    : `В работе: ${scoringQueue.filter((q) => q.status === 'processing').length} • В очереди: ${
+                        scoringQueue.filter((q) => q.status === 'queued').length
+                      }`}
                 </div>
               )}
               <div className="flex items-center gap-1.5 text-xs text-zinc-500">
@@ -1083,11 +1484,134 @@ export default function TelephonyPage() {
             </div>
           </div>
 
+          {/* Persistent Queue Progress Bar */}
+          {scoringQueue.length > 0 && (
+            <div className="px-6 py-3 bg-purple-50/70 border-b border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-7 w-7 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
+                  <Sparkles className="h-3.5 w-3.5 animate-spin" />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-purple-950 flex flex-wrap items-center gap-2">
+                    <span>
+                      {isEn
+                        ? `GPT Scoring Queue: ${queueCompletedCount} done, ${scoringQueue.length} remaining`
+                        : `Очередь оценки GPT: выполнено ${queueCompletedCount}, осталось ${scoringQueue.length}`}
+                    </span>
+                  </div>
+                  <div className="w-64 sm:w-80 h-1.5 rounded-full bg-purple-200/80 overflow-hidden">
+                    <div
+                      className="h-full bg-purple-600 transition-all duration-300"
+                      style={{
+                        width: `${Math.max(
+                          8,
+                          Math.round((queueCompletedCount / Math.max(1, queueCompletedCount + scoringQueue.length)) * 100)
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+              {scoringQueue.some((q) => q.status === 'queued') && (
+                <button
+                  type="button"
+                  onClick={handleCancelQueue}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-white px-3 py-1.5 text-xs font-semibold text-purple-800 hover:bg-purple-100 transition-colors self-start sm:self-auto"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  {isEn ? 'Cancel Queued' : 'Очистить очередь'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Bulk Actions Toolbar */}
+          {selectedCallsCount > 0 && (
+            <div className="px-6 py-3 bg-zinc-900 text-white border-b border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-150">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center justify-center rounded-md bg-white/15 px-2.5 py-1 text-xs font-black text-white">
+                  {selectedCallsCount}
+                </span>
+                <span className="text-xs font-semibold text-zinc-200">
+                  {isEn
+                    ? `calls selected (${selectedWithScores.length} scored, ${selectedWithoutScores.length} unscored)`
+                    : `выбрано звонков (с оценкой: ${selectedWithScores.length}, без оценки: ${selectedWithoutScores.length})`}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedWithoutScores.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleBulkScoreSelected}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 text-xs font-semibold transition-colors shadow-2xs"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {isEn
+                      ? `Score Unscored (${selectedWithoutScores.length})`
+                      : `Оценить новые (${selectedWithoutScores.length})`}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleBulkRescoreSelected}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 text-xs font-semibold transition-colors shadow-2xs"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  {isEn
+                    ? selectedWithScores.length > 0
+                      ? `Score / Re-score All (${selectedCallsCount})`
+                      : `Score Selected (${selectedCallsCount})`
+                    : selectedWithScores.length > 0
+                    ? `Оценить / Перезапустить все (${selectedCallsCount})`
+                    : `Оценить выбранные (${selectedCallsCount})`}
+                </button>
+
+                {selectedWithScores.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleBulkDeleteScores}
+                    disabled={bulkDeleting}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 text-xs font-semibold transition-colors shadow-2xs disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {bulkDeleting
+                      ? isEn
+                        ? 'Removing...'
+                        : 'Удаление...'
+                      : isEn
+                      ? `Remove Scores (${selectedWithScores.length})`
+                      : `Удалить оценки (${selectedWithScores.length})`}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedCallIds({})}
+                  className="inline-flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1.5 text-xs font-semibold transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  {isEn ? 'Clear' : 'Сбросить'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-zinc-600">
               <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-400 uppercase font-semibold">
                 <tr>
-                  <th className="px-6 py-3">{isEn ? 'Type' : 'Тип'}</th>
+                  <th className="pl-6 pr-2 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={allPageSelected}
+                      onChange={handleToggleSelectAllFiltered}
+                      title={isEn ? 'Select calls on this page' : 'Выбрать звонки на странице'}
+                      className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer accent-zinc-900"
+                    />
+                  </th>
+                  <th className="px-4 py-3">{isEn ? 'Type' : 'Тип'}</th>
                   <th className="px-6 py-3">{isEn ? 'AE' : 'Менеджер'}</th>
                   <th className="px-6 py-3">{isEn ? 'Prospect' : 'Клиент'}</th>
                   <th className="px-6 py-3">{isEn ? 'Duration' : 'Длительность'}</th>
@@ -1097,13 +1621,31 @@ export default function TelephonyPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {filteredCalls.map((call) => {
+                {paginatedCalls.map((call) => {
                   const analysis = analyses[call.id];
                   const isAnalyzing = !!analyzingCallIds[call.id];
+                  const queuedIdx = scoringQueue
+                    .filter((q) => q.status === 'queued')
+                    .findIndex((q) => q.callId === call.id);
+                  const isQueued = queuedIdx !== -1;
+                  const isSelected = !!selectedCallIds[call.id];
 
                   return (
-                    <tr key={call.id} className="hover:bg-zinc-50/60 transition-colors">
-                      <td className="px-6 py-4">
+                    <tr
+                      key={call.id}
+                      className={`transition-colors ${
+                        isSelected ? 'bg-purple-50/40 hover:bg-purple-50/60' : 'hover:bg-zinc-50/60'
+                      }`}
+                    >
+                      <td className="pl-6 pr-2 py-4">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectCall(call.id)}
+                          className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer accent-zinc-900"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           {call.direction === 'inbound' ? (
                             <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-[11px] font-semibold">
@@ -1141,7 +1683,7 @@ export default function TelephonyPage() {
                       <td className="px-6 py-4 max-w-sm">
                         {analysis ? (
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span
                                 className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
                                   analysis.score === 0
@@ -1160,11 +1702,28 @@ export default function TelephonyPage() {
                                   {analysis.sentiment}
                                 </span>
                               )}
+                              {isAnalyzing && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                                  <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+                                  {isEn ? 'Re-scoring...' : 'Пересчёт...'}
+                                </span>
+                              )}
+                              {!isAnalyzing && isQueued && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                                  <Clock className="h-2.5 w-2.5" />
+                                  {isEn ? `Queued #${queuedIdx + 1}` : `В очереди #${queuedIdx + 1}`}
+                                </span>
+                              )}
                             </div>
                             <p className="text-zinc-600 line-clamp-1 text-[11px]">
-                              {analysis.summary}
+                              {getLocalizedAnalysis(analysis).summary}
                             </p>
                           </div>
+                        ) : isQueued && !isAnalyzing ? (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">
+                            <Clock className="h-3 w-3" />
+                            {isEn ? `In Queue (#${queuedIdx + 1})` : `В очереди (#${queuedIdx + 1})`}
+                          </span>
                         ) : (
                           <button
                             onClick={() => handleRunAnalysis(call)}
@@ -1181,6 +1740,67 @@ export default function TelephonyPage() {
                               : 'Оценить через GPT'}
                           </button>
                         )}
+
+                        {/* Inline Call Comment Display & Editor */}
+                        <div className="mt-1.5">
+                          {editingCommentCallId === call.id && !activeCallModal ? (
+                            <div className="space-y-1.5 rounded-lg border border-amber-200 bg-amber-50/50 p-2">
+                              <textarea
+                                value={commentDraft}
+                                onChange={(e) => setCommentDraft(e.target.value)}
+                                rows={2}
+                                autoFocus
+                                placeholder={isEn ? 'Write a note for this call...' : 'Напишите комментарий к звонку...'}
+                                className="w-full rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                              />
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingCommentCallId(null)}
+                                  className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-zinc-500 hover:text-zinc-800"
+                                >
+                                  {isEn ? 'Cancel' : 'Отмена'}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={savingCommentCallId === call.id}
+                                  onClick={() => handleSaveComment(call.id)}
+                                  className="rounded-md bg-zinc-900 text-white px-2.5 py-0.5 text-[11px] font-semibold hover:bg-zinc-800 disabled:opacity-50"
+                                >
+                                  {savingCommentCallId === call.id
+                                    ? isEn
+                                      ? 'Saving...'
+                                      : 'Сохранение...'
+                                    : isEn
+                                    ? 'Save'
+                                    : 'Сохранить'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : callComments[call.id] ? (
+                            <div className="group inline-flex items-start gap-1.5 rounded-md bg-amber-50/90 border border-amber-200/80 px-2 py-1 text-[11px] text-amber-950 max-w-full">
+                              <MessageSquare className="h-3 w-3 text-amber-600 shrink-0 mt-0.5" />
+                              <span className="line-clamp-2 break-words">{callComments[call.id]}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditComment(call.id)}
+                                title={isEn ? 'Edit comment' : 'Редактировать комментарий'}
+                                className="text-amber-600 hover:text-amber-900 shrink-0 ml-1 p-0.5 rounded hover:bg-amber-100/70 transition-colors"
+                              >
+                                <Pencil className="h-2.5 w-2.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditComment(call.id)}
+                              className="inline-flex items-center gap-1 text-[10px] font-medium text-zinc-400 hover:text-zinc-700 transition-colors"
+                            >
+                              <MessageSquare className="h-2.5 w-2.5" />
+                              {isEn ? '+ Add comment' : '+ Комментарий'}
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
@@ -1197,6 +1817,119 @@ export default function TelephonyPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Footer */}
+          {totalFilteredCalls > 0 && (
+            <div className="px-6 py-3.5 border-t border-zinc-200 bg-zinc-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-zinc-600">
+              <div className="flex flex-wrap items-center gap-3">
+                <span>
+                  {pageSize > 0
+                    ? isEn
+                      ? `Showing ${(safeCurrentPage - 1) * pageSize + 1}–${Math.min(
+                          safeCurrentPage * pageSize,
+                          totalFilteredCalls
+                        )} of ${totalFilteredCalls} calls`
+                      : `Показано ${(safeCurrentPage - 1) * pageSize + 1}–${Math.min(
+                          safeCurrentPage * pageSize,
+                          totalFilteredCalls
+                        )} из ${totalFilteredCalls} звонков`
+                    : isEn
+                    ? `Showing all ${totalFilteredCalls} calls`
+                    : `Показаны все ${totalFilteredCalls} звонков`}
+                </span>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-zinc-400">{isEn ? 'Per page:' : 'На странице:'}</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={200}>200</option>
+                    <option value={0}>{isEn ? 'All' : 'Все'}</option>
+                  </select>
+                </div>
+
+                {totalFilteredCalls > paginatedCalls.length && selectedCallsCount < totalFilteredCalls && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next: Record<string, boolean> = {};
+                      filteredCalls.forEach((c) => {
+                        next[c.id] = true;
+                      });
+                      setSelectedCallIds(next);
+                    }}
+                    className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 underline underline-offset-2"
+                  >
+                    {isEn
+                      ? `Select all ${totalFilteredCalls} calls across pages`
+                      : `Выбрать все ${totalFilteredCalls} зв. на всех страницах`}
+                  </button>
+                )}
+              </div>
+
+              {pageSize > 0 && totalPages > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                  >
+                    {isEn ? '← Prev' : '← Назад'}
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, idx) => idx + 1)
+                    .filter(
+                      (pageNum) =>
+                        pageNum === 1 ||
+                        pageNum === totalPages ||
+                        Math.abs(pageNum - safeCurrentPage) <= 1
+                    )
+                    .reduce<number[]>((acc, pageNum) => {
+                      if (acc.length > 0 && pageNum - acc[acc.length - 1] > 1) {
+                        acc.push(-pageNum); // gap marker
+                      }
+                      acc.push(pageNum);
+                      return acc;
+                    }, [])
+                    .map((item) =>
+                      item < 0 ? (
+                        <span key={item} className="px-1 text-zinc-400">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setCurrentPage(item)}
+                          className={`min-w-[28px] h-7 rounded-lg px-2 text-xs font-bold border transition-colors ${
+                            safeCurrentPage === item
+                              ? 'bg-zinc-900 text-white border-zinc-900'
+                              : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      )
+                    )}
+
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                  >
+                    {isEn ? 'Next →' : 'Вперёд →'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1246,6 +1979,92 @@ export default function TelephonyPage() {
                   </audio>
                 </div>
               )}
+
+              {/* Call Comment / Manager Note Block */}
+              <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-4 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-950 uppercase tracking-wider">
+                    <MessageSquare className="h-3.5 w-3.5 text-amber-600" />
+                    {isEn ? 'Call Comment / Note' : 'Комментарий к звонку'}
+                  </div>
+                  {editingCommentCallId !== activeCallModal.id && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditComment(activeCallModal.id)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-900 hover:bg-amber-100/60 transition-colors"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        {callComments[activeCallModal.id]
+                          ? isEn
+                            ? 'Edit'
+                            : 'Редактировать'
+                          : isEn
+                          ? 'Add Comment'
+                          : 'Добавить комментарий'}
+                      </button>
+                      {callComments[activeCallModal.id] && (
+                        <button
+                          type="button"
+                          disabled={savingCommentCallId === activeCallModal.id}
+                          onClick={() => handleSaveComment(activeCallModal.id, '')}
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {editingCommentCallId === activeCallModal.id ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={commentDraft}
+                      onChange={(e) => setCommentDraft(e.target.value)}
+                      rows={3}
+                      autoFocus
+                      placeholder={
+                        isEn
+                          ? 'Write your feedback, coaching note, or comment on this call...'
+                          : 'Напишите комментарий, разбор для менеджера или заметку по звонку...'
+                      }
+                      className="w-full rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs text-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingCommentCallId(null)}
+                        className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors"
+                      >
+                        {isEn ? 'Cancel' : 'Отмена'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingCommentCallId === activeCallModal.id}
+                        onClick={() => handleSaveComment(activeCallModal.id)}
+                        className="rounded-lg bg-zinc-900 text-white px-3.5 py-1.5 text-xs font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                      >
+                        {savingCommentCallId === activeCallModal.id
+                          ? isEn
+                            ? 'Saving...'
+                            : 'Сохранение...'
+                          : isEn
+                          ? 'Save Comment'
+                          : 'Сохранить комментарий'}
+                      </button>
+                    </div>
+                  </div>
+                ) : callComments[activeCallModal.id] ? (
+                  <p className="text-xs text-amber-950 whitespace-pre-wrap leading-relaxed bg-white/80 rounded-lg border border-amber-200/60 p-3">
+                    {callComments[activeCallModal.id]}
+                  </p>
+                ) : (
+                  <p className="text-xs text-zinc-400 italic">
+                    {isEn ? 'No comment added yet.' : 'Комментарий к звонку пока не добавлен.'}
+                  </p>
+                )}
+              </div>
 
               {/* AI Verdict Section */}
               {analyses[activeCallModal.id] ? (
@@ -1319,7 +2138,7 @@ export default function TelephonyPage() {
                   </div>
 
                   <p className="text-xs text-zinc-700 leading-relaxed font-medium">
-                    {analyses[activeCallModal.id].summary}
+                    {getLocalizedAnalysis(analyses[activeCallModal.id]).summary}
                   </p>
 
                   {analyses[activeCallModal.id].score === 0 ? (
@@ -1389,9 +2208,9 @@ export default function TelephonyPage() {
                                       </b>
                                     </span>
                                   </div>
-                                  {sec.rationale && (
+                                  {getLocalizedSectionRationale(sec) && (
                                     <p className="text-[11px] text-zinc-500 leading-snug border-t border-zinc-100 pt-1 mt-0.5">
-                                      {sec.rationale}
+                                      {getLocalizedSectionRationale(sec)}
                                     </p>
                                   )}
                                 </div>
@@ -1469,7 +2288,7 @@ export default function TelephonyPage() {
                                         {isEn ? cp.titleEn || cp.title : cp.title}
                                       </div>
                                       <p className="text-[11px] text-zinc-500">
-                                        {cp.evidence}
+                                        {getLocalizedCheckpointEvidence(cp)}
                                       </p>
                                     </div>
                                     <span
@@ -1498,7 +2317,7 @@ export default function TelephonyPage() {
                             {isEn ? 'AE Strengths' : 'Сильные стороны менеджера'}
                           </h5>
                           <ul className="space-y-1.5 text-xs text-emerald-950">
-                            {analyses[activeCallModal.id].managerStrengths.map((s, i) => (
+                            {getLocalizedAnalysis(analyses[activeCallModal.id]).managerStrengths.map((s, i) => (
                               <li key={i} className="flex items-start gap-1.5">
                                 <span className="text-emerald-500 font-bold">•</span> {s}
                               </li>
@@ -1512,8 +2331,8 @@ export default function TelephonyPage() {
                             {isEn ? 'Mistakes & Coaching Areas' : 'Ошибки и точки роста'}
                           </h5>
                           <ul className="space-y-1.5 text-xs text-rose-950">
-                            {analyses[activeCallModal.id].managerMistakes.length > 0 ? (
-                              analyses[activeCallModal.id].managerMistakes.map((m, i) => (
+                            {getLocalizedAnalysis(analyses[activeCallModal.id]).managerMistakes.length > 0 ? (
+                              getLocalizedAnalysis(analyses[activeCallModal.id]).managerMistakes.map((m, i) => (
                                 <li key={i} className="flex items-start gap-1.5">
                                   <span className="text-rose-500 font-bold">•</span> {m}
                                 </li>
@@ -1528,14 +2347,14 @@ export default function TelephonyPage() {
                       </div>
 
                       {/* Agreements */}
-                      {analyses[activeCallModal.id].agreements.length > 0 && (
+                      {getLocalizedAnalysis(analyses[activeCallModal.id]).agreements.length > 0 && (
                         <div className="rounded-lg bg-white border border-purple-100 p-3">
                           <h5 className="text-[11px] font-bold text-zinc-700 uppercase mb-2 flex items-center gap-1.5">
                             <Zap className="h-3.5 w-3.5 text-amber-500" />
                             {isEn ? 'Confirmed Next Steps & Agreements' : 'Зафиксированные договоренности'}
                           </h5>
                           <ul className="space-y-1 text-xs text-zinc-700">
-                            {analyses[activeCallModal.id].agreements.map((a, i) => (
+                            {getLocalizedAnalysis(analyses[activeCallModal.id]).agreements.map((a, i) => (
                               <li key={i} className="flex items-center gap-2">
                                 <Check className="h-3 w-3 text-emerald-600" />
                                 {a}
@@ -1976,144 +2795,298 @@ export default function TelephonyPage() {
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-5 text-xs text-zinc-700">
-              {/* Release Header */}
-              <div className="rounded-xl border border-purple-100 bg-purple-50/40 p-4 flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-purple-700">
-                    {isEn ? 'Release • October 27' : 'Релиз • 27 октября'}
-                  </div>
-                  <h4 className="text-sm font-bold text-zinc-900 mt-0.5">
-                    {isEn
-                      ? 'Insurvoice AE Sales Call Scorecard v1.0 & Quo Sync Stabilization'
-                      : 'Insurvoice AE Sales Call Scorecard v1.0 & Стабилизация Quo'}
-                  </h4>
-                  <p className="text-xs text-zinc-600 mt-1 leading-relaxed">
-                    {isEn
-                      ? 'Full rollout of the official Insurvoice AE Sales Call Scorecard (7 sections, 26 evidence-backed checkpoints, 60/40 weighted formula) and Quo sync reliability improvements.'
-                      : 'Полный переход на официальную матрицу оценки звонков отдела продаж Insurvoice (7 секций, 26 чекпоинтов с доказательствами, формула 60/40) и устранение расхождений при синхронизации.'}
-                  </p>
-                </div>
-              </div>
+            <div className="p-6 overflow-y-auto space-y-4 text-xs text-zinc-700">
+              {[
+                {
+                  id: 'nov-6',
+                  isLatest: true,
+                  dateLabel: isEn ? 'Release • November 6' : 'Релиз • 6 ноября',
+                  title: isEn
+                    ? 'Bulk Actions, Persistent Queue, Bilingual AI Analysis (RU/EN), Call Comments & Unlimited Pagination'
+                    : 'Массовые действия, фоновая очередь, двуязычный AI-разбор (RU/EN), комментарии и пагинация без лимита в 200 звонков',
+                  summary: isEn
+                    ? 'Added multi-call selection with a persistent scoring queue, automatic bilingual RU + EN analysis in one pass, inline call comments, table pagination, and resilient OpenAI retry logic.'
+                    : 'Добавлены массовые операции над звонками с очередью (не сбрасывается при перезагрузке страницы), мгновенное переключение языка уже готовых разборов (RU ↔ EN), комментарии к звонкам, пагинация и защита от сбоев OpenAI 500.',
+                  sections: isEn
+                    ? [
+                        {
+                          badge: 'Bilingual AI',
+                          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+                          title: 'Instant RU ↔ EN Switching for Completed Call Evaluations & English SKILL.md',
+                          points: [
+                            'Single-pass bilingual evaluation: GPT now generates the executive summary, coaching recommendations, strengths/misses, and all 26 checkpoint rationales and evidence quotes in both Russian and English simultaneously.',
+                            'Switching the panel language (RU / EN) immediately translates already-scored calls without needing to re-run GPT.',
+                            'Translated .agent/skills/insurvoice-call-scorer/SKILL.md into English aligned with the official Insurvoice AE Sales Call Scorecard (Rubric v1.0, Workbook v1.2).',
+                          ],
+                        },
+                        {
+                          badge: 'Bulk & Queue',
+                          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                          title: 'Bulk Call Actions & Persistent Scoring Queue Across Page Reloads',
+                          points: [
+                            'Added row and header checkboxes with a floating bulk action bar: Score Unscored, Score / Re-score All, Remove Scores, and Clear Queue.',
+                            'Controlled concurrency queue (up to 2 parallel GPT evaluations at a time) prevents OpenAI rate-limit spikes when scoring dozens of calls.',
+                            'Page reload resilience: active scoring queues are persisted in localStorage and deduplicated on the server (/api/telephony/analyze) so refreshing the page (F5) seamlessly resumes in-flight evaluations.',
+                          ],
+                        },
+                        {
+                          badge: 'Comments',
+                          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                          title: 'Call Comments & Manager Notes (Add, Edit, Delete)',
+                          points: [
+                            'Add or edit text notes on any call (both scored and unscored) directly from the Call Log table or inside the Call Detail modal.',
+                            'Comments are stored in Supabase and are automatically preserved when a call is re-scored or when its AI score is removed.',
+                          ],
+                        },
+                        {
+                          badge: 'Pagination & Stability',
+                          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+                          title: 'Removed 200-Call Cap, Added Table Pagination & OpenAI 500 Auto-Retry',
+                          points: [
+                            'Removed the hard 200-call limit in Supabase queries (now loading the full call history in batches of 1,000) and expanded Quo conversation sync pagination.',
+                            'Added full table pagination below the Call Log with page buttons and page size selector (25 / 50 / 100 / 200 / All).',
+                            'Added automatic exponential-backoff retry (up to 3 attempts) on OpenAI 500 / 502 / 503 / 504 / 429 errors, plus a clean custom Error Modal with a "Try Again" button instead of native browser alerts.',
+                          ],
+                        },
+                      ]
+                    : [
+                        {
+                          badge: 'Двуязычный ИИ',
+                          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+                          title: 'Мгновенное переключение языка готового анализа (RU ↔ EN) и перевод SKILL.md',
+                          points: [
+                            'Двуязычная генерация за один проход: GPT сразу формирует резюме, рекомендации, сильные стороны, зоны роста, обоснования и цитаты по всем 26 чекпоинтам на русском и английском языках.',
+                            'При переключении языка интерфейса (RU / EN) все уже оценённые звонки мгновенно отображаются на выбранном языке без повторного запуска оценки.',
+                            'Базовый скилл .agent/skills/insurvoice-call-scorer/SKILL.md полностью переведён на английский язык по стандарту официального воркбука Insurvoice.',
+                          ],
+                        },
+                        {
+                          badge: 'Массовые действия',
+                          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                          title: 'Массовый выбор звонков и сохранение очереди оценки при перезагрузке страницы',
+                          points: [
+                            'Добавлены чекбоксы выбора звонков (по одному или всех на странице) и панель массовых операций: «Оценить без оценки», «Оценить / Переоценить все», «Удалить оценки» и «Очистить очередь».',
+                            'Умная очередь оценки запускает до 2 параллельных запросов к GPT одновременно, защищая от превышения лимитов API при массовом запуске.',
+                            'Защита от сброса при обновлении страницы (F5): состояние очереди сохраняется в браузере, а сервер (/api/telephony/analyze) дедуплицирует активные запросы к GPT и возвращает результат в интерфейс после перезагрузки.',
+                          ],
+                        },
+                        {
+                          badge: 'Комментарии',
+                          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                          title: 'Добавление и редактирование комментариев к звонкам',
+                          points: [
+                            'К любому звонку (как с оценкой, так и без неё) можно добавить текстовую заметку или отредактировать её прямо в строке таблицы или внутри детальной карточки разбора.',
+                            'Комментарии сохраняются в базе данных Supabase и не пропадают при переоценке звонка или удалении AI-оценки.',
+                          ],
+                        },
+                        {
+                          badge: 'Пагинация и стабильность',
+                          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+                          title: 'Снятие лимита в 200 звонков, пагинация таблицы и авто-повтор при ошибках OpenAI',
+                          points: [
+                            'Снято жёсткое ограничение .limit(200) при загрузке звонков из Supabase (теперь история загружается батчами по 1000 записей) и расширена глубина синхронизации диалогов из Quo.',
+                            'Под таблицей звонков добавлена удобная пагинация с выбором размера страницы (25 / 50 / 100 / 200 / Все).',
+                            'Добавлен автоматический повтор запроса (до 3 попыток) при ошибках OpenAI (500 / 502 / 503 / 504 / 429) и аккуратное модальное окно ошибки с кнопкой «Попробовать снова» вместо системного alert.',
+                          ],
+                        },
+                      ],
+                },
+                {
+                  id: 'oct-27',
+                  isLatest: false,
+                  dateLabel: isEn ? 'Release • October 27' : 'Релиз • 27 октября',
+                  title: isEn
+                    ? 'Insurvoice AE Sales Call Scorecard v1.0 & Quo Sync Stabilization'
+                    : 'Insurvoice AE Sales Call Scorecard v1.0 & Стабилизация Quo',
+                  summary: isEn
+                    ? 'Full rollout of the official Insurvoice AE Sales Call Scorecard (7 sections, 26 evidence-backed checkpoints, 60/40 weighted formula) and Quo sync reliability improvements.'
+                    : 'Полный переход на официальную матрицу оценки звонков отдела продаж Insurvoice (7 секций, 26 чекпоинтов с доказательствами, формула 60/40) и устранение расхождений при синхронизации.',
+                  sections: isEn
+                    ? [
+                        {
+                          badge: 'AI Scoring',
+                          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+                          title: 'Official Insurvoice Scorecard v1.0 (26 Checkpoints)',
+                          points: [
+                            'Exact 60/40 scoring math from the official workbook: 60% applicable checkpoints hit (Y/N/N/A) + 40% section quality rating on a 1–5 scale.',
+                            'Mandatory Evidence Rule: every checkpoint includes a direct quote or timestamp from the transcript (no evidence = N).',
+                            'Added score bands: Strong (85–100), Solid (70–84), Needs Coaching (55–69), Priority Focus (<55).',
+                          ],
+                        },
+                        {
+                          badge: 'Auto Call Type',
+                          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                          title: 'Automatic Call Type Detection & Dynamic Section Weights',
+                          points: [
+                            'AI automatically classifies each call from the transcript: Confirmation / Pre-Call (short Google Meet confirmation), Discovery, Demo, Discovery + Demo, or Follow-up / Close.',
+                            'On short Confirmation / Pre-Call calls and calls with brand-new agents without an existing book (precedent C-002), deferred stages (Demo, 12-month Pain Quantification) are marked N/A so they do not penalize the AE.',
+                          ],
+                        },
+                        {
+                          badge: 'Voicemail Filter',
+                          badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+                          title: 'Voicemail, AI Call Screener & Short Drop Protection',
+                          points: [
+                            'Calls under 20s, Voicemails, and iOS/Android AI Call Screeners ("Record your name and reason for calling...") are automatically marked N/A ("Voicemail / AI Screener").',
+                            'Even if the AE leaves a long voice message after the beep, the call is excluded from sales script scoring and does not lower the AE’s leaderboard average.',
+                          ],
+                        },
+                        {
+                          badge: 'Unified Skill',
+                          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                          title: 'In-App SKILL.md Editor, RU/EN Localization & GPT-6.1 Terra',
+                          points: [
+                            'Upgraded call evaluation to OpenAI’s GPT-6.1 Terra (recommended) and GPT-6 Luna (economy).',
+                            'Made .agent/skills/insurvoice-call-scorer/SKILL.md the single source of truth editable directly in the admin panel, plus added a full RU / EN switcher.',
+                          ],
+                        },
+                        {
+                          badge: 'Quo & Analytics',
+                          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+                          title: 'Stable Quo Sync, Parallel Multi-Call Scoring & Daily Charts',
+                          points: [
+                            'Parallel multi-call scoring (/api/telephony/analyze): score multiple calls simultaneously without cancelling in-progress evaluations.',
+                            'Fixed fluctuating call counts on sync: added automatic retry on HTTP 429 Too Many Requests and merged fresh Quo calls with the Supabase cache.',
+                            'Added "Show Chart" daily trend visualizations under all 5 KPI cards, a "Remove Score" button, and automatic audio player loading.',
+                          ],
+                        },
+                      ]
+                    : [
+                        {
+                          badge: 'AI-Скоринг',
+                          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+                          title: 'Внедрена официальная матрица Insurvoice Scorecard v1.0 (26 чекпоинтов)',
+                          points: [
+                            'Расчёт оценки строго по формуле из оригинального файла: 60% выполненные применимые чекпоинты (Y/N/N/A) + 40% оценка качества секции по шкале 1–5.',
+                            'Для каждого из 26 чекпоинтов ИИ приводит конкретную цитату или факт из стенограммы разговора (правило Evidence Rule: нет доказательства в тексте — ставится N).',
+                            'Добавлены грейды звонков: Strong (85–100), Solid (70–84), Needs Coaching (55–69), Priority Focus (<55).',
+                          ],
+                        },
+                        {
+                          badge: 'Авто-типизация',
+                          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                          title: 'Автоматическое определение типа звонка и динамических весов секций',
+                          points: [
+                            'ИИ сам распознаёт тип звонка по диалогу: Confirmation / Pre-Call (короткое подтверждение встречи в Google Meet), Discovery, Demo, Discovery + Demo или Follow-up / Close.',
+                            'На коротких звонках-подтверждениях (Confirmation / Pre-Call) и звонках с новыми агентами без базы (кейс C-002) неприменимые этапы (демо, расчёт 12-месячных потерь) автоматически помечаются как N/A и не занижают балл менеджера.',
+                          ],
+                        },
+                        {
+                          badge: 'Фильтр Voicemail',
+                          badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+                          title: 'Защита от оценки автоответчиков, ИИ-секретарей и коротких сбросов',
+                          points: [
+                            'Звонки короче 20 секунд, попадания на голосовую почту (Voicemail) и ИИ-фильтры вызовов («Record your name and reason for calling...») автоматически получают статус N/A («Автоответчик / ИИ-ассистент»).',
+                            'Даже если менеджер оставил длинное голосовое сообщение после сигнала автоответчика, звонок не оценивается по скрипту продаж и не портит средний скор в таблице.',
+                          ],
+                        },
+                        {
+                          badge: 'Единый скилл',
+                          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                          title: 'Редактор скилла SKILL.md в админке, перевод RU/EN и переход на GPT-6.1 Terra',
+                          points: [
+                            'Оценка переведена на актуальное семейство моделей GPT-6.1 Terra (рекомендуемая) и GPT-6 Luna (эконом).',
+                            'Файл скилла .agent/skills/insurvoice-call-scorer/SKILL.md стал единым источником правил для ИИ и доступен для редактирования прямо в админке, а интерфейс и оценка поддерживают переключение RU / EN.',
+                          ],
+                        },
+                        {
+                          badge: 'Quo & Аналитика',
+                          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+                          title: 'Стабильная синхронизация звонков Quo, мультизадачность оценки и графики по дням',
+                          points: [
+                            'Добавлена параллельная оценка нескольких звонков одновременно (/api/telephony/analyze): можно подряд нажимать «Оценить через GPT» у любого числа звонков без сброса уже запущенных оценок.',
+                            'Устранена проблема «прыгающих цифр» при нажатии «Синхронизировать звонки»: добавлен автоматический retry при лимите 429 Too Many Requests и объединение (merge) звонков с кэшем Supabase.',
+                            'Под всеми 5 карточками верхних метрик добавлена кнопка «Показать график» с динамикой показателей по дням.',
+                            'В карточке звонка добавлена кнопка «Убрать оценку» рядом с «Переоценить», а также восстановлена автоматическая подгрузка аудиоплеера записи разговора.',
+                          ],
+                        },
+                      ],
+                },
+              ].map((release) => {
+                const isOpen = !!openChangelogDates[release.id];
+                return (
+                  <div
+                    key={release.id}
+                    className={`rounded-2xl border transition-colors overflow-hidden ${
+                      release.isLatest
+                        ? 'border-purple-200 bg-purple-50/20'
+                        : 'border-zinc-200 bg-zinc-50/40'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenChangelogDates((prev) => ({
+                          ...prev,
+                          [release.id]: !prev[release.id],
+                        }))
+                      }
+                      className="w-full p-4 text-left flex items-start justify-between gap-4 hover:bg-zinc-100/50 transition-colors"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`text-[11px] font-bold uppercase tracking-wider ${
+                              release.isLatest ? 'text-purple-700' : 'text-zinc-600'
+                            }`}
+                          >
+                            {release.dateLabel}
+                          </span>
+                          {release.isLatest && (
+                            <span className="rounded-full bg-purple-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                              {isEn ? 'Latest' : 'Новое'}
+                            </span>
+                          )}
+                          <span className="text-[11px] text-zinc-400">
+                            • {release.sections.length}{' '}
+                            {isEn ? 'updates' : 'блока изменений'}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-bold text-zinc-900">
+                          {release.title}
+                        </h4>
+                        <p className="text-xs text-zinc-600 leading-relaxed">
+                          {release.summary}
+                        </p>
+                      </div>
+                      <div className="shrink-0 mt-1 rounded-lg border border-zinc-200 bg-white p-1.5 text-zinc-500">
+                        {isOpen ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </button>
 
-              {/* Changelog Items */}
-              <div className="space-y-3">
-                {(isEn
-                  ? [
-                      {
-                        badge: 'AI Scoring',
-                        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
-                        title: 'Official Insurvoice Scorecard v1.0 (26 Checkpoints)',
-                        points: [
-                          'Exact 60/40 scoring math from the official workbook: 60% applicable checkpoints hit (Y/N/N/A) + 40% section quality rating on a 1–5 scale.',
-                          'Mandatory Evidence Rule: every checkpoint includes a direct quote or timestamp from the transcript (no evidence = N).',
-                          'Added score bands: Strong (85–100), Solid (70–84), Needs Coaching (55–69), Priority Focus (<55).',
-                        ],
-                      },
-                      {
-                        badge: 'Auto Call Type',
-                        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-                        title: 'Automatic Call Type Detection & Dynamic Section Weights',
-                        points: [
-                          'AI automatically classifies each call from the transcript: Confirmation / Pre-Call (short Google Meet confirmation), Discovery, Demo, Discovery + Demo, or Follow-up / Close.',
-                          'On short Confirmation / Pre-Call calls and calls with brand-new agents without an existing book (precedent C-002), deferred stages (Demo, 12-month Pain Quantification) are marked N/A so they do not penalize the AE.',
-                        ],
-                      },
-                      {
-                        badge: 'Voicemail Filter',
-                        badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
-                        title: 'Voicemail, AI Call Screener & Short Drop Protection',
-                        points: [
-                          'Calls under 20s, Voicemails, and iOS/Android AI Call Screeners ("Record your name and reason for calling...") are automatically marked N/A ("Voicemail / AI Screener").',
-                          'Even if the AE leaves a long voice message after the beep, the call is excluded from sales script scoring and does not lower the AE’s leaderboard average.',
-                        ],
-                      },
-                      {
-                        badge: 'Unified Skill',
-                        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                        title: 'In-App SKILL.md Editor, RU/EN Localization & GPT-6.1 Terra',
-                        points: [
-                          'Upgraded call evaluation to OpenAI’s GPT-6.1 Terra (recommended) and GPT-6 Luna (economy).',
-                          'Made .agent/skills/insurvoice-call-scorer/SKILL.md the single source of truth editable directly in the admin panel, plus added a full RU / EN switcher.',
-                        ],
-                      },
-                      {
-                        badge: 'Quo & Analytics',
-                        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-                        title: 'Stable Quo Sync, Parallel Multi-Call Scoring & Daily Charts',
-                        points: [
-                          'Parallel multi-call scoring (/api/telephony/analyze): score multiple calls simultaneously without cancelling in-progress evaluations.',
-                          'Fixed fluctuating call counts on sync: added automatic retry on HTTP 429 Too Many Requests and merged fresh Quo calls with the Supabase cache.',
-                          'Added "Show Chart" daily trend visualizations under all 5 KPI cards, a "Remove Score" button, and automatic audio player loading.',
-                        ],
-                      },
-                    ]
-                  : [
-                      {
-                        badge: 'AI-Скоринг',
-                        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
-                        title: 'Внедрена официальная матрица Insurvoice Scorecard v1.0 (26 чекпоинтов)',
-                        points: [
-                          'Расчёт оценки строго по формуле из оригинального файла: 60% выполненные применимые чекпоинты (Y/N/N/A) + 40% оценка качества секции по шкале 1–5.',
-                          'Для каждого из 26 чекпоинтов ИИ приводит конкретную цитату или факт из стенограммы разговора (правило Evidence Rule: нет доказательства в тексте — ставится N).',
-                          'Добавлены грейды звонков: Strong (85–100), Solid (70–84), Needs Coaching (55–69), Priority Focus (<55).',
-                        ],
-                      },
-                      {
-                        badge: 'Авто-типизация',
-                        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-                        title: 'Автоматическое определение типа звонка и динамических весов секций',
-                        points: [
-                          'ИИ сам распознаёт тип звонка по диалогу: Confirmation / Pre-Call (короткое подтверждение встречи в Google Meet), Discovery, Demo, Discovery + Demo или Follow-up / Close.',
-                          'На коротких звонках-подтверждениях (Confirmation / Pre-Call) и звонках с новыми агентами без базы (кейс C-002) неприменимые этапы (демо, расчёт 12-месячных потерь) автоматически помечаются как N/A и не занижают балл менеджера.',
-                        ],
-                      },
-                      {
-                        badge: 'Фильтр Voicemail',
-                        badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
-                        title: 'Защита от оценки автоответчиков, ИИ-секретарей и коротких сбросов',
-                        points: [
-                          'Звонки короче 20 секунд, попадания на голосовую почту (Voicemail) и ИИ-фильтры вызовов («Record your name and reason for calling...») автоматически получают статус N/A («Автоответчик / ИИ-ассистент»).',
-                          'Даже если менеджер оставил длинное голосовое сообщение после сигнала автоответчика, звонок не оценивается по скрипту продаж и не портит средний скор в таблице.',
-                        ],
-                      },
-                      {
-                        badge: 'Единый скилл',
-                        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                        title: 'Редактор скилла SKILL.md в админке, перевод RU/EN и переход на GPT-6.1 Terra',
-                        points: [
-                          'Оценка переведена на актуальное семейство моделей GPT-6.1 Terra (рекомендуемая) и GPT-6 Luna (эконом).',
-                          'Файл скилла .agent/skills/insurvoice-call-scorer/SKILL.md стал единым источником правил для ИИ и доступен для редактирования прямо в админке, а интерфейс и оценка поддерживают переключение RU / EN.',
-                        ],
-                      },
-                      {
-                        badge: 'Quo & Аналитика',
-                        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-                        title: 'Стабильная синхронизация звонков Quo, мультизадачность оценки и графики по дням',
-                        points: [
-                          'Добавлена параллельная оценка нескольких звонков одновременно (/api/telephony/analyze): можно подряд нажимать «Оценить через GPT» у любого числа звонков без сброса уже запущенных оценок.',
-                          'Устранена проблема «прыгающих цифр» при нажатии «Синхронизировать звонки»: добавлен автоматический retry при лимите 429 Too Many Requests и объединение (merge) звонков с кэшем Supabase.',
-                          'Под всеми 5 карточками верхних метрик добавлена кнопка «Показать график» с динамикой показателей по дням.',
-                          'В карточке звонка добавлена кнопка «Убрать оценку» рядом с «Переоценить», а также восстановлена автоматическая подгрузка аудиоплеера записи разговора.',
-                        ],
-                      },
-                    ]
-                ).map((section, idx) => (
-                  <div key={idx} className="rounded-xl border border-zinc-200 bg-white p-4 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${section.badgeColor}`}>
-                        {section.badge}
-                      </span>
-                      <h5 className="text-xs font-bold text-zinc-900">{section.title}</h5>
-                    </div>
-                    <ul className="space-y-1.5 pl-4 list-disc text-zinc-600 leading-relaxed">
-                      {section.points.map((pt, i) => (
-                        <li key={i}>{pt}</li>
-                      ))}
-                    </ul>
+                    {isOpen && (
+                      <div className="px-4 pb-4 pt-1 space-y-3 border-t border-zinc-200/60">
+                        {release.sections.map((section, idx) => (
+                          <div
+                            key={idx}
+                            className="rounded-xl border border-zinc-200 bg-white p-4 space-y-2"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${section.badgeColor}`}
+                              >
+                                {section.badge}
+                              </span>
+                              <h5 className="text-xs font-bold text-zinc-900">
+                                {section.title}
+                              </h5>
+                            </div>
+                            <ul className="space-y-1.5 pl-4 list-disc text-zinc-600 leading-relaxed">
+                              {section.points.map((pt, i) => (
+                                <li key={i}>{pt}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
 
             <div className="px-6 py-3.5 border-t border-zinc-200 bg-zinc-50/80 flex justify-end shrink-0">
@@ -2124,6 +3097,75 @@ export default function TelephonyPage() {
               >
                 {isEn ? 'Got it' : 'Понятно'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Branded Error Modal */}
+      {errorModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-zinc-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-100 bg-rose-50/50 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-rose-100 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+                  <ShieldAlert className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-900">{errorModal.title}</h3>
+                  <p className="text-[11px] text-zinc-500">
+                    {isEn ? 'AI Call Scoring Service' : 'Сервис AI-оценки звонков'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setErrorModal(null)}
+                className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3">
+              <p className="text-xs text-zinc-700 leading-relaxed whitespace-pre-wrap break-words">
+                {errorModal.message}
+              </p>
+              {errorModal.retryCall && (
+                <div className="rounded-xl bg-zinc-50 border border-zinc-200/80 px-3.5 py-2.5 text-[11px] text-zinc-500 flex items-center justify-between">
+                  <span>
+                    {isEn ? 'Manager:' : 'Менеджер:'}{' '}
+                    <strong className="text-zinc-800">{errorModal.retryCall.userName || 'AE'}</strong>
+                  </span>
+                  <span className="font-mono text-zinc-400">
+                    {errorModal.retryCall.direction === 'inbound' ? errorModal.retryCall.from : errorModal.retryCall.to}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3.5 border-t border-zinc-100 bg-zinc-50/80 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setErrorModal(null)}
+                className="rounded-xl border border-zinc-200 bg-white text-zinc-700 px-4 py-2 text-xs font-semibold hover:bg-zinc-50 transition-colors"
+              >
+                {isEn ? 'Close' : 'Закрыть'}
+              </button>
+              {errorModal.retryCall && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const callToRetry = errorModal.retryCall!;
+                    setErrorModal(null);
+                    handleRunAnalysis(callToRetry);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 text-white px-4 py-2 text-xs font-semibold hover:bg-purple-700 transition-colors shadow-sm"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  {isEn ? 'Retry Scoring' : 'Повторить оценку'}
+                </button>
+              )}
             </div>
           </div>
         </div>
