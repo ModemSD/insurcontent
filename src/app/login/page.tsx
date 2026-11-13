@@ -8,17 +8,62 @@ import {
   ArrowRight, ShieldCheck
 } from 'lucide-react';
 
+type Lang = 'ru' | 'en';
+
+const COPY: Record<Lang, {
+  title: string;
+  subtitle: string;
+  emailLabel: string;
+  passwordLabel: string;
+  fillAllFields: string;
+  invalidCredentials: string;
+  authError: string;
+  loadingBtn: string;
+  submitBtn: string;
+  secureFooter: string;
+  copyrightSuffix: string;
+}> = {
+  ru: {
+    title: 'Вход в систему управления',
+    subtitle: 'Авторизуйтесь в системе, используя данные учетной записи Supabase, для доступа к панели.',
+    emailLabel: 'Email Адрес',
+    passwordLabel: 'Пароль',
+    fillAllFields: 'Пожалуйста, заполните все поля.',
+    invalidCredentials: 'Неверный логин или пароль.',
+    authError: 'Произошла ошибка при авторизации.',
+    loadingBtn: 'Авторизация...',
+    submitBtn: 'Войти в аккаунт',
+    secureFooter: 'Доступ ограничен. Защищено шифрованием SSL.',
+    copyrightSuffix: 'Все права защищены.',
+  },
+  en: {
+    title: 'Sign in to Management Console',
+    subtitle: 'Sign in with your Supabase account credentials to access the dashboard.',
+    emailLabel: 'Email Address',
+    passwordLabel: 'Password',
+    fillAllFields: 'Please fill in all fields.',
+    invalidCredentials: 'Invalid email or password.',
+    authError: 'An error occurred during sign in.',
+    loadingBtn: 'Signing in...',
+    submitBtn: 'Sign in',
+    secureFooter: 'Restricted access. Protected by SSL encryption.',
+    copyrightSuffix: 'All rights reserved.',
+  },
+};
+
 export default function LoginPage() {
   const router = useRouter();
+  const [lang, setLang] = useState<Lang>('ru');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const t = COPY[lang];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setErrorMsg('Пожалуйста, заполните все поля.');
+      setErrorMsg(t.fillAllFields);
       return;
     }
 
@@ -36,11 +81,11 @@ export default function LoginPage() {
         // Hard redirect to register auth cookie state cleanly and avoid router race conditions
         window.location.href = '/';
       } else {
-        setErrorMsg(res.error || 'Неверный логин или пароль.');
+        setErrorMsg(res.error || t.invalidCredentials);
         setLoading(false);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Произошла ошибка при авторизации.');
+      setErrorMsg(err.message || t.authError);
       setLoading(false);
     }
   };
@@ -48,6 +93,24 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen w-full font-sans selection:bg-indigo-100 selection:text-indigo-900 flex flex-col justify-center items-center bg-[#f8fafc] px-4 py-12 relative overflow-hidden">
       
+      {/* Language Switcher */}
+      <div className="absolute top-5 right-5 z-20 inline-flex items-center rounded-xl border border-zinc-200/80 bg-white/80 backdrop-blur-md p-1 shadow-sm">
+        {(['ru', 'en'] as const).map((code) => (
+          <button
+            key={code}
+            type="button"
+            onClick={() => setLang(code)}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              lang === code
+                ? 'bg-zinc-950 text-white shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-900'
+            }`}
+          >
+            {code === 'ru' ? 'RU' : 'ENG'}
+          </button>
+        ))}
+      </div>
+
       {/* Decorative Radial Background Light */}
       <div className="absolute top-1/4 left-1/4 h-80 w-80 rounded-full bg-blue-400/5 blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-indigo-400/5 blur-3xl pointer-events-none" />
@@ -71,10 +134,10 @@ export default function LoginPage() {
         {/* Card Title */}
         <div className="mb-6 space-y-1">
           <h2 className="text-lg font-black text-zinc-900">
-            Вход в систему управления
+            {t.title}
           </h2>
           <p className="text-[11px] font-semibold text-zinc-400">
-            Авторизуйтесь в системе, используя данные учетной записи Supabase, для доступа к панели.
+            {t.subtitle}
           </p>
         </div>
 
@@ -84,7 +147,7 @@ export default function LoginPage() {
           {/* Email field */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block">
-              Email Адрес
+              {t.emailLabel}
             </label>
             <div className="relative rounded-2xl shadow-sm transition-all duration-200">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-400">
@@ -105,7 +168,7 @@ export default function LoginPage() {
           {/* Password field */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block">
-              Пароль
+              {t.passwordLabel}
             </label>
             <div className="relative rounded-2xl shadow-sm transition-all duration-200">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-400">
@@ -140,11 +203,11 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin text-zinc-450" />
-                <span>Авторизация...</span>
+                <span>{t.loadingBtn}</span>
               </>
             ) : (
               <>
-                <span>Войти в аккаунт</span>
+                <span>{t.submitBtn}</span>
                 <ArrowRight className="h-4 w-4 text-zinc-400 transition-transform" />
               </>
             )}
@@ -154,14 +217,14 @@ export default function LoginPage() {
         {/* Secure gate footer */}
         <div className="mt-8 text-center text-[10px] text-zinc-400 font-semibold flex items-center justify-center gap-1.5 border-t border-zinc-100 pt-6">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-          <span>Доступ ограничен. Защищено шифрованием SSL.</span>
+          <span>{t.secureFooter}</span>
         </div>
 
       </div>
 
       {/* Footer copyright */}
       <div className="mt-8 text-center text-[10px] text-zinc-400 font-semibold max-w-xs leading-relaxed pointer-events-none select-none">
-        © {new Date().getFullYear()} Insurvoice Inc. Все права защищены.
+        © {new Date().getFullYear()} Insurvoice Inc. {t.copyrightSuffix}
       </div>
       
     </div>
