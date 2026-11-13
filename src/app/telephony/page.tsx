@@ -2807,45 +2807,47 @@ export default function TelephonyPage() {
                   isLatest: true,
                   dateLabel: isEn ? 'Release • November 14' : 'Релиз • 14 ноября',
                   title: isEn
-                    ? 'AI Model Badge in Call Details & Login Page RU / ENG Switcher'
-                    : 'Отображение модели AI в деталях звонка и переключатель RU / ENG на странице входа',
+                    ? 'New Claude Fable 5.2 Model & Persistent AI Model Badge in Call Details'
+                    : 'Новая модель Claude Fable 5.2 и постоянное отображение модели AI в деталях звонка',
                   summary: isEn
-                    ? 'Added permanent AI model visibility inside the Call Details modal and a RU / ENG language switcher above the login form.'
-                    : 'В модальном окне «Детали звонка» теперь постоянно отображается модель AI, выполнившая анализ, а на страницу входа добавлен переключатель языка RU / ENG.',
+                    ? 'Added Claude Fable 5.2 as a new scoring model alongside GPT-6 Luna and GPT-6.1 Terra, and persisted the model badge inside Call Details and the calls table across page reloads.'
+                    : 'Добавлена новая модель для скоринга звонков — Claude Fable 5.2 (наряду с GPT-6 Luna и GPT-6.1 Terra), а также постоянное сохранение и отображение модели анализа в деталях звонка и таблице.',
                   sections: isEn
                     ? [
                       {
-                        badge: 'Call Details',
+                        badge: 'AI Models',
                         badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
-                        title: 'AI Model Badge in Call Details Modal',
+                        title: 'New Claude Fable 5.2 Model for Call Scoring',
                         points: [
-                          'Added a model badge (e.g. Claude Fable 5.2, GPT-6 Luna, GPT-6.1 Terra) inside the Call Details modal header so you can always see which model scored the call.',
+                          'Added Claude Fable 5.2 to the model selector alongside GPT-6 Luna and GPT-6.1 Terra for evaluating sales calls.',
                         ],
                       },
                       {
-                        badge: 'Auth UI',
+                        badge: 'Call Details',
                         badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-                        title: 'RU / ENG Language Switcher on Login Page',
+                        title: 'Persistent AI Model Badge in Call Details & Table',
                         points: [
-                          'Added a RU / ENG toggle directly above the login form (/login) with full localization of labels, buttons, errors, and footer.',
+                          'Added a model badge inside the Call Details modal header so you can always see which AI model scored the call.',
+                          'Model metadata is now saved to Supabase (scorecard.model) and restored on page load so the badge persists after refresh.',
                         ],
                       },
                     ]
                     : [
                       {
-                        badge: 'Детали звонка',
+                        badge: 'AI-модели',
                         badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
-                        title: 'Бейдж AI-модели в модальном окне «Детали звонка»',
+                        title: 'Добавлена новая модель Claude Fable 5.2 для скоринга звонков',
                         points: [
-                          'В заголовок карточки анализа внутри «Деталей звонка» добавлен бейдж с названием модели (Claude Fable 5.2, GPT-6 Luna, GPT-6.1 Terra и др.), чтобы информация о модели всегда оставалась видимой.',
+                          'В выбор моделей добавлена Claude Fable 5.2 (наряду с GPT-6 Luna и GPT-6.1 Terra) для оценки звонков.',
                         ],
                       },
                       {
-                        badge: 'Авторизация',
+                        badge: 'Детали звонка',
                         badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-                        title: 'Переключатель языка RU / ENG на странице входа',
+                        title: 'Постоянное отображение модели AI в «Деталях звонка» и таблице',
                         points: [
-                          'На страницу логина (/login) прямо над формой входа добавлен переключатель языка RU / ENG с переводом всех полей, кнопок и сообщений об ошибках.',
+                          'В заголовок карточки анализа внутри «Деталей звонка» добавлен бейдж с названием модели, выполнившей анализ.',
+                          'Название модели теперь сохраняется в Supabase (scorecard.model) и подтягивается при загрузке страницы, поэтому шильдик не пропадает после перезагрузки.',
                         ],
                       },
                     ],
