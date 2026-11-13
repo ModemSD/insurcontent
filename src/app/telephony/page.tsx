@@ -923,7 +923,7 @@ export default function TelephonyPage() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50/70 px-3 py-2 text-xs font-semibold text-purple-700 shadow-sm hover:bg-purple-100 transition-colors"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {isEn ? `GPT Skill & Rubric (${selectedModel})` : `Сценарий и критерии GPT (${selectedModel})`}
+              {isEn ? `AI Skill & Rubric (${selectedModel})` : `Сценарий и критерии ИИ (${selectedModel})`}
             </button>
 
             <button
@@ -1332,7 +1332,7 @@ export default function TelephonyPage() {
                   <th className="px-6 py-3">{isEn ? 'Connect Rate (CTR)' : 'Дозваниваемость (CTR)'}</th>
                   <th className="px-6 py-3">{isEn ? 'Talk Time' : 'Время в звонках'}</th>
                   <th className="px-6 py-3">{isEn ? 'Avg Length' : 'Ср. длина'}</th>
-                  <th className="px-6 py-3">{isEn ? 'Quality Score (GPT)' : 'Скор качества (GPT)'}</th>
+                  <th className="px-6 py-3">{isEn ? 'Quality Score (AI)' : 'Скор качества (ИИ)'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -1482,8 +1482,8 @@ export default function TelephonyPage() {
                   <div className="text-xs font-bold text-purple-950 flex flex-wrap items-center gap-2">
                     <span>
                       {isEn
-                        ? `GPT Scoring Queue: ${queueCompletedCount} done, ${scoringQueue.length} remaining`
-                        : `Очередь оценки GPT: выполнено ${queueCompletedCount}, осталось ${scoringQueue.length}`}
+                        ? `AI Scoring Queue: ${queueCompletedCount} done, ${scoringQueue.length} remaining`
+                        : `Очередь оценки ИИ: выполнено ${queueCompletedCount}, осталось ${scoringQueue.length}`}
                     </span>
                   </div>
                   <div className="w-64 sm:w-80 h-1.5 rounded-full bg-purple-200/80 overflow-hidden">
@@ -2361,7 +2361,7 @@ export default function TelephonyPage() {
               ) : (
                 <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 text-center space-y-2">
                   <p className="text-xs text-zinc-600">
-                    {isEn ? 'This call has not been scored with GPT yet.' : 'Этот звонок еще не оценивался через GPT.'}
+                    {isEn ? 'This call has not been scored with AI yet.' : 'Этот звонок еще не оценивался ИИ.'}
                   </p>
                   <button
                     onClick={() => handleRunAnalysis(activeCallModal)}
@@ -2461,11 +2461,11 @@ export default function TelephonyPage() {
                   <p className="text-[11px] text-zinc-500">
                     {isEn ? (
                       <>
-                        Single source of truth <code className="text-purple-700 font-mono">.agent/skills/insurvoice-call-scorer/SKILL.md</code> passed directly to GPT
+                        Single source of truth <code className="text-purple-700 font-mono">.agent/skills/insurvoice-call-scorer/SKILL.md</code> passed directly to AI
                       </>
                     ) : (
                       <>
-                        Единый файл скилла <code className="text-purple-700 font-mono">.agent/skills/insurvoice-call-scorer/SKILL.md</code>, который напрямую передаётся в GPT при оценке
+                        Единый файл скилла <code className="text-purple-700 font-mono">.agent/skills/insurvoice-call-scorer/SKILL.md</code>, который напрямую передаётся в ИИ при оценке
                       </>
                     )}
                   </p>
@@ -2593,8 +2593,8 @@ export default function TelephonyPage() {
                   > = {
                     Auto: {
                       desc: isEn
-                        ? 'Recommended: GPT analyzes the transcript and automatically selects the appropriate Call Type ("Confirmation / Pre-Call" for short Google Meet confirmations, "Discovery + Demo" for full calls, etc.) and applies the corresponding section weights.'
-                        : 'Рекомендуемый режим: GPT сам анализирует диалог и автоматически выбирает подходящий тип звонка (например, ставит «Confirmation / Pre-Call» для 2-минутного подтверждения встречи в Google Meet или «Discovery + Demo» для полного звонка) и применяет нужные веса.',
+                        ? 'Recommended: AI analyzes the transcript and automatically selects the appropriate Call Type ("Confirmation / Pre-Call" for short Google Meet confirmations, "Discovery + Demo" for full calls, etc.) and applies the corresponding section weights.'
+                        : 'Рекомендуемый режим: ИИ сам анализирует диалог и автоматически выбирает подходящий тип звонка (например, ставит «Confirmation / Pre-Call» для 2-минутного подтверждения встречи в Google Meet или «Discovery + Demo» для полного звонка) и применяет нужные веса.',
                     },
                     'Confirmation / Pre-Call': {
                       desc: isEn
@@ -2696,8 +2696,8 @@ export default function TelephonyPage() {
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider">
                     {isEn
-                      ? 'Call Scoring Skill (SKILL.md — Single Source of Truth for GPT)'
-                      : 'Скилл оценки звонков (SKILL.md — единый источник правил для GPT)'}
+                      ? 'Call Scoring Skill (SKILL.md — Single Source of Truth for AI)'
+                      : 'Скилл оценки звонков (SKILL.md — единый источник правил для ИИ)'}
                   </label>
                   <span className="text-[10px] font-mono text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-md">
                     .agent/skills/insurvoice-call-scorer/SKILL.md
