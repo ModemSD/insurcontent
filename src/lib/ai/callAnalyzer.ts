@@ -451,7 +451,7 @@ ${languageInstruction}
     isClaude
       ? {
           model,
-          max_tokens: 4096,
+          max_tokens: 16384,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
         }
