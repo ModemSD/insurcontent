@@ -69,6 +69,7 @@ export async function fetchTelephonyDataAction(options?: { forceRefresh?: boolea
             closingAndNextStep: 8,
             politeness: 9,
           },
+          model: row.scorecard?.model || row.model,
           transcript: row.transcript || [],
         };
       });
@@ -414,6 +415,7 @@ export async function runGptAnalysisForCallAction(
     analysis.scorecard = {
       ...analysis.scorecard,
       scoredAtMs: Date.now(),
+      ...(analysis.model ? { model: analysis.model } : {}),
       ...(existingComment ? { comment: existingComment, commentUpdatedAt: existingCommentUpdatedAt } : {}),
     };
 
@@ -727,6 +729,7 @@ export async function getAnalysesByCallIdsAction(callIds: string[]): Promise<{
             closingAndNextStep: 8,
             politeness: 9,
           },
+          model: row.scorecard?.model || row.model,
           transcript: row.transcript || [],
         };
       });
