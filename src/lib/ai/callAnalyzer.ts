@@ -613,5 +613,6 @@ ${languageInstruction}
     actionItems: activeText.actionItems,
     scorecard,
     transcript: params.transcript,
+    model,
   };
 }

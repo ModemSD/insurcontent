@@ -1,21 +1,21 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { 
-  Headphones, 
-  PhoneCall, 
-  PhoneIncoming, 
-  PhoneOutgoing, 
-  PhoneMissed, 
-  Sparkles, 
-  CheckCircle2, 
-  AlertCircle, 
-  Clock, 
-  User, 
-  TrendingUp, 
-  RefreshCw, 
-  Play, 
-  FileText, 
+import {
+  Headphones,
+  PhoneCall,
+  PhoneIncoming,
+  PhoneOutgoing,
+  PhoneMissed,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  User,
+  TrendingUp,
+  RefreshCw,
+  Play,
+  FileText,
   X,
   ChevronRight,
   ShieldAlert,
@@ -31,8 +31,8 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { 
-  fetchTelephonyDataAction, 
+import {
+  fetchTelephonyDataAction,
   runGptAnalysisForCallAction,
   getCallTranscriptAction,
   deleteCallAnalysisAction,
@@ -118,14 +118,14 @@ export default function TelephonyPage() {
       if (savedLang === 'en' || savedLang === 'ru') {
         setLang(savedLang);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   const handleToggleLang = (nextLang: 'ru' | 'en') => {
     setLang(nextLang);
     try {
       window.localStorage.setItem('telephony_lang', nextLang);
-    } catch {}
+    } catch { }
   };
 
   const loadData = async (isRefresh = false) => {
@@ -347,7 +347,7 @@ export default function TelephonyPage() {
       } else {
         window.localStorage.setItem(SCORING_QUEUE_STORAGE_KEY, JSON.stringify(scoringQueue));
       }
-    } catch {}
+    } catch { }
 
     // Sync analyzingCallIds for active 'processing' items
     const activeMap: Record<string, boolean> = {};
@@ -585,18 +585,18 @@ export default function TelephonyPage() {
     if (analysis?.transcript && analysis.transcript.length > 0) {
       const text = analysis.transcript.map(t => t.text).join(' ').toLowerCase();
       const isVoicemail = analysis.score === 0 ||
-                         text.includes('record your name and reason') ||
-                         text.includes('see if this person is available') ||
-                         text.includes('person is not available') ||
-                         text.includes('leave an additional message') ||
-                         text.includes('leave your message') ||
-                         text.includes('voice mail') || 
-                         text.includes('voicemail') || 
-                         text.includes('not available') || 
-                         text.includes('leave a message') ||
-                         text.includes('record your message') ||
-                         text.includes('mailbox') ||
-                         text.includes('after the tone');
+        text.includes('record your name and reason') ||
+        text.includes('see if this person is available') ||
+        text.includes('person is not available') ||
+        text.includes('leave an additional message') ||
+        text.includes('leave your message') ||
+        text.includes('voice mail') ||
+        text.includes('voicemail') ||
+        text.includes('not available') ||
+        text.includes('leave a message') ||
+        text.includes('record your message') ||
+        text.includes('mailbox') ||
+        text.includes('after the tone');
       const hasCustomerReply = analysis.transcript.some(t => t.speaker === 'customer' && t.text.trim().length > 3);
       return !isVoicemail && hasCustomerReply;
     }
@@ -604,12 +604,12 @@ export default function TelephonyPage() {
     return (c.duration || 0) >= 25;
   }).length;
 
-  const outboundCallThroughRate = totalOutboundCount > 0 
-    ? Math.round((answeredOutboundCount / totalOutboundCount) * 1000) / 10 
+  const outboundCallThroughRate = totalOutboundCount > 0
+    ? Math.round((answeredOutboundCount / totalOutboundCount) * 1000) / 10
     : 0;
-  
+
   const analyzedScores = Object.values(analyses).map((a) => a.score).filter(Boolean);
-  const avgDepartmentScore = analyzedScores.length > 0 
+  const avgDepartmentScore = analyzedScores.length > 0
     ? Math.round(analyzedScores.reduce((a, b) => a + b, 0) / analyzedScores.length)
     : 0;
 
@@ -875,9 +875,8 @@ export default function TelephonyPage() {
               <div>
                 <h1 className="text-xl font-bold text-zinc-900 tracking-tight flex items-center gap-2">
                   Telephony & Call Analytics
-                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${
-                    isLive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-zinc-100 text-zinc-500 border-zinc-200'
-                  }`}>
+                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${isLive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-zinc-100 text-zinc-500 border-zinc-200'
+                    }`}>
                     {isLive ? 'Quo Live API' : 'Demo & AI Connected'}
                   </span>
                 </h1>
@@ -896,18 +895,16 @@ export default function TelephonyPage() {
               <button
                 type="button"
                 onClick={() => handleToggleLang('ru')}
-                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
-                  !isEn ? 'bg-zinc-900 text-white shadow-2xs' : 'text-zinc-600 hover:text-zinc-900'
-                }`}
+                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${!isEn ? 'bg-zinc-900 text-white shadow-2xs' : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
               >
                 RU
               </button>
               <button
                 type="button"
                 onClick={() => handleToggleLang('en')}
-                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
-                  isEn ? 'bg-zinc-900 text-white shadow-2xs' : 'text-zinc-600 hover:text-zinc-900'
-                }`}
+                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${isEn ? 'bg-zinc-900 text-white shadow-2xs' : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
               >
                 EN
               </button>
@@ -940,8 +937,8 @@ export default function TelephonyPage() {
                   ? 'Syncing from Quo...'
                   : 'Синхронизация из Quo...'
                 : isEn
-                ? 'Sync Calls'
-                : 'Синхронизировать звонки'}
+                  ? 'Sync Calls'
+                  : 'Синхронизировать звонки'}
             </button>
           </div>
         </div>
@@ -951,9 +948,8 @@ export default function TelephonyPage() {
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div
-            className={`rounded-xl border bg-white p-5 shadow-xs flex flex-col justify-between transition-all ${
-              activeChartMetric === 'calls' ? 'border-blue-500 ring-2 ring-blue-500/15' : 'border-zinc-200'
-            }`}
+            className={`rounded-xl border bg-white p-5 shadow-xs flex flex-col justify-between transition-all ${activeChartMetric === 'calls' ? 'border-blue-500 ring-2 ring-blue-500/15' : 'border-zinc-200'
+              }`}
           >
             <div>
               <div className="flex items-center justify-between">
@@ -977,11 +973,10 @@ export default function TelephonyPage() {
             <button
               type="button"
               onClick={() => setActiveChartMetric((prev) => (prev === 'calls' ? null : 'calls'))}
-              className={`mt-3 pt-2.5 border-t border-zinc-100 w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold transition-colors ${
-                activeChartMetric === 'calls'
+              className={`mt-3 pt-2.5 border-t border-zinc-100 w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold transition-colors ${activeChartMetric === 'calls'
                   ? 'text-blue-600'
                   : 'text-zinc-500 hover:text-zinc-900'
-              }`}
+                }`}
             >
               <BarChart3 className="h-3.5 w-3.5" />
               {activeChartMetric === 'calls'
@@ -989,15 +984,14 @@ export default function TelephonyPage() {
                   ? 'Hide Chart'
                   : 'Скрыть график'
                 : isEn
-                ? 'Show Chart'
-                : 'Показать график'}
+                  ? 'Show Chart'
+                  : 'Показать график'}
             </button>
           </div>
 
           <div
-            className={`rounded-xl border bg-white p-5 shadow-xs flex flex-col justify-between transition-all ${
-              activeChartMetric === 'ctr' ? 'border-teal-500 ring-2 ring-teal-500/15' : 'border-zinc-200'
-            }`}
+            className={`rounded-xl border bg-white p-5 shadow-xs flex flex-col justify-between transition-all ${activeChartMetric === 'ctr' ? 'border-teal-500 ring-2 ring-teal-500/15' : 'border-zinc-200'
+              }`}
           >
             <div>
               <div className="flex items-center justify-between">
@@ -1021,11 +1015,10 @@ export default function TelephonyPage() {
             <button
               type="button"
               onClick={() => setActiveChartMetric((prev) => (prev === 'ctr' ? null : 'ctr'))}
-              className={`mt-3 pt-2.5 border-t border-zinc-100 w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold transition-colors ${
-                activeChartMetric === 'ctr'
+              className={`mt-3 pt-2.5 border-t border-zinc-100 w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold transition-colors ${activeChartMetric === 'ctr'
                   ? 'text-teal-600'
                   : 'text-zinc-500 hover:text-zinc-900'
-              }`}
+                }`}
             >
               <BarChart3 className="h-3.5 w-3.5" />
               {activeChartMetric === 'ctr'
@@ -1033,15 +1026,14 @@ export default function TelephonyPage() {
                   ? 'Hide Chart'
                   : 'Скрыть график'
                 : isEn
-                ? 'Show Chart'
-                : 'Показать график'}
+                  ? 'Show Chart'
+                  : 'Показать график'}
             </button>
           </div>
 
           <div
-            className={`rounded-xl border bg-white p-5 shadow-xs flex flex-col justify-between transition-all ${
-              activeChartMetric === 'duration' ? 'border-amber-500 ring-2 ring-amber-500/15' : 'border-zinc-200'
-            }`}
+            className={`rounded-xl border bg-white p-5 shadow-xs flex flex-col justify-between transition-all ${activeChartMetric === 'duration' ? 'border-amber-500 ring-2 ring-amber-500/15' : 'border-zinc-200'
+              }`}
           >
             <div>
               <div className="flex items-center justify-between">
@@ -1064,11 +1056,10 @@ export default function TelephonyPage() {
             <button
               type="button"
               onClick={() => setActiveChartMetric((prev) => (prev === 'duration' ? null : 'duration'))}
-              className={`mt-3 pt-2.5 border-t border-zinc-100 w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold transition-colors ${
-                activeChartMetric === 'duration'
+              className={`mt-3 pt-2.5 border-t border-zinc-100 w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold transition-colors ${activeChartMetric === 'duration'
                   ? 'text-amber-600'
                   : 'text-zinc-500 hover:text-zinc-900'
-              }`}
+                }`}
             >
               <BarChart3 className="h-3.5 w-3.5" />
               {activeChartMetric === 'duration'
@@ -1076,15 +1067,14 @@ export default function TelephonyPage() {
                   ? 'Hide Chart'
                   : 'Скрыть график'
                 : isEn
-                ? 'Show Chart'
-                : 'Показать график'}
+                  ? 'Show Chart'
+                  : 'Показать график'}
             </button>
           </div>
 
           <div
-            className={`rounded-xl border bg-white p-5 shadow-xs flex flex-col justify-between transition-all ${
-              activeChartMetric === 'score' ? 'border-purple-500 ring-2 ring-purple-500/15' : 'border-zinc-200'
-            }`}
+            className={`rounded-xl border bg-white p-5 shadow-xs flex flex-col justify-between transition-all ${activeChartMetric === 'score' ? 'border-purple-500 ring-2 ring-purple-500/15' : 'border-zinc-200'
+              }`}
           >
             <div>
               <div className="flex items-center justify-between">
@@ -1112,11 +1102,10 @@ export default function TelephonyPage() {
             <button
               type="button"
               onClick={() => setActiveChartMetric((prev) => (prev === 'score' ? null : 'score'))}
-              className={`mt-3 pt-2.5 border-t border-zinc-100 w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold transition-colors ${
-                activeChartMetric === 'score'
+              className={`mt-3 pt-2.5 border-t border-zinc-100 w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold transition-colors ${activeChartMetric === 'score'
                   ? 'text-purple-600'
                   : 'text-zinc-500 hover:text-zinc-900'
-              }`}
+                }`}
             >
               <BarChart3 className="h-3.5 w-3.5" />
               {activeChartMetric === 'score'
@@ -1124,15 +1113,14 @@ export default function TelephonyPage() {
                   ? 'Hide Chart'
                   : 'Скрыть график'
                 : isEn
-                ? 'Show Chart'
-                : 'Показать график'}
+                  ? 'Show Chart'
+                  : 'Показать график'}
             </button>
           </div>
 
           <div
-            className={`rounded-xl border bg-white p-5 shadow-xs flex flex-col justify-between transition-all ${
-              activeChartMetric === 'managers' ? 'border-emerald-500 ring-2 ring-emerald-500/15' : 'border-zinc-200'
-            }`}
+            className={`rounded-xl border bg-white p-5 shadow-xs flex flex-col justify-between transition-all ${activeChartMetric === 'managers' ? 'border-emerald-500 ring-2 ring-emerald-500/15' : 'border-zinc-200'
+              }`}
           >
             <div>
               <div className="flex items-center justify-between">
@@ -1154,11 +1142,10 @@ export default function TelephonyPage() {
             <button
               type="button"
               onClick={() => setActiveChartMetric((prev) => (prev === 'managers' ? null : 'managers'))}
-              className={`mt-3 pt-2.5 border-t border-zinc-100 w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold transition-colors ${
-                activeChartMetric === 'managers'
+              className={`mt-3 pt-2.5 border-t border-zinc-100 w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold transition-colors ${activeChartMetric === 'managers'
                   ? 'text-emerald-600'
                   : 'text-zinc-500 hover:text-zinc-900'
-              }`}
+                }`}
             >
               <BarChart3 className="h-3.5 w-3.5" />
               {activeChartMetric === 'managers'
@@ -1166,8 +1153,8 @@ export default function TelephonyPage() {
                   ? 'Hide Chart'
                   : 'Скрыть график'
                 : isEn
-                ? 'Show Chart'
-                : 'Показать график'}
+                  ? 'Show Chart'
+                  : 'Показать график'}
             </button>
           </div>
         </div>
@@ -1250,11 +1237,10 @@ export default function TelephonyPage() {
                           key={tab.id}
                           type="button"
                           onClick={() => setActiveChartMetric(tab.id)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
-                            activeChartMetric === tab.id
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${activeChartMetric === tab.id
                               ? 'bg-zinc-900 text-white border-zinc-900'
                               : 'bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100'
-                          }`}
+                            }`}
                         >
                           {tab.label}
                         </button>
@@ -1362,71 +1348,70 @@ export default function TelephonyPage() {
                       : 0;
 
                   return (
-                  <tr key={mgr.userId} className="hover:bg-zinc-50/60 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-zinc-900 text-white flex items-center justify-center font-bold text-xs">
-                          {mgr.name.slice(0, 1)}
+                    <tr key={mgr.userId} className="hover:bg-zinc-50/60 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-zinc-900 text-white flex items-center justify-center font-bold text-xs">
+                            {mgr.name.slice(0, 1)}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-zinc-900">{mgr.name}</div>
+                            <div className="text-[11px] text-zinc-400">{mgr.email || 'Quo Phone Line'}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-semibold text-zinc-900">{mgr.name}</div>
-                          <div className="text-[11px] text-zinc-400">{mgr.email || 'Quo Phone Line'}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 font-bold text-zinc-900 whitespace-nowrap">{mgr.totalCalls}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-blue-600 font-medium">
-                        {mgr.inboundCalls} {isEn ? 'in' : 'вх'}
-                      </span>
-                      {' / '}
-                      <span className="text-indigo-600 font-medium">
-                        {mgr.outboundCalls} {isEn ? 'out' : 'исх'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {mgr.outboundCalls > 0 ? (
-                        <div className="inline-flex items-center gap-2 whitespace-nowrap">
-                          <span className={`shrink-0 whitespace-nowrap px-2 py-0.5 rounded-md text-xs font-bold border ${
-                            mgr.outboundCallThroughRate >= 50
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : mgr.outboundCallThroughRate >= 25
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-zinc-100 text-zinc-600 border-zinc-200'
-                          }`}>
-                            {mgr.outboundCallThroughRate}%
-                          </span>
-                          <span className="shrink-0 whitespace-nowrap text-[11px] text-zinc-400">
-                            ({mgr.answeredOutboundCalls}/{mgr.outboundCalls})
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-zinc-400 italic">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {mgr.totalDurationMinutes} {isEn ? 'min' : 'мин'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {mgr.averageDurationMinutes} {isEn ? 'min' : 'мин'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {liveAvgScore > 0 ? (
-                        <div className="inline-flex items-center gap-2 whitespace-nowrap">
-                          <span className={`shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-bold border ${getScoreColor(liveAvgScore)}`}>
-                            {liveAvgScore} / 100
-                          </span>
-                          <span className="shrink-0 whitespace-nowrap text-[10px] text-zinc-400">
-                            ({liveScoresCount} {isEn ? 'calls' : 'звонков'})
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-zinc-400 italic whitespace-nowrap">
-                          {isEn ? 'No scores yet' : 'Нет оценок'}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-zinc-900 whitespace-nowrap">{mgr.totalCalls}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-blue-600 font-medium">
+                          {mgr.inboundCalls} {isEn ? 'in' : 'вх'}
                         </span>
-                      )}
-                    </td>
-                  </tr>
+                        {' / '}
+                        <span className="text-indigo-600 font-medium">
+                          {mgr.outboundCalls} {isEn ? 'out' : 'исх'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {mgr.outboundCalls > 0 ? (
+                          <div className="inline-flex items-center gap-2 whitespace-nowrap">
+                            <span className={`shrink-0 whitespace-nowrap px-2 py-0.5 rounded-md text-xs font-bold border ${mgr.outboundCallThroughRate >= 50
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : mgr.outboundCallThroughRate >= 25
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                  : 'bg-zinc-100 text-zinc-600 border-zinc-200'
+                              }`}>
+                              {mgr.outboundCallThroughRate}%
+                            </span>
+                            <span className="shrink-0 whitespace-nowrap text-[11px] text-zinc-400">
+                              ({mgr.answeredOutboundCalls}/{mgr.outboundCalls})
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-zinc-400 italic">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {mgr.totalDurationMinutes} {isEn ? 'min' : 'мин'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {mgr.averageDurationMinutes} {isEn ? 'min' : 'мин'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {liveAvgScore > 0 ? (
+                          <div className="inline-flex items-center gap-2 whitespace-nowrap">
+                            <span className={`shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-bold border ${getScoreColor(liveAvgScore)}`}>
+                              {liveAvgScore} / 100
+                            </span>
+                            <span className="shrink-0 whitespace-nowrap text-[10px] text-zinc-400">
+                              ({liveScoresCount} {isEn ? 'calls' : 'звонков'})
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-zinc-400 italic whitespace-nowrap">
+                            {isEn ? 'No scores yet' : 'Нет оценок'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -1450,19 +1435,17 @@ export default function TelephonyPage() {
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 border border-purple-200 px-2.5 py-1 text-[11px] font-bold text-purple-700">
                   <Sparkles className="h-3 w-3 animate-spin" />
                   {isEn
-                    ? `Active: ${scoringQueue.filter((q) => q.status === 'processing').length} • Queued: ${
-                        scoringQueue.filter((q) => q.status === 'queued').length
-                      }`
-                    : `В работе: ${scoringQueue.filter((q) => q.status === 'processing').length} • В очереди: ${
-                        scoringQueue.filter((q) => q.status === 'queued').length
-                      }`}
+                    ? `Active: ${scoringQueue.filter((q) => q.status === 'processing').length} • Queued: ${scoringQueue.filter((q) => q.status === 'queued').length
+                    }`
+                    : `В работе: ${scoringQueue.filter((q) => q.status === 'processing').length} • В очереди: ${scoringQueue.filter((q) => q.status === 'queued').length
+                    }`}
                 </div>
               )}
               <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                 <Filter className="h-3.5 w-3.5" />
                 {isEn ? 'AE:' : 'Менеджер:'}
-                <select 
-                  value={selectedManagerId} 
+                <select
+                  value={selectedManagerId}
                   onChange={(e) => setSelectedManagerId(e.target.value)}
                   className="rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-800 font-medium focus:outline-none focus:ring-1 focus:ring-zinc-950"
                 >
@@ -1475,8 +1458,8 @@ export default function TelephonyPage() {
 
               <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                 {isEn ? 'Status:' : 'Статус:'}
-                <select 
-                  value={selectedStatus} 
+                <select
+                  value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-800 font-medium focus:outline-none focus:ring-1 focus:ring-zinc-950"
                 >
@@ -1568,8 +1551,8 @@ export default function TelephonyPage() {
                       ? `Score / Re-score All (${selectedCallsCount})`
                       : `Score Selected (${selectedCallsCount})`
                     : selectedWithScores.length > 0
-                    ? `Оценить / Перезапустить все (${selectedCallsCount})`
-                    : `Оценить выбранные (${selectedCallsCount})`}
+                      ? `Оценить / Перезапустить все (${selectedCallsCount})`
+                      : `Оценить выбранные (${selectedCallsCount})`}
                 </button>
 
                 {selectedWithScores.length > 0 && (
@@ -1585,8 +1568,8 @@ export default function TelephonyPage() {
                         ? 'Removing...'
                         : 'Удаление...'
                       : isEn
-                      ? `Remove Scores (${selectedWithScores.length})`
-                      : `Удалить оценки (${selectedWithScores.length})`}
+                        ? `Remove Scores (${selectedWithScores.length})`
+                        : `Удалить оценки (${selectedWithScores.length})`}
                   </button>
                 )}
 
@@ -1637,9 +1620,8 @@ export default function TelephonyPage() {
                   return (
                     <tr
                       key={call.id}
-                      className={`transition-colors ${
-                        isSelected ? 'bg-purple-50/40 hover:bg-purple-50/60' : 'hover:bg-zinc-50/60'
-                      }`}
+                      className={`transition-colors ${isSelected ? 'bg-purple-50/40 hover:bg-purple-50/60' : 'hover:bg-zinc-50/60'
+                        }`}
                     >
                       <td className="pl-6 pr-2 py-4">
                         <input
@@ -1689,11 +1671,10 @@ export default function TelephonyPage() {
                           <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <span
-                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
-                                  analysis.score === 0
+                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${analysis.score === 0
                                     ? 'bg-zinc-100 text-zinc-600 border-zinc-200'
                                     : getScoreColor(analysis.score)
-                                }`}
+                                  }`}
                               >
                                 {analysis.score === 0
                                   ? isEn
@@ -1704,6 +1685,17 @@ export default function TelephonyPage() {
                               {analysis.score > 0 && (
                                 <span className="text-[10px] uppercase font-bold text-zinc-400">
                                   {analysis.sentiment}
+                                </span>
+                              )}
+                              {analysis.model && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-zinc-100 border border-zinc-200 text-[10px] font-medium text-zinc-600">
+                                  {analysis.model === 'claude-fable-5-2'
+                                    ? 'Claude Fable 5.2'
+                                    : analysis.model === 'gpt-6-luna'
+                                      ? 'GPT-6 Luna'
+                                      : analysis.model === 'gpt-6.1-terra'
+                                        ? 'GPT-6.1 Terra'
+                                        : analysis.model}
                                 </span>
                               )}
                               {isAnalyzing && (
@@ -1737,11 +1729,11 @@ export default function TelephonyPage() {
                             <Sparkles className={`h-3 w-3 ${isAnalyzing ? 'animate-spin' : ''}`} />
                             {isAnalyzing
                               ? isEn
-                                ? 'Scoring with GPT...'
-                                : 'GPT анализирует...'
+                                ? `Scoring with ${selectedModel.startsWith('claude') ? 'Claude' : 'GPT'}...`
+                                : `${selectedModel.startsWith('claude') ? 'Claude' : 'GPT'} анализирует...`
                               : isEn
-                              ? 'Score with GPT'
-                              : 'Оценить через GPT'}
+                                ? `Score with ${selectedModel.startsWith('claude') ? 'Claude' : 'GPT'}`
+                                : `Оценить через ${selectedModel.startsWith('claude') ? 'Claude' : 'GPT'}`}
                           </button>
                         )}
 
@@ -1776,8 +1768,8 @@ export default function TelephonyPage() {
                                       ? 'Saving...'
                                       : 'Сохранение...'
                                     : isEn
-                                    ? 'Save'
-                                    : 'Сохранить'}
+                                      ? 'Save'
+                                      : 'Сохранить'}
                                 </button>
                               </div>
                             </div>
@@ -1830,16 +1822,16 @@ export default function TelephonyPage() {
                   {pageSize > 0
                     ? isEn
                       ? `Showing ${(safeCurrentPage - 1) * pageSize + 1}–${Math.min(
-                          safeCurrentPage * pageSize,
-                          totalFilteredCalls
-                        )} of ${totalFilteredCalls} calls`
+                        safeCurrentPage * pageSize,
+                        totalFilteredCalls
+                      )} of ${totalFilteredCalls} calls`
                       : `Показано ${(safeCurrentPage - 1) * pageSize + 1}–${Math.min(
-                          safeCurrentPage * pageSize,
-                          totalFilteredCalls
-                        )} из ${totalFilteredCalls} звонков`
+                        safeCurrentPage * pageSize,
+                        totalFilteredCalls
+                      )} из ${totalFilteredCalls} звонков`
                     : isEn
-                    ? `Showing all ${totalFilteredCalls} calls`
-                    : `Показаны все ${totalFilteredCalls} звонков`}
+                      ? `Showing all ${totalFilteredCalls} calls`
+                      : `Показаны все ${totalFilteredCalls} звонков`}
                 </span>
 
                 <div className="flex items-center gap-1.5">
@@ -1911,11 +1903,10 @@ export default function TelephonyPage() {
                           key={item}
                           type="button"
                           onClick={() => setCurrentPage(item)}
-                          className={`min-w-[28px] h-7 rounded-lg px-2 text-xs font-bold border transition-colors ${
-                            safeCurrentPage === item
+                          className={`min-w-[28px] h-7 rounded-lg px-2 text-xs font-bold border transition-colors ${safeCurrentPage === item
                               ? 'bg-zinc-900 text-white border-zinc-900'
                               : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100'
-                          }`}
+                            }`}
                         >
                           {item}
                         </button>
@@ -2004,8 +1995,8 @@ export default function TelephonyPage() {
                             ? 'Edit'
                             : 'Редактировать'
                           : isEn
-                          ? 'Add Comment'
-                          : 'Добавить комментарий'}
+                            ? 'Add Comment'
+                            : 'Добавить комментарий'}
                       </button>
                       {callComments[activeCallModal.id] && (
                         <button
@@ -2054,8 +2045,8 @@ export default function TelephonyPage() {
                             ? 'Saving...'
                             : 'Сохранение...'
                           : isEn
-                          ? 'Save Comment'
-                          : 'Сохранить комментарий'}
+                            ? 'Save Comment'
+                            : 'Сохранить комментарий'}
                       </button>
                     </div>
                   </div>
@@ -2109,8 +2100,8 @@ export default function TelephonyPage() {
                             ? 'Re-scoring...'
                             : 'Пересчёт...'
                           : isEn
-                          ? 'Re-score'
-                          : 'Переоценить'}
+                            ? 'Re-score'
+                            : 'Переоценить'}
                       </button>
                       <button
                         type="button"
@@ -2124,15 +2115,14 @@ export default function TelephonyPage() {
                             ? 'Removing...'
                             : 'Удаление...'
                           : isEn
-                          ? 'Remove Score'
-                          : 'Убрать оценку'}
+                            ? 'Remove Score'
+                            : 'Убрать оценку'}
                       </button>
                       <span
-                        className={`shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-sm font-black border ${
-                          analyses[activeCallModal.id].score === 0
+                        className={`shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-sm font-black border ${analyses[activeCallModal.id].score === 0
                             ? 'bg-zinc-100 text-zinc-500 border-zinc-200'
                             : getScoreColor(analyses[activeCallModal.id].score)
-                        }`}
+                          }`}
                       >
                         {analyses[activeCallModal.id].score === 0
                           ? 'N/A'
@@ -2163,7 +2153,7 @@ export default function TelephonyPage() {
                     <>
                       {/* 7 Insurvoice Sections (or fallback to 5 legacy cards if old record) */}
                       {analyses[activeCallModal.id].scorecard?.sections &&
-                      analyses[activeCallModal.id].scorecard.sections!.length > 0 ? (
+                        analyses[activeCallModal.id].scorecard.sections!.length > 0 ? (
                         <div className="space-y-2 pt-2 border-t border-purple-100/60">
                           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                             <span>
@@ -2190,11 +2180,10 @@ export default function TelephonyPage() {
                                         {isEn ? `wt ${sec.weight}%` : `вес ${sec.weight}%`}
                                       </span>
                                       <span
-                                        className={`px-2 py-0.5 rounded-md text-xs font-black border ${
-                                          sec.sectionScore === null
+                                        className={`px-2 py-0.5 rounded-md text-xs font-black border ${sec.sectionScore === null
                                             ? 'bg-zinc-100 text-zinc-400 border-zinc-200'
                                             : getScoreColor(sec.sectionScore)
-                                        }`}
+                                          }`}
                                       >
                                         {sec.sectionScore === null ? 'N/A' : `${sec.sectionScore}%`}
                                       </span>
@@ -2278,8 +2267,8 @@ export default function TelephonyPage() {
                                     ? 'Hide'
                                     : 'Скрыть'
                                   : isEn
-                                  ? 'Show all 26'
-                                  : 'Показать все 26'}
+                                    ? 'Show all 26'
+                                    : 'Показать все 26'}
                               </span>
                             </button>
                             {showCheckpointsList && (
@@ -2296,13 +2285,12 @@ export default function TelephonyPage() {
                                       </p>
                                     </div>
                                     <span
-                                      className={`shrink-0 px-2 py-0.5 rounded font-mono text-[11px] font-bold border ${
-                                        cp.result === 'Y'
+                                      className={`shrink-0 px-2 py-0.5 rounded font-mono text-[11px] font-bold border ${cp.result === 'Y'
                                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                           : cp.result === 'N'
-                                          ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                          : 'bg-zinc-100 text-zinc-500 border-zinc-200'
-                                      }`}
+                                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                            : 'bg-zinc-100 text-zinc-500 border-zinc-200'
+                                        }`}
                                     >
                                       {cp.result}
                                     </span>
@@ -2386,8 +2374,8 @@ export default function TelephonyPage() {
                         ? 'Scoring...'
                         : 'Анализирую...'
                       : isEn
-                      ? 'Run AI Call Evaluation'
-                      : 'Запустить AI-оценку звонка'}
+                        ? 'Run AI Call Evaluation'
+                        : 'Запустить AI-оценку звонка'}
                   </button>
                 </div>
               )}
@@ -2416,23 +2404,21 @@ export default function TelephonyPage() {
                       return transcriptList.map((msg, i) => (
                         <div
                           key={i}
-                          className={`flex flex-col ${
-                            msg.speaker === 'agent' ? 'items-end' : 'items-start'
-                          }`}
+                          className={`flex flex-col ${msg.speaker === 'agent' ? 'items-end' : 'items-start'
+                            }`}
                         >
                           <span className="text-[10px] font-bold text-zinc-400 mb-1 px-1">
                             {msg.speaker === 'agent'
                               ? msg.speakerName || (isEn ? 'AE (Agent)' : 'Менеджер')
                               : isEn
-                              ? 'Prospect'
-                              : 'Клиент'}
+                                ? 'Prospect'
+                                : 'Клиент'}
                           </span>
                           <div
-                            className={`rounded-2xl px-3.5 py-2 text-xs max-w-[85%] leading-relaxed ${
-                              msg.speaker === 'agent'
+                            className={`rounded-2xl px-3.5 py-2 text-xs max-w-[85%] leading-relaxed ${msg.speaker === 'agent'
                                 ? 'bg-zinc-900 text-white rounded-tr-xs'
                                 : 'bg-white border border-zinc-200 text-zinc-800 rounded-tl-xs shadow-2xs'
-                            }`}
+                              }`}
                           >
                             {msg.text}
                           </div>
@@ -2447,8 +2433,8 @@ export default function TelephonyPage() {
                             ? 'Loading transcript from Quo...'
                             : 'Загружаем стенограмму из Quo...'
                           : isEn
-                          ? 'No transcript available in Quo for this call.'
-                          : 'Стенограмма для этого звонка отсутствует в Quo или разговор еще не расшифрован.'}
+                            ? 'No transcript available in Quo for this call.'
+                            : 'Стенограмма для этого звонка отсутствует в Quo или разговор еще не расшифрован.'}
                       </div>
                     );
                   })()}
@@ -2531,11 +2517,10 @@ export default function TelephonyPage() {
                         key={m.id}
                         type="button"
                         onClick={() => setSelectedModel(m.id)}
-                        className={`text-left p-3 rounded-xl border transition-all ${
-                          isSelected
+                        className={`text-left p-3 rounded-xl border transition-all ${isSelected
                             ? 'border-purple-600 bg-purple-50/60 text-purple-950 ring-1 ring-purple-600'
                             : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between text-xs font-bold">
                           <span className="flex items-center gap-1.5">
@@ -2543,11 +2528,10 @@ export default function TelephonyPage() {
                             {m.name}
                           </span>
                           <span
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                              isSelected
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isSelected
                                 ? 'text-purple-700 bg-purple-100/80'
                                 : 'text-zinc-500 bg-zinc-100'
-                            }`}
+                              }`}
                           >
                             {isSelected ? (isEn ? 'Active' : 'Активна') : m.badge}
                           </span>
@@ -2587,11 +2571,10 @@ export default function TelephonyPage() {
                         key={ct.id}
                         type="button"
                         onClick={() => setSelectedCallType(ct.id)}
-                        className={`px-2.5 py-2 rounded-lg border text-xs font-bold transition-all ${
-                          active
+                        className={`px-2.5 py-2 rounded-lg border text-xs font-bold transition-all ${active
                             ? 'border-purple-600 bg-purple-50 text-purple-900 ring-1 ring-purple-600'
                             : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
-                        }`}
+                          }`}
                       >
                         {ct.label}
                       </button>
@@ -2694,11 +2677,10 @@ export default function TelephonyPage() {
                           {current.weights.map((w) => (
                             <span
                               key={w.name}
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                                w.weight === 0
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${w.weight === 0
                                   ? 'bg-zinc-100 text-zinc-400 border-zinc-200 line-through'
                                   : 'bg-white text-purple-800 border-purple-200'
-                              }`}
+                                }`}
                             >
                               {w.name}: {w.weight}%
                             </span>
@@ -2770,8 +2752,8 @@ export default function TelephonyPage() {
                       ? 'Saving to SKILL.md...'
                       : 'Сохранение в SKILL.md...'
                     : isEn
-                    ? 'Save Skill to SKILL.md'
-                    : 'Сохранить скилл в SKILL.md'}
+                      ? 'Save Skill to SKILL.md'
+                      : 'Сохранить скилл в SKILL.md'}
                 </button>
               </div>
             </div>
@@ -2821,87 +2803,87 @@ export default function TelephonyPage() {
                     : 'Добавлены массовые операции над звонками с очередью (не сбрасывается при перезагрузке страницы), мгновенное переключение языка уже готовых разборов (RU ↔ EN), комментарии к звонкам, пагинация и защита от сбоев OpenAI 500.',
                   sections: isEn
                     ? [
-                        {
-                          badge: 'Bilingual AI',
-                          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
-                          title: 'Instant RU ↔ EN Switching for Completed Call Evaluations & English SKILL.md',
-                          points: [
-                            'Single-pass bilingual evaluation: GPT now generates the executive summary, coaching recommendations, strengths/misses, and all 26 checkpoint rationales and evidence quotes in both Russian and English simultaneously.',
-                            'Switching the panel language (RU / EN) immediately translates already-scored calls without needing to re-run GPT.',
-                            'Translated .agent/skills/insurvoice-call-scorer/SKILL.md into English aligned with the official Insurvoice AE Sales Call Scorecard (Rubric v1.0, Workbook v1.2).',
-                          ],
-                        },
-                        {
-                          badge: 'Bulk & Queue',
-                          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-                          title: 'Bulk Call Actions & Persistent Scoring Queue Across Page Reloads',
-                          points: [
-                            'Added row and header checkboxes with a floating bulk action bar: Score Unscored, Score / Re-score All, Remove Scores, and Clear Queue.',
-                            'Controlled concurrency queue (up to 2 parallel GPT evaluations at a time) prevents OpenAI rate-limit spikes when scoring dozens of calls.',
-                            'Page reload resilience: active scoring queues are persisted in localStorage and deduplicated on the server (/api/telephony/analyze) so refreshing the page (F5) seamlessly resumes in-flight evaluations.',
-                          ],
-                        },
-                        {
-                          badge: 'Comments',
-                          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                          title: 'Call Comments & Manager Notes (Add, Edit, Delete)',
-                          points: [
-                            'Add or edit text notes on any call (both scored and unscored) directly from the Call Log table or inside the Call Detail modal.',
-                            'Comments are stored in Supabase and are automatically preserved when a call is re-scored or when its AI score is removed.',
-                          ],
-                        },
-                        {
-                          badge: 'Pagination & Stability',
-                          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-                          title: 'Removed 200-Call Cap, Added Table Pagination & OpenAI 500 Auto-Retry',
-                          points: [
-                            'Removed the hard 200-call limit in Supabase queries (now loading the full call history in batches of 1,000) and expanded Quo conversation sync pagination.',
-                            'Added full table pagination below the Call Log with page buttons and page size selector (25 / 50 / 100 / 200 / All).',
-                            'Added automatic exponential-backoff retry (up to 3 attempts) on OpenAI 500 / 502 / 503 / 504 / 429 errors, plus a clean custom Error Modal with a "Try Again" button instead of native browser alerts.',
-                          ],
-                        },
-                      ]
+                      {
+                        badge: 'Bilingual AI',
+                        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+                        title: 'Instant RU ↔ EN Switching for Completed Call Evaluations & English SKILL.md',
+                        points: [
+                          'Single-pass bilingual evaluation: GPT now generates the executive summary, coaching recommendations, strengths/misses, and all 26 checkpoint rationales and evidence quotes in both Russian and English simultaneously.',
+                          'Switching the panel language (RU / EN) immediately translates already-scored calls without needing to re-run GPT.',
+                          'Translated .agent/skills/insurvoice-call-scorer/SKILL.md into English aligned with the official Insurvoice AE Sales Call Scorecard (Rubric v1.0, Workbook v1.2).',
+                        ],
+                      },
+                      {
+                        badge: 'Bulk & Queue',
+                        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                        title: 'Bulk Call Actions & Persistent Scoring Queue Across Page Reloads',
+                        points: [
+                          'Added row and header checkboxes with a floating bulk action bar: Score Unscored, Score / Re-score All, Remove Scores, and Clear Queue.',
+                          'Controlled concurrency queue (up to 2 parallel GPT evaluations at a time) prevents OpenAI rate-limit spikes when scoring dozens of calls.',
+                          'Page reload resilience: active scoring queues are persisted in localStorage and deduplicated on the server (/api/telephony/analyze) so refreshing the page (F5) seamlessly resumes in-flight evaluations.',
+                        ],
+                      },
+                      {
+                        badge: 'Comments',
+                        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        title: 'Call Comments & Manager Notes (Add, Edit, Delete)',
+                        points: [
+                          'Add or edit text notes on any call (both scored and unscored) directly from the Call Log table or inside the Call Detail modal.',
+                          'Comments are stored in Supabase and are automatically preserved when a call is re-scored or when its AI score is removed.',
+                        ],
+                      },
+                      {
+                        badge: 'Pagination & Stability',
+                        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+                        title: 'Removed 200-Call Cap, Added Table Pagination & OpenAI 500 Auto-Retry',
+                        points: [
+                          'Removed the hard 200-call limit in Supabase queries (now loading the full call history in batches of 1,000) and expanded Quo conversation sync pagination.',
+                          'Added full table pagination below the Call Log with page buttons and page size selector (25 / 50 / 100 / 200 / All).',
+                          'Added automatic exponential-backoff retry (up to 3 attempts) on OpenAI 500 / 502 / 503 / 504 / 429 errors, plus a clean custom Error Modal with a "Try Again" button instead of native browser alerts.',
+                        ],
+                      },
+                    ]
                     : [
-                        {
-                          badge: 'Двуязычный ИИ',
-                          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
-                          title: 'Мгновенное переключение языка готового анализа (RU ↔ EN) и перевод SKILL.md',
-                          points: [
-                            'Двуязычная генерация за один проход: GPT сразу формирует резюме, рекомендации, сильные стороны, зоны роста, обоснования и цитаты по всем 26 чекпоинтам на русском и английском языках.',
-                            'При переключении языка интерфейса (RU / EN) все уже оценённые звонки мгновенно отображаются на выбранном языке без повторного запуска оценки.',
-                            'Базовый скилл .agent/skills/insurvoice-call-scorer/SKILL.md полностью переведён на английский язык по стандарту официального воркбука Insurvoice.',
-                          ],
-                        },
-                        {
-                          badge: 'Массовые действия',
-                          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-                          title: 'Массовый выбор звонков и сохранение очереди оценки при перезагрузке страницы',
-                          points: [
-                            'Добавлены чекбоксы выбора звонков (по одному или всех на странице) и панель массовых операций: «Оценить без оценки», «Оценить / Переоценить все», «Удалить оценки» и «Очистить очередь».',
-                            'Умная очередь оценки запускает до 2 параллельных запросов к GPT одновременно, защищая от превышения лимитов API при массовом запуске.',
-                            'Защита от сброса при обновлении страницы (F5): состояние очереди сохраняется в браузере, а сервер (/api/telephony/analyze) дедуплицирует активные запросы к GPT и возвращает результат в интерфейс после перезагрузки.',
-                          ],
-                        },
-                        {
-                          badge: 'Комментарии',
-                          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                          title: 'Добавление и редактирование комментариев к звонкам',
-                          points: [
-                            'К любому звонку (как с оценкой, так и без неё) можно добавить текстовую заметку или отредактировать её прямо в строке таблицы или внутри детальной карточки разбора.',
-                            'Комментарии сохраняются в базе данных Supabase и не пропадают при переоценке звонка или удалении AI-оценки.',
-                          ],
-                        },
-                        {
-                          badge: 'Пагинация и стабильность',
-                          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-                          title: 'Снятие лимита в 200 звонков, пагинация таблицы и авто-повтор при ошибках OpenAI',
-                          points: [
-                            'Снято жёсткое ограничение .limit(200) при загрузке звонков из Supabase (теперь история загружается батчами по 1000 записей) и расширена глубина синхронизации диалогов из Quo.',
-                            'Под таблицей звонков добавлена удобная пагинация с выбором размера страницы (25 / 50 / 100 / 200 / Все).',
-                            'Добавлен автоматический повтор запроса (до 3 попыток) при ошибках OpenAI (500 / 502 / 503 / 504 / 429) и аккуратное модальное окно ошибки с кнопкой «Попробовать снова» вместо системного alert.',
-                          ],
-                        },
-                      ],
+                      {
+                        badge: 'Двуязычный ИИ',
+                        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+                        title: 'Мгновенное переключение языка готового анализа (RU ↔ EN) и перевод SKILL.md',
+                        points: [
+                          'Двуязычная генерация за один проход: GPT сразу формирует резюме, рекомендации, сильные стороны, зоны роста, обоснования и цитаты по всем 26 чекпоинтам на русском и английском языках.',
+                          'При переключении языка интерфейса (RU / EN) все уже оценённые звонки мгновенно отображаются на выбранном языке без повторного запуска оценки.',
+                          'Базовый скилл .agent/skills/insurvoice-call-scorer/SKILL.md полностью переведён на английский язык по стандарту официального воркбука Insurvoice.',
+                        ],
+                      },
+                      {
+                        badge: 'Массовые действия',
+                        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                        title: 'Массовый выбор звонков и сохранение очереди оценки при перезагрузке страницы',
+                        points: [
+                          'Добавлены чекбоксы выбора звонков (по одному или всех на странице) и панель массовых операций: «Оценить без оценки», «Оценить / Переоценить все», «Удалить оценки» и «Очистить очередь».',
+                          'Умная очередь оценки запускает до 2 параллельных запросов к GPT одновременно, защищая от превышения лимитов API при массовом запуске.',
+                          'Защита от сброса при обновлении страницы (F5): состояние очереди сохраняется в браузере, а сервер (/api/telephony/analyze) дедуплицирует активные запросы к GPT и возвращает результат в интерфейс после перезагрузки.',
+                        ],
+                      },
+                      {
+                        badge: 'Комментарии',
+                        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        title: 'Добавление и редактирование комментариев к звонкам',
+                        points: [
+                          'К любому звонку (как с оценкой, так и без неё) можно добавить текстовую заметку или отредактировать её прямо в строке таблицы или внутри детальной карточки разбора.',
+                          'Комментарии сохраняются в базе данных Supabase и не пропадают при переоценке звонка или удалении AI-оценки.',
+                        ],
+                      },
+                      {
+                        badge: 'Пагинация и стабильность',
+                        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+                        title: 'Снятие лимита в 200 звонков, пагинация таблицы и авто-повтор при ошибках OpenAI',
+                        points: [
+                          'Снято жёсткое ограничение .limit(200) при загрузке звонков из Supabase (теперь история загружается батчами по 1000 записей) и расширена глубина синхронизации диалогов из Quo.',
+                          'Под таблицей звонков добавлена удобная пагинация с выбором размера страницы (25 / 50 / 100 / 200 / Все).',
+                          'Добавлен автоматический повтор запроса (до 3 попыток) при ошибках OpenAI (500 / 502 / 503 / 504 / 429) и аккуратное модальное окно ошибки с кнопкой «Попробовать снова» вместо системного alert.',
+                        ],
+                      },
+                    ],
                 },
                 {
                   id: 'oct-27',
@@ -2915,115 +2897,114 @@ export default function TelephonyPage() {
                     : 'Полный переход на официальную матрицу оценки звонков отдела продаж Insurvoice (7 секций, 26 чекпоинтов с доказательствами, формула 60/40) и устранение расхождений при синхронизации.',
                   sections: isEn
                     ? [
-                        {
-                          badge: 'AI Scoring',
-                          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
-                          title: 'Official Insurvoice Scorecard v1.0 (26 Checkpoints)',
-                          points: [
-                            'Exact 60/40 scoring math from the official workbook: 60% applicable checkpoints hit (Y/N/N/A) + 40% section quality rating on a 1–5 scale.',
-                            'Mandatory Evidence Rule: every checkpoint includes a direct quote or timestamp from the transcript (no evidence = N).',
-                            'Added score bands: Strong (85–100), Solid (70–84), Needs Coaching (55–69), Priority Focus (<55).',
-                          ],
-                        },
-                        {
-                          badge: 'Auto Call Type',
-                          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-                          title: 'Automatic Call Type Detection & Dynamic Section Weights',
-                          points: [
-                            'AI automatically classifies each call from the transcript: Confirmation / Pre-Call (short Google Meet confirmation), Discovery, Demo, Discovery + Demo, or Follow-up / Close.',
-                            'On short Confirmation / Pre-Call calls and calls with brand-new agents without an existing book (precedent C-002), deferred stages (Demo, 12-month Pain Quantification) are marked N/A so they do not penalize the AE.',
-                          ],
-                        },
-                        {
-                          badge: 'Voicemail Filter',
-                          badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
-                          title: 'Voicemail, AI Call Screener & Short Drop Protection',
-                          points: [
-                            'Calls under 20s, Voicemails, and iOS/Android AI Call Screeners ("Record your name and reason for calling...") are automatically marked N/A ("Voicemail / AI Screener").',
-                            'Even if the AE leaves a long voice message after the beep, the call is excluded from sales script scoring and does not lower the AE’s leaderboard average.',
-                          ],
-                        },
-                        {
-                          badge: 'Unified Skill',
-                          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                          title: 'In-App SKILL.md Editor, RU/EN Localization & GPT-6.1 Terra',
-                          points: [
-                            'Upgraded call evaluation to OpenAI’s GPT-6.1 Terra (recommended) and GPT-6 Luna (economy).',
-                            'Made .agent/skills/insurvoice-call-scorer/SKILL.md the single source of truth editable directly in the admin panel, plus added a full RU / EN switcher.',
-                          ],
-                        },
-                        {
-                          badge: 'Quo & Analytics',
-                          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-                          title: 'Stable Quo Sync, Parallel Multi-Call Scoring & Daily Charts',
-                          points: [
-                            'Parallel multi-call scoring (/api/telephony/analyze): score multiple calls simultaneously without cancelling in-progress evaluations.',
-                            'Fixed fluctuating call counts on sync: added automatic retry on HTTP 429 Too Many Requests and merged fresh Quo calls with the Supabase cache.',
-                            'Added "Show Chart" daily trend visualizations under all 5 KPI cards, a "Remove Score" button, and automatic audio player loading.',
-                          ],
-                        },
-                      ]
+                      {
+                        badge: 'AI Scoring',
+                        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+                        title: 'Official Insurvoice Scorecard v1.0 (26 Checkpoints)',
+                        points: [
+                          'Exact 60/40 scoring math from the official workbook: 60% applicable checkpoints hit (Y/N/N/A) + 40% section quality rating on a 1–5 scale.',
+                          'Mandatory Evidence Rule: every checkpoint includes a direct quote or timestamp from the transcript (no evidence = N).',
+                          'Added score bands: Strong (85–100), Solid (70–84), Needs Coaching (55–69), Priority Focus (<55).',
+                        ],
+                      },
+                      {
+                        badge: 'Auto Call Type',
+                        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                        title: 'Automatic Call Type Detection & Dynamic Section Weights',
+                        points: [
+                          'AI automatically classifies each call from the transcript: Confirmation / Pre-Call (short Google Meet confirmation), Discovery, Demo, Discovery + Demo, or Follow-up / Close.',
+                          'On short Confirmation / Pre-Call calls and calls with brand-new agents without an existing book (precedent C-002), deferred stages (Demo, 12-month Pain Quantification) are marked N/A so they do not penalize the AE.',
+                        ],
+                      },
+                      {
+                        badge: 'Voicemail Filter',
+                        badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+                        title: 'Voicemail, AI Call Screener & Short Drop Protection',
+                        points: [
+                          'Calls under 20s, Voicemails, and iOS/Android AI Call Screeners ("Record your name and reason for calling...") are automatically marked N/A ("Voicemail / AI Screener").',
+                          'Even if the AE leaves a long voice message after the beep, the call is excluded from sales script scoring and does not lower the AE’s leaderboard average.',
+                        ],
+                      },
+                      {
+                        badge: 'Unified Skill',
+                        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        title: 'In-App SKILL.md Editor, RU/EN Localization & GPT-6.1 Terra',
+                        points: [
+                          'Upgraded call evaluation to OpenAI’s GPT-6.1 Terra (recommended) and GPT-6 Luna (economy).',
+                          'Made .agent/skills/insurvoice-call-scorer/SKILL.md the single source of truth editable directly in the admin panel, plus added a full RU / EN switcher.',
+                        ],
+                      },
+                      {
+                        badge: 'Quo & Analytics',
+                        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+                        title: 'Stable Quo Sync, Parallel Multi-Call Scoring & Daily Charts',
+                        points: [
+                          'Parallel multi-call scoring (/api/telephony/analyze): score multiple calls simultaneously without cancelling in-progress evaluations.',
+                          'Fixed fluctuating call counts on sync: added automatic retry on HTTP 429 Too Many Requests and merged fresh Quo calls with the Supabase cache.',
+                          'Added "Show Chart" daily trend visualizations under all 5 KPI cards, a "Remove Score" button, and automatic audio player loading.',
+                        ],
+                      },
+                    ]
                     : [
-                        {
-                          badge: 'AI-Скоринг',
-                          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
-                          title: 'Внедрена официальная матрица Insurvoice Scorecard v1.0 (26 чекпоинтов)',
-                          points: [
-                            'Расчёт оценки строго по формуле из оригинального файла: 60% выполненные применимые чекпоинты (Y/N/N/A) + 40% оценка качества секции по шкале 1–5.',
-                            'Для каждого из 26 чекпоинтов ИИ приводит конкретную цитату или факт из стенограммы разговора (правило Evidence Rule: нет доказательства в тексте — ставится N).',
-                            'Добавлены грейды звонков: Strong (85–100), Solid (70–84), Needs Coaching (55–69), Priority Focus (<55).',
-                          ],
-                        },
-                        {
-                          badge: 'Авто-типизация',
-                          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-                          title: 'Автоматическое определение типа звонка и динамических весов секций',
-                          points: [
-                            'ИИ сам распознаёт тип звонка по диалогу: Confirmation / Pre-Call (короткое подтверждение встречи в Google Meet), Discovery, Demo, Discovery + Demo или Follow-up / Close.',
-                            'На коротких звонках-подтверждениях (Confirmation / Pre-Call) и звонках с новыми агентами без базы (кейс C-002) неприменимые этапы (демо, расчёт 12-месячных потерь) автоматически помечаются как N/A и не занижают балл менеджера.',
-                          ],
-                        },
-                        {
-                          badge: 'Фильтр Voicemail',
-                          badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
-                          title: 'Защита от оценки автоответчиков, ИИ-секретарей и коротких сбросов',
-                          points: [
-                            'Звонки короче 20 секунд, попадания на голосовую почту (Voicemail) и ИИ-фильтры вызовов («Record your name and reason for calling...») автоматически получают статус N/A («Автоответчик / ИИ-ассистент»).',
-                            'Даже если менеджер оставил длинное голосовое сообщение после сигнала автоответчика, звонок не оценивается по скрипту продаж и не портит средний скор в таблице.',
-                          ],
-                        },
-                        {
-                          badge: 'Единый скилл',
-                          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                          title: 'Редактор скилла SKILL.md в админке, перевод RU/EN и переход на GPT-6.1 Terra',
-                          points: [
-                            'Оценка переведена на актуальное семейство моделей GPT-6.1 Terra (рекомендуемая) и GPT-6 Luna (эконом).',
-                            'Файл скилла .agent/skills/insurvoice-call-scorer/SKILL.md стал единым источником правил для ИИ и доступен для редактирования прямо в админке, а интерфейс и оценка поддерживают переключение RU / EN.',
-                          ],
-                        },
-                        {
-                          badge: 'Quo & Аналитика',
-                          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-                          title: 'Стабильная синхронизация звонков Quo, мультизадачность оценки и графики по дням',
-                          points: [
-                            'Добавлена параллельная оценка нескольких звонков одновременно (/api/telephony/analyze): можно подряд нажимать «Оценить через GPT» у любого числа звонков без сброса уже запущенных оценок.',
-                            'Устранена проблема «прыгающих цифр» при нажатии «Синхронизировать звонки»: добавлен автоматический retry при лимите 429 Too Many Requests и объединение (merge) звонков с кэшем Supabase.',
-                            'Под всеми 5 карточками верхних метрик добавлена кнопка «Показать график» с динамикой показателей по дням.',
-                            'В карточке звонка добавлена кнопка «Убрать оценку» рядом с «Переоценить», а также восстановлена автоматическая подгрузка аудиоплеера записи разговора.',
-                          ],
-                        },
-                      ],
+                      {
+                        badge: 'AI-Скоринг',
+                        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+                        title: 'Внедрена официальная матрица Insurvoice Scorecard v1.0 (26 чекпоинтов)',
+                        points: [
+                          'Расчёт оценки строго по формуле из оригинального файла: 60% выполненные применимые чекпоинты (Y/N/N/A) + 40% оценка качества секции по шкале 1–5.',
+                          'Для каждого из 26 чекпоинтов ИИ приводит конкретную цитату или факт из стенограммы разговора (правило Evidence Rule: нет доказательства в тексте — ставится N).',
+                          'Добавлены грейды звонков: Strong (85–100), Solid (70–84), Needs Coaching (55–69), Priority Focus (<55).',
+                        ],
+                      },
+                      {
+                        badge: 'Авто-типизация',
+                        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                        title: 'Автоматическое определение типа звонка и динамических весов секций',
+                        points: [
+                          'ИИ сам распознаёт тип звонка по диалогу: Confirmation / Pre-Call (короткое подтверждение встречи в Google Meet), Discovery, Demo, Discovery + Demo или Follow-up / Close.',
+                          'На коротких звонках-подтверждениях (Confirmation / Pre-Call) и звонках с новыми агентами без базы (кейс C-002) неприменимые этапы (демо, расчёт 12-месячных потерь) автоматически помечаются как N/A и не занижают балл менеджера.',
+                        ],
+                      },
+                      {
+                        badge: 'Фильтр Voicemail',
+                        badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+                        title: 'Защита от оценки автоответчиков, ИИ-секретарей и коротких сбросов',
+                        points: [
+                          'Звонки короче 20 секунд, попадания на голосовую почту (Voicemail) и ИИ-фильтры вызовов («Record your name and reason for calling...») автоматически получают статус N/A («Автоответчик / ИИ-ассистент»).',
+                          'Даже если менеджер оставил длинное голосовое сообщение после сигнала автоответчика, звонок не оценивается по скрипту продаж и не портит средний скор в таблице.',
+                        ],
+                      },
+                      {
+                        badge: 'Единый скилл',
+                        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        title: 'Редактор скилла SKILL.md в админке, перевод RU/EN и переход на GPT-6.1 Terra',
+                        points: [
+                          'Оценка переведена на актуальное семейство моделей GPT-6.1 Terra (рекомендуемая) и GPT-6 Luna (эконом).',
+                          'Файл скилла .agent/skills/insurvoice-call-scorer/SKILL.md стал единым источником правил для ИИ и доступен для редактирования прямо в админке, а интерфейс и оценка поддерживают переключение RU / EN.',
+                        ],
+                      },
+                      {
+                        badge: 'Quo & Аналитика',
+                        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+                        title: 'Стабильная синхронизация звонков Quo, мультизадачность оценки и графики по дням',
+                        points: [
+                          'Добавлена параллельная оценка нескольких звонков одновременно (/api/telephony/analyze): можно подряд нажимать «Оценить через GPT» у любого числа звонков без сброса уже запущенных оценок.',
+                          'Устранена проблема «прыгающих цифр» при нажатии «Синхронизировать звонки»: добавлен автоматический retry при лимите 429 Too Many Requests и объединение (merge) звонков с кэшем Supabase.',
+                          'Под всеми 5 карточками верхних метрик добавлена кнопка «Показать график» с динамикой показателей по дням.',
+                          'В карточке звонка добавлена кнопка «Убрать оценку» рядом с «Переоценить», а также восстановлена автоматическая подгрузка аудиоплеера записи разговора.',
+                        ],
+                      },
+                    ],
                 },
               ].map((release) => {
                 const isOpen = !!openChangelogDates[release.id];
                 return (
                   <div
                     key={release.id}
-                    className={`rounded-2xl border transition-colors overflow-hidden ${
-                      release.isLatest
+                    className={`rounded-2xl border transition-colors overflow-hidden ${release.isLatest
                         ? 'border-purple-200 bg-purple-50/20'
                         : 'border-zinc-200 bg-zinc-50/40'
-                    }`}
+                      }`}
                   >
                     <button
                       type="button"
@@ -3038,9 +3019,8 @@ export default function TelephonyPage() {
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span
-                            className={`text-[11px] font-bold uppercase tracking-wider ${
-                              release.isLatest ? 'text-purple-700' : 'text-zinc-600'
-                            }`}
+                            className={`text-[11px] font-bold uppercase tracking-wider ${release.isLatest ? 'text-purple-700' : 'text-zinc-600'
+                              }`}
                           >
                             {release.dateLabel}
                           </span>

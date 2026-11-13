@@ -136,6 +136,7 @@ export interface CallAnalysisResult {
   actionItems: string[];
   scorecard: CallScorecard;
   transcript: TranscriptUtterance[];
+  model?: string;
 }
 
 export interface ManagerPerformance {
