@@ -2075,6 +2075,17 @@ export default function TelephonyPage() {
                           {analyses[activeCallModal.id].scorecard.callType}
                         </span>
                       )}
+                      {analyses[activeCallModal.id].model && (
+                        <span className="px-2 py-0.5 rounded-full bg-zinc-100 border border-zinc-200 text-[10px] font-semibold text-zinc-700">
+                          {analyses[activeCallModal.id].model === 'claude-fable-5-2'
+                            ? 'Claude Fable 5.2'
+                            : analyses[activeCallModal.id].model === 'gpt-6-luna'
+                              ? 'GPT-6 Luna'
+                              : analyses[activeCallModal.id].model === 'gpt-6.1-terra'
+                                ? 'GPT-6.1 Terra'
+                                : analyses[activeCallModal.id].model}
+                        </span>
+                      )}
                       {(() => {
                         const bandInfo = getBandInfo(
                           analyses[activeCallModal.id].score,
