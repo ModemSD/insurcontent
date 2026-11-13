@@ -318,10 +318,14 @@ export async function analyzeCallWithGPT(params: {
     });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const model = params.model || 'claude-fable-5-2';
+  const isClaude = model.startsWith('claude');
+
+  const apiKey = isClaude ? process.env.CLAUDE_API_KEY : process.env.OPENAI_API_KEY;
   if (!apiKey) {
+    const keyName = isClaude ? 'CLAUDE_API_KEY' : 'OPENAI_API_KEY';
     throw new Error(
-      isEn ? 'OPENAI_API_KEY is not configured in environment variables' : 'OPENAI_API_KEY не настроен в переменных окружения'
+      isEn ? `${keyName} is not configured in environment variables` : `${keyName} не настроен в переменных окружения`
     );
   }
 
@@ -417,29 +421,51 @@ ${languageInstruction}
   }
 }`;
 
-  const model = params.model || 'gpt-6.1-terra';
-
   const explicitCallType =
     params.callType && params.callType !== 'Auto' ? params.callType : undefined;
 
-  const requestPayload = JSON.stringify({
-    model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      {
-        role: 'user',
-        content: `${
-          explicitCallType
-            ? `Заданный тип звонка (Call Type): ${explicitCallType}\n`
-            : 'Определи наиболее подходящий тип звонка (Call Type) автоматически по содержанию диалога (например, "Confirmation / Pre-Call" для короткого звонка-подтверждения встречи в Google Meet, либо "Discovery", "Discovery + Demo", "Follow-up / Close").\n'
-        }${
-          params.durationSeconds ? `Длительность звонка: ${params.durationSeconds} сек.\n` : ''
-        }\nСтенограмма звонка:\n${formattedDialog}`,
-      },
-    ],
-    response_format: { type: 'json_object' },
-  });
+  const userPrompt = `${
+    explicitCallType
+      ? `Заданный тип звонка (Call Type): ${explicitCallType}\n`
+      : 'Определи наиболее подходящий тип звонка (Call Type) автоматически по содержанию диалога (например, "Confirmation / Pre-Call" для короткого звонка-подтверждения встречи в Google Meet, либо "Discovery", "Discovery + Demo", "Follow-up / Close").\n'
+  }${
+    params.durationSeconds ? `Длительность звонка: ${params.durationSeconds} сек.\n` : ''
+  }\nСтенограмма звонка:\n${formattedDialog}`;
 
+  const endpoint = isClaude
+    ? 'https://api.anthropic.com/v1/messages'
+    : 'https://api.openai.com/v1/chat/completions';
+
+  const headers: Record<string, string> = isClaude
+    ? {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      }
+    : {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      };
+
+  const requestPayload = JSON.stringify(
+    isClaude
+      ? {
+          model,
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }
+      : {
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          response_format: { type: 'json_object' },
+        }
+  );
+
+  const providerLabel = isClaude ? 'Claude' : 'OpenAI';
   const maxAttempts = 3;
   let lastStatus = 0;
   let lastErrorText = '';
@@ -447,12 +473,9 @@ ${languageInstruction}
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
+        headers,
         body: requestPayload,
       });
 
@@ -463,16 +486,16 @@ ${languageInstruction}
 
       lastStatus = response.status;
       lastErrorText = await response.text();
-      console.warn(`OpenAI attempt ${attempt}/${maxAttempts} failed (${lastStatus}):`, lastErrorText);
+      console.warn(`${providerLabel} attempt ${attempt}/${maxAttempts} failed (${lastStatus}):`, lastErrorText);
 
-      const isRetryable = [429, 500, 502, 503, 504].includes(lastStatus);
+      const isRetryable = [429, 500, 502, 503, 504, 529].includes(lastStatus);
       if (!isRetryable || attempt === maxAttempts) {
         break;
       }
     } catch (fetchErr: any) {
       lastStatus = 0;
       lastErrorText = fetchErr?.message || 'Network error';
-      console.warn(`OpenAI network error on attempt ${attempt}/${maxAttempts}:`, lastErrorText);
+      console.warn(`${providerLabel} network error on attempt ${attempt}/${maxAttempts}:`, lastErrorText);
       if (attempt === maxAttempts) {
         break;
       }
@@ -483,38 +506,48 @@ ${languageInstruction}
   }
 
   if (!data) {
-    let parsedOpenAiMsg = '';
+    let parsedErrMsg = '';
     try {
       const errJson = JSON.parse(lastErrorText);
-      parsedOpenAiMsg = errJson?.error?.message || errJson?.error?.code || '';
+      parsedErrMsg = errJson?.error?.message || errJson?.error?.code || '';
     } catch {
-      parsedOpenAiMsg = lastErrorText.slice(0, 200);
+      parsedErrMsg = lastErrorText.slice(0, 200);
     }
 
     if (lastStatus >= 500) {
       throw new Error(
         isEn
-          ? `OpenAI servers are temporarily overloaded (HTTP ${lastStatus}${parsedOpenAiMsg ? `: ${parsedOpenAiMsg}` : ''}). Auto-retried ${maxAttempts} times. Please try scoring this call again in a few seconds.`
-          : `Серверы OpenAI временно перегружены (ошибка ${lastStatus}${parsedOpenAiMsg ? `: ${parsedOpenAiMsg}` : ''}). Выполнено ${maxAttempts} автоматических попытки. Пожалуйста, попробуйте повторить оценку через несколько секунд.`
+          ? `${providerLabel} servers are temporarily overloaded (HTTP ${lastStatus}${parsedErrMsg ? `: ${parsedErrMsg}` : ''}). Auto-retried ${maxAttempts} times. Please try scoring this call again in a few seconds.`
+          : `Серверы ${providerLabel} временно перегружены (ошибка ${lastStatus}${parsedErrMsg ? `: ${parsedErrMsg}` : ''}). Выполнено ${maxAttempts} автоматических попытки. Пожалуйста, попробуйте повторить оценку через несколько секунд.`
       );
     }
 
     if (lastStatus === 429) {
       throw new Error(
         isEn
-          ? `OpenAI rate limit reached (HTTP 429${parsedOpenAiMsg ? `: ${parsedOpenAiMsg}` : ''}). Please wait 10–20 seconds before scoring more calls.`
-          : `Превышен лимит запросов к OpenAI (HTTP 429${parsedOpenAiMsg ? `: ${parsedOpenAiMsg}` : ''}). Подождите 10–20 секунд и попробуйте снова.`
+          ? `${providerLabel} rate limit reached (HTTP 429${parsedErrMsg ? `: ${parsedErrMsg}` : ''}). Please wait 10–20 seconds before scoring more calls.`
+          : `Превышен лимит запросов к ${providerLabel} (HTTP 429${parsedErrMsg ? `: ${parsedErrMsg}` : ''}). Подождите 10–20 секунд и попробуйте снова.`
       );
     }
 
     throw new Error(
       isEn
-        ? `OpenAI API error${lastStatus ? ` (${lastStatus})` : ''}: ${parsedOpenAiMsg || 'Failed to complete analysis.'}`
-        : `Ошибка обращения к OpenAI API${lastStatus ? ` (${lastStatus})` : ''}: ${parsedOpenAiMsg || 'Не удалось выполнить анализ звонка.'}`
+        ? `${providerLabel} API error${lastStatus ? ` (${lastStatus})` : ''}: ${parsedErrMsg || 'Failed to complete analysis.'}`
+        : `Ошибка обращения к ${providerLabel} API${lastStatus ? ` (${lastStatus})` : ''}: ${parsedErrMsg || 'Не удалось выполнить анализ звонка.'}`
     );
   }
 
-  const parsed = JSON.parse(data.choices[0].message.content);
+  const rawContent: string = isClaude
+    ? data.content?.find((b: any) => b.type === 'text')?.text || ''
+    : data.choices[0].message.content;
+
+  const cleanedJson = rawContent
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
+
+  const parsed = JSON.parse(cleanedJson);
 
   if (parsed.isVoicemailOrUnconnected) {
     const reasonRu =

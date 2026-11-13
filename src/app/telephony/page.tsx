@@ -75,7 +75,7 @@ export default function TelephonyPage() {
   // Skill (SKILL.md), Model & Language
   const [lang, setLang] = useState<'ru' | 'en'>('ru');
   const isEn = lang === 'en';
-  const [selectedModel, setSelectedModel] = useState<string>('gpt-6.1-terra');
+  const [selectedModel, setSelectedModel] = useState<string>('claude-fable-5-2');
   const [selectedCallType, setSelectedCallType] = useState<InsurvoiceCallType>('Auto');
   const [showCheckpointsList, setShowCheckpointsList] = useState<boolean>(true);
   const [customCriteria, setCustomCriteria] = useState<string>('');
@@ -1102,7 +1102,11 @@ export default function TelephonyPage() {
               <div className="mt-1 text-[11px] text-emerald-600 font-medium flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" />
                 {isEn ? 'Scored by ' : 'На основе оценки '}
-                {selectedModel === 'gpt-6-luna' ? 'GPT-6 Luna' : 'GPT-6.1 Terra'}
+                {selectedModel === 'claude-fable-5-2'
+                  ? 'Claude Fable 5.2'
+                  : selectedModel === 'gpt-6-luna'
+                    ? 'GPT-6 Luna'
+                    : 'GPT-6.1 Terra'}
               </div>
             </div>
             <button
@@ -2492,14 +2496,22 @@ export default function TelephonyPage() {
             <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-1.5">
-                  {isEn ? 'OpenAI Model' : 'Модель OpenAI'}
+                  {isEn ? 'AI Model' : 'Модель ИИ'}
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   {[
+                    {
+                      id: 'claude-fable-5-2',
+                      name: 'Claude Fable 5.2',
+                      badge: isEn ? 'Recommended' : 'Рекомендуется',
+                      desc: isEn
+                        ? 'Anthropic Claude — deep rubric & nuance analysis'
+                        : 'Anthropic Claude — глубокий разбор скрипта и нюансов',
+                    },
                     {
                       id: 'gpt-6.1-terra',
                       name: 'GPT-6.1 Terra',
-                      badge: isEn ? 'Recommended' : 'Рекомендуется',
+                      badge: 'OpenAI',
                       desc: isEn
                         ? 'Deep rubric & objection analysis ($1 / $5 per 1M)'
                         : 'Глубокий разбор скрипта и возражений ($1 / $5 за 1М)',
