@@ -1,9 +1,24 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { isTrackingDomain, normalizeHost } from '@/lib/shortLinks';
 
 export function middleware(req: NextRequest) {
-  const token = req.cookies.get('sb-access-token')?.value;
+  const host = normalizeHost(req.headers.get('host'));
   const pathname = req.nextUrl.pathname;
+
+  // Handle dedicated tracking domains (e.g. pay.insurvoice.ai)
+  if (isTrackingDomain(host)) {
+    if (pathname === '/' || pathname === '') {
+      return new NextResponse('Not Found', { status: 404 });
+    }
+
+    const code = pathname.slice(1);
+    const rewriteUrl = new URL(`/api/r/${encodeURIComponent(code)}`, req.url);
+    rewriteUrl.searchParams.set('domain', host);
+    return NextResponse.rewrite(rewriteUrl);
+  }
+
+  const token = req.cookies.get('sb-access-token')?.value;
 
   // Protect dashboard routes if no session token
   if (!token && pathname !== '/login') {
