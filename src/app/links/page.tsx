@@ -16,6 +16,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  HelpCircle,
 } from 'lucide-react';
 import { TRACKING_DOMAINS } from '@/lib/shortLinks';
 
@@ -94,6 +95,27 @@ const TRANSLATIONS = {
     errSave: 'Ошибка сохранения',
     errUpdate: 'Ошибка обновления статуса',
     errDelete: 'Ошибка удаления',
+    howToUseBtn: 'How to use',
+    howToUseTitle: 'Как пользоваться сервисом',
+    howToUseSteps: [
+      {
+        title: '1. Создание ссылки',
+        desc: 'Выберите домен (например, pay.insurvoice.ai), вставьте ссылку на оплату из Stripe, при желании укажите название (тариф/клиент) и свой код. Если код не указывать — он сгенерируется автоматически.',
+      },
+      {
+        title: '2. Отправка клиенту',
+        desc: 'Скопируйте готовую короткую ссылку (например, https://pay.insurvoice.ai/CKADJ) кнопкой копирования в таблице и отправьте клиенту.',
+      },
+      {
+        title: '3. Смена тарифа или цены',
+        desc: 'Если цена или ссылка Stripe изменилась — нажмите на иконку карандаша в строке ссылки и обновите целевой URL. Короткая ссылка у клиента останется прежней, а редирект сразу начнёт вести на новую страницу оплаты.',
+      },
+      {
+        title: '4. Статистика и отключение',
+        desc: 'Нажмите на счётчик кликов, чтобы увидеть последние переходы (время, IP, Referer, устройство). Если ссылку нужно временно отключить — переключите статус на «Выкл» (она начнёт отдавать 404).',
+      },
+    ],
+    gotIt: 'Понятно',
   },
   en: {
     pageTitle: 'Short Links & Redirects',
@@ -144,6 +166,27 @@ const TRANSLATIONS = {
     errSave: 'Failed to save changes',
     errUpdate: 'Failed to update status',
     errDelete: 'Failed to delete link',
+    howToUseBtn: 'How to use',
+    howToUseTitle: 'How to use Short Links',
+    howToUseSteps: [
+      {
+        title: '1. Create a link',
+        desc: 'Select a domain (e.g. pay.insurvoice.ai), paste your Stripe checkout/payment URL, and optionally add a title (plan/client) and a custom code. Leave the code empty to auto-generate one.',
+      },
+      {
+        title: '2. Share with the client',
+        desc: 'Click the copy icon next to the generated short URL (e.g. https://pay.insurvoice.ai/CKADJ) and send it to your client.',
+      },
+      {
+        title: '3. Update pricing or plan',
+        desc: 'If the Stripe link or price changes, click the pencil icon in the table and update the target URL. The short link stays the same for the client, and redirects immediately point to the new URL.',
+      },
+      {
+        title: '4. Analytics & toggling',
+        desc: 'Click the clicks counter to inspect recent visits (time, IP, Referer, device). Toggle the status to «Off» anytime to disable the redirect (it will return 404).',
+      },
+    ],
+    gotIt: 'Got it',
   },
 } as const;
 
@@ -181,6 +224,9 @@ export default function ShortLinksPage() {
   const [clicksModalLink, setClicksModalLink] = useState<ShortLink | null>(null);
   const [clicks, setClicks] = useState<ClickEvent[]>([]);
   const [clicksLoading, setClicksLoading] = useState(false);
+
+  // How to use modal state
+  const [howToUseOpen, setHowToUseOpen] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('short_links_lang');
@@ -367,8 +413,18 @@ export default function ShortLinksPage() {
             </div>
           </div>
 
-          {/* Language Switcher */}
-          <div className="inline-flex rounded-xl border border-zinc-200 bg-white p-1 shadow-xs">
+          {/* How to use + Language Switcher */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setHowToUseOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs transition hover:bg-zinc-50 hover:text-zinc-950"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              {t.howToUseBtn}
+            </button>
+
+            <div className="inline-flex rounded-xl border border-zinc-200 bg-white p-1 shadow-xs">
             <button
               type="button"
               onClick={() => toggleLang('ru')}
@@ -391,6 +447,7 @@ export default function ShortLinksPage() {
             >
               EN
             </button>
+            </div>
           </div>
         </div>
 
@@ -781,6 +838,54 @@ export default function ShortLinksPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* How to Use Modal */}
+      {howToUseOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="h-4 w-4 text-zinc-900" />
+                <h2 className="text-sm font-bold text-zinc-900">
+                  {t.howToUseTitle}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHowToUseOpen(false)}
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 p-5">
+              {t.howToUseSteps.map((step) => (
+                <div
+                  key={step.title}
+                  className="rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-3.5"
+                >
+                  <div className="text-xs font-semibold text-zinc-900">
+                    {step.title}
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+                    {step.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end border-t border-zinc-200 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setHowToUseOpen(false)}
+                className="rounded-xl bg-zinc-950 px-4 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
+              >
+                {t.gotIt}
+              </button>
             </div>
           </div>
         </div>
