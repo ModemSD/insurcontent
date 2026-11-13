@@ -93,24 +93,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen w-full font-sans selection:bg-indigo-100 selection:text-indigo-900 flex flex-col justify-center items-center bg-[#f8fafc] px-4 py-12 relative overflow-hidden">
       
-      {/* Language Switcher */}
-      <div className="absolute top-5 right-5 z-20 inline-flex items-center rounded-xl border border-zinc-200/80 bg-white/80 backdrop-blur-md p-1 shadow-sm">
-        {(['ru', 'en'] as const).map((code) => (
-          <button
-            key={code}
-            type="button"
-            onClick={() => setLang(code)}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-              lang === code
-                ? 'bg-zinc-950 text-white shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-900'
-            }`}
-          >
-            {code === 'ru' ? 'RU' : 'ENG'}
-          </button>
-        ))}
-      </div>
-
       {/* Decorative Radial Background Light */}
       <div className="absolute top-1/4 left-1/4 h-80 w-80 rounded-full bg-blue-400/5 blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-indigo-400/5 blur-3xl pointer-events-none" />
@@ -131,6 +113,26 @@ export default function LoginPage() {
       {/* Login Card Container */}
       <div className="w-full max-w-[420px] bg-white/80 backdrop-blur-xl border border-zinc-200/70 rounded-3xl p-8 shadow-xl shadow-zinc-200/30 hover:shadow-2xl hover:shadow-zinc-200/40 transition-all duration-300 relative z-10">
         
+        {/* Language Switcher */}
+        <div className="flex justify-end mb-4">
+          <div className="inline-flex items-center rounded-xl border border-zinc-200/80 bg-zinc-100/80 p-1">
+            {(['ru', 'en'] as const).map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setLang(code)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  lang === code
+                    ? 'bg-zinc-950 text-white shadow-sm'
+                    : 'text-zinc-500 hover:text-zinc-900'
+                }`}
+              >
+                {code === 'ru' ? 'RU' : 'ENG'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Card Title */}
         <div className="mb-6 space-y-1">
           <h2 className="text-lg font-black text-zinc-900">
