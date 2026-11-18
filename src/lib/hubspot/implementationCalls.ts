@@ -474,29 +474,46 @@ export async function analyzeWinningPatternsWithClaude(
   const userPrompt = `Ниже выгрузка ${calls.length} звонков по ${byDeal.size} сделкам со стадии Implementation из HubSpot.
 Проанализируй их и выяви общие паттерны, которые привели к закрытию сделки:\n\n${formattedDeals}`;
 
-  const res = await fetch(ANTHROPIC_API_URL, {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: options?.model ?? 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-  });
+  const modelsToTry = options?.model
+    ? [options.model]
+    : ['claude-sonnet-4-5', 'claude-3-7-sonnet-latest', 'claude-3-5-sonnet-latest'];
 
-  if (!res.ok) {
+  let data: { content: Array<{ type: string; text?: string }> } | null = null;
+  let lastError = '';
+
+  for (const model of modelsToTry) {
+    const res = await fetch(ANTHROPIC_API_URL, {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+      }),
+    });
+
+    if (res.ok) {
+      data = (await res.json()) as {
+        content: Array<{ type: string; text?: string }>;
+      };
+      break;
+    }
+
     const errText = await res.text();
-    throw new Error(`Anthropic API error (${res.status}): ${errText}`);
+    lastError = `Anthropic API error (${res.status}): ${errText}`;
+    if (res.status !== 404) {
+      throw new Error(lastError);
+    }
   }
 
-  const data = (await res.json()) as {
-    content: Array<{ type: string; text?: string }>;
-  };
+  if (!data) {
+    throw new Error(lastError || 'Anthropic API request failed');
+  }
 
   const rawText = data.content
     .filter((c) => c.type === 'text' && c.text)
