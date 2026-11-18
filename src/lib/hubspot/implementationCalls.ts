@@ -476,7 +476,7 @@ export async function analyzeWinningPatternsWithClaude(
 
   const modelsToTry = options?.model
     ? [options.model]
-    : ['claude-sonnet-4-5', 'claude-3-7-sonnet-latest', 'claude-3-5-sonnet-latest'];
+    : ['claude-fable-5-2', 'claude-sonnet-4-5', 'claude-3-7-sonnet-latest', 'claude-3-5-sonnet-latest'];
 
   let data: { content: Array<{ type: string; text?: string }> } | null = null;
   let lastError = '';
