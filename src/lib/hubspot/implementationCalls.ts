@@ -168,27 +168,17 @@ async function fetchDealsByStages(
   const deals: HubSpotDeal[] = [];
   let after: string | undefined;
 
-  const filterGroups =
-    mode === 'passed'
-      ? stageIds.map((id) => ({
-          filters: [
-            {
-              propertyName: `hs_v2_date_entered_${id}`,
-              operator: 'HAS_PROPERTY',
-            },
-          ],
-        }))
-      : [
-          {
-            filters: [
-              {
-                propertyName: 'dealstage',
-                operator: 'IN',
-                values: stageIds,
-              },
-            ],
-          },
-        ];
+  const filterGroups = [
+    {
+      filters: [
+        {
+          propertyName: 'dealstage',
+          operator: 'IN',
+          values: stageIds,
+        },
+      ],
+    },
+  ];
 
   do {
     const body = {
@@ -346,7 +336,7 @@ export async function fetchImplementationCalls(options?: {
     );
   }
 
-  const stageIds =
+  let stageIds =
     options?.stageIds && options.stageIds.length > 0
       ? options.stageIds
       : await findDealStageIds(token, options?.stageName ?? 'Implementation');
@@ -357,7 +347,26 @@ export async function fetchImplementationCalls(options?: {
     );
   }
 
-  const deals = await fetchDealsByStages(token, stageIds, options?.mode ?? 'passed');
+  const mode = options?.mode ?? 'passed';
+  if (mode === 'passed') {
+    const pipelines = await fetchDealPipelines(token);
+    const expanded = new Set<string>(stageIds);
+    for (const pipeline of pipelines) {
+      for (const id of stageIds) {
+        const match = pipeline.stages.find((s) => s.id === id);
+        if (match) {
+          for (const s of pipeline.stages) {
+            if (s.displayOrder >= match.displayOrder) {
+              expanded.add(s.id);
+            }
+          }
+        }
+      }
+    }
+    stageIds = Array.from(expanded);
+  }
+
+  const deals = await fetchDealsByStages(token, stageIds, mode);
   const calls = await fetchCallsForDeals(token, deals);
 
   return {
