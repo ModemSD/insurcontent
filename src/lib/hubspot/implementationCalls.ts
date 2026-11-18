@@ -15,6 +15,12 @@ export interface HubSpotCall {
 
 export interface ClaudePatternAnalysis {
   summary: string;
+  stepByStepSequence: Array<{
+    step: number;
+    stageTitle: string;
+    whatHappened: string;
+    whyItWorked: string;
+  }>;
   winningPatterns: Array<{
     pattern: string;
     description: string;
@@ -331,6 +337,7 @@ export async function analyzeWinningPatternsWithClaude(
   if (calls.length === 0) {
     return {
       summary: 'Нет звонков для анализа.',
+      stepByStepSequence: [],
       winningPatterns: [],
       commonObjectionsAndSolutions: [],
       keyTurningPoints: [],
@@ -375,6 +382,14 @@ export async function analyzeWinningPatternsWithClaude(
 Отвечай строго в формате JSON без markdown-обёртки, со следующей структурой:
 {
   "summary": "Краткое резюме главных факторов успеха",
+  "stepByStepSequence": [
+    {
+      "step": 1,
+      "stageTitle": "Название этапа (например: Квалификация боли)",
+      "whatHappened": "Что именно делал менеджер и что отвечал клиент",
+      "whyItWorked": "Почему этот шаг двигал сделку к покупке"
+    }
+  ],
   "winningPatterns": [
     {
       "pattern": "Название паттерна",
@@ -438,6 +453,7 @@ export async function analyzeWinningPatternsWithClaude(
   } catch {
     return {
       summary: rawText,
+      stepByStepSequence: [],
       winningPatterns: [],
       commonObjectionsAndSolutions: [],
       keyTurningPoints: [],
