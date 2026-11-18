@@ -366,6 +366,110 @@ export default function HubSpotPatternsPage() {
               </p>
             </div>
 
+            {/* Графики: Боли клиентов и Почему выбрали продукт */}
+            {(result.analysis.clientPains?.length > 0 ||
+              result.analysis.whyTheyBought?.length > 0) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {result.analysis.clientPains?.length > 0 && (
+                  <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm space-y-4">
+                    <h2 className="text-base font-semibold text-zinc-900">
+                      Боли и проблемы клиентов
+                    </h2>
+                    <div className="space-y-3">
+                      {result.analysis.clientPains.map((item, idx) => (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-zinc-800">
+                              {item.pain}
+                            </span>
+                            <span className="font-semibold text-rose-600">
+                              {item.sharePercent}%
+                            </span>
+                          </div>
+                          <div className="w-full h-2 rounded-full bg-zinc-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-rose-500 transition-all"
+                              style={{
+                                width: `${Math.min(100, Math.max(5, item.sharePercent))}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="text-xs text-zinc-500">{item.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {result.analysis.whyTheyBought?.length > 0 && (
+                  <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm space-y-4">
+                    <h2 className="text-base font-semibold text-zinc-900">
+                      Почему выбрали продукт
+                    </h2>
+                    <div className="space-y-3">
+                      {result.analysis.whyTheyBought.map((item, idx) => (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-zinc-800">
+                              {item.reason}
+                            </span>
+                            <span className="font-semibold text-emerald-600">
+                              {item.sharePercent}%
+                            </span>
+                          </div>
+                          <div className="w-full h-2 rounded-full bg-zinc-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-emerald-500 transition-all"
+                              style={{
+                                width: `${Math.min(100, Math.max(5, item.sharePercent))}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="text-xs text-zinc-500">{item.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* График: Звонков до покупки по сделкам */}
+            {callsByDeal.length > 0 && (
+              <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm space-y-4">
+                <h2 className="text-base font-semibold text-zinc-900">
+                  Сколько звонков потребовалось по сделкам
+                </h2>
+                <div className="space-y-2.5">
+                  {callsByDeal.slice(0, 12).map((deal) => {
+                    const maxCalls = Math.max(
+                      ...callsByDeal.map((d) => d.calls.length),
+                      1
+                    );
+                    const pct = Math.round((deal.calls.length / maxCalls) * 100);
+                    return (
+                      <div key={deal.dealId} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-zinc-700 font-medium truncate max-w-[70%]">
+                            {deal.dealName}
+                          </span>
+                          <span className="text-zinc-600 font-semibold">
+                            {deal.calls.length} зв.
+                          </span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-zinc-100 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-zinc-800"
+                            style={{ width: `${Math.max(4, pct)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Пошаговая цепочка: что за чем шло */}
             {result.analysis.stepByStepSequence?.length > 0 && (
               <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm">

@@ -19,6 +19,16 @@ export interface HubSpotCall {
 
 export interface ClaudePatternAnalysis {
   summary: string;
+  clientPains: Array<{
+    pain: string;
+    sharePercent: number;
+    description: string;
+  }>;
+  whyTheyBought: Array<{
+    reason: string;
+    sharePercent: number;
+    description: string;
+  }>;
   stepByStepSequence: Array<{
     step: number;
     stageTitle: string;
@@ -427,6 +437,8 @@ export async function analyzeWinningPatternsWithClaude(
   if (calls.length === 0) {
     return {
       summary: 'Нет звонков для анализа.',
+      clientPains: [],
+      whyTheyBought: [],
       stepByStepSequence: [],
       winningPatterns: [],
       commonObjectionsAndSolutions: [],
@@ -480,9 +492,23 @@ export async function analyzeWinningPatternsWithClaude(
   const systemPrompt = `Ты — опытный Sales Ops аналитик и руководитель отдела продаж.
 Твоя задача — проанализировать звонки по сделкам, которые дошли до стадии Implementation (успешно закрыты / внедряются), и выявить общие повторяющиеся паттерны, которые привели к закрытию сделки.
 
-Отвечай строго в формате JSON без markdown-обёртки, со следующей структурой:
+Отвечай строго валидным JSON без markdown-обёртки и без неэкранированных переносов строк внутри строковых значений, со следующей структурой:
 {
   "summary": "Краткое резюме главных факторов успеха",
+  "clientPains": [
+    {
+      "pain": "Название боли или проблемы клиента",
+      "sharePercent": 70,
+      "description": "Как проявлялась в звонках"
+    }
+  ],
+  "whyTheyBought": [
+    {
+      "reason": "Ключевая причина выбора продукта",
+      "sharePercent": 80,
+      "description": "Что именно убедило клиента"
+    }
+  ],
   "stepByStepSequence": [
     {
       "step": 1,
@@ -529,7 +555,7 @@ export async function analyzeWinningPatternsWithClaude(
       },
       body: JSON.stringify({
         model,
-        max_tokens: 4096,
+        max_tokens: 16384,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       }),
@@ -562,6 +588,8 @@ export async function analyzeWinningPatternsWithClaude(
   if (!rawText) {
     return {
       summary: `Claude вернул пустой текст. Сырой ответ API: ${JSON.stringify(data).slice(0, 500)}`,
+      clientPains: [],
+      whyTheyBought: [],
       stepByStepSequence: [],
       winningPatterns: [],
       commonObjectionsAndSolutions: [],
@@ -590,6 +618,8 @@ export async function analyzeWinningPatternsWithClaude(
   } catch {
     return {
       summary: rawText,
+      clientPains: [],
+      whyTheyBought: [],
       stepByStepSequence: [],
       winningPatterns: [],
       commonObjectionsAndSolutions: [],
