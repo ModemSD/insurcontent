@@ -486,8 +486,18 @@ export default function HubSpotPatternsPage() {
                                 </button>
 
                                 {isCallOpen && (
-                                  <div className="mt-2 pl-5 text-xs text-zinc-600 whitespace-pre-wrap bg-zinc-50 p-3 rounded-lg border border-zinc-100">
-                                    {call.body || 'Заметки/транскрипт отсутствуют.'}
+                                  <div className="mt-2 pl-5 space-y-2">
+                                    <div className="text-xs text-zinc-600 whitespace-pre-wrap bg-zinc-50 p-3 rounded-lg border border-zinc-100">
+                                      {call.body || 'Заметки отсутствуют.'}
+                                    </div>
+                                    {call.transcript && (
+                                      <div className="text-xs text-zinc-700 whitespace-pre-wrap bg-emerald-50/50 p-3 rounded-lg border border-emerald-100">
+                                        <p className="font-semibold text-emerald-800 mb-1">
+                                          Расшифровка звонка (Quo):
+                                        </p>
+                                        {call.transcript}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>

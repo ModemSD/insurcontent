@@ -1,3 +1,5 @@
+import { QuoClient } from '@/lib/quo/client';
+
 export interface HubSpotCall {
   id: string;
   dealId: string;
@@ -5,6 +7,8 @@ export interface HubSpotCall {
   dealAmount?: string;
   title?: string;
   body?: string;
+  transcript?: string;
+  quoCallId?: string;
   durationMs?: number;
   status?: string;
   direction?: string;
@@ -316,13 +320,16 @@ async function fetchCallsForDeals(
       const details = callDetailsMap.get(callId);
       if (!details) continue;
       const p = details.properties;
+      const rawBody = p.hs_call_body ?? '';
+      const quoMatch = rawBody.match(/[?&]at=(AC[a-zA-Z0-9]+)/);
       result.push({
         id: callId,
         dealId,
         dealName: deal?.properties.dealname ?? undefined,
         dealAmount: deal?.properties.amount ?? undefined,
         title: p.hs_call_title ?? undefined,
-        body: p.hs_call_body ? stripHtml(p.hs_call_body) : undefined,
+        body: rawBody ? stripHtml(rawBody) : undefined,
+        quoCallId: quoMatch ? quoMatch[1] : undefined,
         durationMs: p.hs_call_duration ? Number(p.hs_call_duration) : undefined,
         status: p.hs_call_status ?? undefined,
         direction: p.hs_call_direction ?? undefined,
@@ -448,7 +455,11 @@ export async function analyzeWinningPatternsWithClaude(
           return [
             `  Звонок #${cIdx + 1} (${c.timestamp ?? 'без даты'}, длительность: ${durationSec}с, направление: ${c.direction ?? 'N/A'})`,
             c.title ? `  Заголовок: ${c.title}` : null,
-            c.body ? `  Заметки/Транскрипт:\n  ${c.body}` : '  Заметки: отсутствуют',
+            c.transcript
+              ? `  Транскрипт (Quo):\n  ${c.transcript}`
+              : c.body
+                ? `  Заметки:\n  ${c.body}`
+                : '  Заметки: отсутствуют',
           ]
             .filter(Boolean)
             .join('\n');
@@ -589,8 +600,35 @@ export async function analyzeWinningPatternsWithClaude(
   }
 }
 
+async function enrichCallsWithQuoTranscripts(calls: HubSpotCall[]): Promise<void> {
+  const quoKey = process.env.QUO_API_KEY;
+  if (!quoKey) return;
+
+  const quo = new QuoClient(quoKey);
+  const callsWithQuo = calls.filter((c) => c.quoCallId);
+
+  for (let i = 0; i < callsWithQuo.length; i += 5) {
+    const batch = callsWithQuo.slice(i, i + 5);
+    await Promise.all(
+      batch.map(async (call) => {
+        if (!call.quoCallId) return;
+        try {
+          const utterances = await quo.getCallTranscript(call.quoCallId);
+          if (utterances && utterances.length > 0) {
+            call.transcript = utterances
+              .map((u) => `${u.speaker || 'Speaker'}: ${u.text}`)
+              .join('\n');
+          }
+        } catch {
+          // Если транскрипт недоступен, оставляем только body
+        }
+      })
+    );
+  }
+}
+
 /**
- * Полный цикл: выгрузка звонков со стадии Implementation из HubSpot + анализ паттернов через Claude.
+ * Полный цикл: выгрузка звонков со стадии Implementation из HubSpot + транскрипты из Quo + анализ через Claude.
  */
 export async function exportAndAnalyzeImplementationCalls(options?: {
   hubspotToken?: string;
@@ -606,6 +644,8 @@ export async function exportAndAnalyzeImplementationCalls(options?: {
     stageIds: options?.stageIds,
     mode: options?.mode,
   });
+
+  await enrichCallsWithQuoTranscripts(calls);
 
   const analysis = await analyzeWinningPatternsWithClaude(calls, {
     anthropicApiKey: options?.anthropicApiKey,
