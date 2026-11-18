@@ -28,6 +28,7 @@ export default function HubSpotPatternsPage() {
   const [preview, setPreview] = useState<{ dealsCount: number; callsCount: number } | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [elapsedSec, setElapsedSec] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImplementationCallsResult | null>(null);
   const [expandedDeals, setExpandedDeals] = useState<Record<string, boolean>>({});
@@ -109,6 +110,17 @@ export default function HubSpotPatternsPage() {
       active = false;
     };
   }, [selectedStageId, mode]);
+
+  React.useEffect(() => {
+    if (!loading) {
+      setElapsedSec(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setElapsedSec((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [loading]);
 
   const handleAnalyze = async () => {
     setLoading(true);
@@ -251,6 +263,57 @@ export default function HubSpotPatternsPage() {
               ) : null}
             </div>
           </div>
+
+          {loading && (
+            <div className="mt-4 p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
+              <div className="flex items-center justify-between text-xs font-medium text-zinc-600">
+                <span>Выполняется анализ...</span>
+                <span>Прошло: {elapsedSec} сек</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {[
+                  {
+                    step: 1,
+                    label: '1. Выгрузка сделок и звонков из HubSpot',
+                    done: elapsedSec >= 3,
+                    active: elapsedSec < 3,
+                  },
+                  {
+                    step: 2,
+                    label: '2. Загрузка расшифровок из Quo',
+                    done: elapsedSec >= 10,
+                    active: elapsedSec >= 3 && elapsedSec < 10,
+                  },
+                  {
+                    step: 3,
+                    label: '3. Анализ паттернов через Claude',
+                    done: false,
+                    active: elapsedSec >= 10,
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.step}
+                    className={`p-3 rounded-lg border text-xs flex items-center gap-2 ${
+                      item.done
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        : item.active
+                          ? 'bg-white border-zinc-300 text-zinc-900 font-medium shadow-xs'
+                          : 'bg-zinc-100/60 border-zinc-200 text-zinc-400'
+                    }`}
+                  >
+                    {item.done ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : item.active ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-zinc-700 shrink-0" />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full border border-zinc-300 shrink-0" />
+                    )}
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3 text-sm text-red-700">
