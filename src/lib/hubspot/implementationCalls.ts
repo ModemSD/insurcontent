@@ -542,17 +542,36 @@ export async function analyzeWinningPatternsWithClaude(
     throw new Error(lastError || 'Anthropic API request failed');
   }
 
-  const rawText = data.content
+  const rawText = (data.content ?? [])
     .filter((c) => c.type === 'text' && c.text)
     .map((c) => c.text)
-    .join('\n');
+    .join('\n')
+    .trim();
+
+  if (!rawText) {
+    return {
+      summary: `Claude вернул пустой текст. Сырой ответ API: ${JSON.stringify(data).slice(0, 500)}`,
+      stepByStepSequence: [],
+      winningPatterns: [],
+      commonObjectionsAndSolutions: [],
+      keyTurningPoints: [],
+      recommendations: [],
+      rawText: JSON.stringify(data),
+    };
+  }
 
   try {
     const cleaned = rawText
       .replace(/^```json\s*/i, '')
       .replace(/```\s*$/i, '')
       .trim();
-    const parsed = JSON.parse(cleaned) as Omit<ClaudePatternAnalysis, 'rawText'>;
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    const jsonSlice =
+      firstBrace !== -1 && lastBrace > firstBrace
+        ? cleaned.slice(firstBrace, lastBrace + 1)
+        : cleaned;
+    const parsed = JSON.parse(jsonSlice) as Omit<ClaudePatternAnalysis, 'rawText'>;
     return {
       ...parsed,
       rawText,
