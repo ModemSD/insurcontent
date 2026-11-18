@@ -25,6 +25,8 @@ export default function HubSpotPatternsPage() {
   const [selectedStageId, setSelectedStageId] = useState<string>('');
   const [mode, setMode] = useState<'passed' | 'current'>('passed');
   const [loadingPipelines, setLoadingPipelines] = useState(true);
+  const [preview, setPreview] = useState<{ dealsCount: number; callsCount: number } | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImplementationCallsResult | null>(null);
@@ -73,6 +75,40 @@ export default function HubSpotPatternsPage() {
       active = false;
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!selectedStageId) return;
+    let active = true;
+    setLoadingPreview(true);
+    setPreview(null);
+    (async () => {
+      try {
+        const res = await fetch('/api/hubspot/implementation-patterns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stageIds: [selectedStageId],
+            mode,
+            previewOnly: true,
+          }),
+        });
+        const data = await res.json();
+        if (active && res.ok) {
+          setPreview({
+            dealsCount: data.dealsCount ?? 0,
+            callsCount: data.callsCount ?? 0,
+          });
+        }
+      } catch {
+        // Игнорируем ошибку предпросмотра
+      } finally {
+        if (active) setLoadingPreview(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [selectedStageId, mode]);
 
   const handleAnalyze = async () => {
     setLoading(true);
@@ -202,6 +238,17 @@ export default function HubSpotPatternsPage() {
                   </>
                 )}
               </button>
+
+              {loadingPreview ? (
+                <span className="text-xs text-zinc-400 flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Подсчёт выборки...
+                </span>
+              ) : preview ? (
+                <span className="text-xs px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-700 font-medium">
+                  В выборке: {preview.dealsCount} сделок, {preview.callsCount} звонков
+                </span>
+              ) : null}
             </div>
           </div>
 

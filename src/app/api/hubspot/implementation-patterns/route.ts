@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   exportAndAnalyzeImplementationCalls,
   fetchDealPipelines,
+  fetchImplementationCalls,
 } from '@/lib/hubspot/implementationCalls';
 
 export async function GET() {
@@ -22,7 +23,20 @@ export async function POST(req: NextRequest) {
       stageIds?: string[];
       mode?: 'passed' | 'current';
       claudeModel?: string;
+      previewOnly?: boolean;
     };
+
+    if (body.previewOnly) {
+      const preview = await fetchImplementationCalls({
+        stageName: body.stageName,
+        stageIds: body.stageIds,
+        mode: body.mode ?? 'passed',
+      });
+      return NextResponse.json({
+        dealsCount: preview.dealsCount,
+        callsCount: preview.calls.length,
+      });
+    }
 
     const result = await exportAndAnalyzeImplementationCalls({
       stageName: body.stageName,
