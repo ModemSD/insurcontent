@@ -44,6 +44,22 @@ export interface ImplementationCallsResult {
   analysis: ClaudePatternAnalysis;
 }
 
+function stripHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n+/g, '\n')
+    .trim();
+}
+
 const HUBSPOT_BASE_URL = 'https://api.hubapi.com';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
@@ -306,7 +322,7 @@ async function fetchCallsForDeals(
         dealName: deal?.properties.dealname ?? undefined,
         dealAmount: deal?.properties.amount ?? undefined,
         title: p.hs_call_title ?? undefined,
-        body: p.hs_call_body ?? undefined,
+        body: p.hs_call_body ? stripHtml(p.hs_call_body) : undefined,
         durationMs: p.hs_call_duration ? Number(p.hs_call_duration) : undefined,
         status: p.hs_call_status ?? undefined,
         direction: p.hs_call_direction ?? undefined,
@@ -356,7 +372,11 @@ export async function fetchImplementationCalls(options?: {
         const match = pipeline.stages.find((s) => s.id === id);
         if (match) {
           for (const s of pipeline.stages) {
-            if (s.displayOrder >= match.displayOrder) {
+            const labelLower = s.label.toLowerCase();
+            const idLower = s.id.toLowerCase();
+            const isLost =
+              labelLower.includes('lost') || idLower.includes('lost');
+            if (s.displayOrder >= match.displayOrder && !isLost) {
               expanded.add(s.id);
             }
           }
@@ -417,7 +437,7 @@ export async function analyzeWinningPatternsWithClaude(
     byDeal.set(call.dealId, list);
   }
 
-  const formattedDeals = Array.from(byDeal.entries())
+  const formattedDealsFull = Array.from(byDeal.entries())
     .map(([dealId, dealCalls], idx) => {
       const first = dealCalls[0];
       const callsText = dealCalls
@@ -438,6 +458,13 @@ export async function analyzeWinningPatternsWithClaude(
       return `=== Сделка #${idx + 1} (ID: ${dealId}, Название: ${first.dealName ?? 'N/A'}, Сумма: ${first.dealAmount ?? 'N/A'}) ===\n${callsText}`;
     })
     .join('\n\n');
+
+  const MAX_PROMPT_CHARS = 120_000;
+  const formattedDeals =
+    formattedDealsFull.length > MAX_PROMPT_CHARS
+      ? formattedDealsFull.slice(0, MAX_PROMPT_CHARS) +
+        '\n\n[...часть звонков усечена из-за лимита длины...]'
+      : formattedDealsFull;
 
   const systemPrompt = `Ты — опытный Sales Ops аналитик и руководитель отдела продаж.
 Твоя задача — проанализировать звонки по сделкам, которые дошли до стадии Implementation (успешно закрыты / внедряются), и выявить общие повторяющиеся паттерны, которые привели к закрытию сделки.
