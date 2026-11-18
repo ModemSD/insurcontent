@@ -69,6 +69,45 @@ async function hubspotFetch<T>(
   return res.json() as Promise<T>;
 }
 
+export interface HubSpotPipeline {
+  id: string;
+  label: string;
+  stages: Array<{ id: string; label: string; displayOrder: number }>;
+}
+
+/**
+ * Возвращает список всех пайплайнов сделок и их стадий из HubSpot.
+ */
+export async function fetchDealPipelines(
+  hubspotToken?: string
+): Promise<HubSpotPipeline[]> {
+  const token = hubspotToken ?? process.env.HUBSPOT_ACCESS_TOKEN;
+  if (!token) {
+    throw new Error(
+      'HUBSPOT_ACCESS_TOKEN is not set. Pass it in options or environment variables.'
+    );
+  }
+
+  interface PipelineResponse {
+    results: Array<{
+      id: string;
+      label: string;
+      stages: Array<{ id: string; label: string; displayOrder: number }>;
+    }>;
+  }
+
+  const data = await hubspotFetch<PipelineResponse>(
+    '/crm/v3/pipelines/deals',
+    token
+  );
+
+  return data.results.map((p) => ({
+    id: p.id,
+    label: p.label,
+    stages: [...p.stages].sort((a, b) => a.displayOrder - b.displayOrder),
+  }));
+}
+
 /**
  * Находит ID всех стадий сделок, название которых совпадает с `stageName` (по умолчанию "Implementation").
  */
@@ -113,11 +152,13 @@ interface HubSpotDeal {
 }
 
 /**
- * Выгружает все сделки со стадии Implementation (с пагинацией).
+ * Выгружает все сделки, которые прошли указанные стадии (`mode = 'passed'`)
+ * или сейчас находятся на них (`mode = 'current'`).
  */
 async function fetchDealsByStages(
   token: string,
-  stageIds: string[]
+  stageIds: string[],
+  mode: 'passed' | 'current' = 'passed'
 ): Promise<HubSpotDeal[]> {
   interface SearchDealsResponse {
     results: HubSpotDeal[];
@@ -127,19 +168,31 @@ async function fetchDealsByStages(
   const deals: HubSpotDeal[] = [];
   let after: string | undefined;
 
-  do {
-    const body = {
-      filterGroups: [
-        {
+  const filterGroups =
+    mode === 'passed'
+      ? stageIds.map((id) => ({
           filters: [
             {
-              propertyName: 'dealstage',
-              operator: 'IN',
-              values: stageIds,
+              propertyName: `hs_v2_date_entered_${id}`,
+              operator: 'HAS_PROPERTY',
             },
           ],
-        },
-      ],
+        }))
+      : [
+          {
+            filters: [
+              {
+                propertyName: 'dealstage',
+                operator: 'IN',
+                values: stageIds,
+              },
+            ],
+          },
+        ];
+
+  do {
+    const body = {
+      filterGroups,
       properties: ['dealname', 'amount', 'dealstage'],
       limit: 100,
       ...(after ? { after } : {}),
@@ -284,6 +337,7 @@ export async function fetchImplementationCalls(options?: {
   hubspotToken?: string;
   stageName?: string;
   stageIds?: string[];
+  mode?: 'passed' | 'current';
 }): Promise<{ stageIds: string[]; dealsCount: number; calls: HubSpotCall[] }> {
   const token = options?.hubspotToken ?? process.env.HUBSPOT_ACCESS_TOKEN;
   if (!token) {
@@ -303,7 +357,7 @@ export async function fetchImplementationCalls(options?: {
     );
   }
 
-  const deals = await fetchDealsByStages(token, stageIds);
+  const deals = await fetchDealsByStages(token, stageIds, options?.mode ?? 'passed');
   const calls = await fetchCallsForDeals(token, deals);
 
   return {
@@ -471,12 +525,14 @@ export async function exportAndAnalyzeImplementationCalls(options?: {
   anthropicApiKey?: string;
   stageName?: string;
   stageIds?: string[];
+  mode?: 'passed' | 'current';
   claudeModel?: string;
 }): Promise<ImplementationCallsResult> {
   const { stageIds, dealsCount, calls } = await fetchImplementationCalls({
     hubspotToken: options?.hubspotToken,
     stageName: options?.stageName,
     stageIds: options?.stageIds,
+    mode: options?.mode,
   });
 
   const analysis = await analyzeWinningPatternsWithClaude(calls, {

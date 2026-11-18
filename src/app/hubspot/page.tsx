@@ -17,15 +17,62 @@ import {
 import type {
   ImplementationCallsResult,
   HubSpotCall,
+  HubSpotPipeline,
 } from '@/lib/hubspot/implementationCalls';
 
 export default function HubSpotPatternsPage() {
-  const [stageName, setStageName] = useState('Implementation');
+  const [pipelines, setPipelines] = useState<HubSpotPipeline[]>([]);
+  const [selectedStageId, setSelectedStageId] = useState<string>('');
+  const [mode, setMode] = useState<'passed' | 'current'>('passed');
+  const [loadingPipelines, setLoadingPipelines] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImplementationCallsResult | null>(null);
   const [expandedDeals, setExpandedDeals] = useState<Record<string, boolean>>({});
   const [expandedCalls, setExpandedCalls] = useState<Record<string, boolean>>({});
+
+  React.useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/hubspot/implementation-patterns');
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Не удалось загрузить стадии HubSpot');
+        }
+        const list = (data.pipelines ?? []) as HubSpotPipeline[];
+        if (!active) return;
+        setPipelines(list);
+
+        // Автоматически выбираем стадию Implementation, если она есть
+        let defaultId = '';
+        for (const p of list) {
+          const impl = p.stages.find(
+            (s) => s.label.trim().toLowerCase() === 'implementation'
+          );
+          if (impl) {
+            defaultId = impl.id;
+            break;
+          }
+        }
+        if (!defaultId && list[0]?.stages[0]) {
+          defaultId = list[0].stages[0].id;
+        }
+        setSelectedStageId(defaultId);
+      } catch (err) {
+        if (active) {
+          setError(
+            err instanceof Error ? err.message : 'Ошибка загрузки стадий HubSpot'
+          );
+        }
+      } finally {
+        if (active) setLoadingPipelines(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleAnalyze = async () => {
     setLoading(true);
@@ -34,7 +81,10 @@ export default function HubSpotPatternsPage() {
       const res = await fetch('/api/hubspot/implementation-patterns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stageName: stageName.trim() || 'Implementation' }),
+        body: JSON.stringify({
+          ...(selectedStageId ? { stageIds: [selectedStageId] } : { stageName: 'Implementation' }),
+          mode,
+        }),
       });
 
       const data = await res.json();
@@ -103,16 +153,41 @@ export default function HubSpotPatternsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <input
-                type="text"
-                value={stageName}
-                onChange={(e) => setStageName(e.target.value)}
-                placeholder="Стадия (Implementation)"
+              <select
+                value={selectedStageId}
+                onChange={(e) => setSelectedStageId(e.target.value)}
+                disabled={loadingPipelines || pipelines.length === 0}
+                className="px-3.5 py-2 text-sm border border-zinc-200 rounded-xl bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:opacity-50"
+              >
+                {loadingPipelines ? (
+                  <option value="">Загрузка стадий...</option>
+                ) : pipelines.length === 0 ? (
+                  <option value="">Стадии не найдены</option>
+                ) : (
+                  pipelines.map((p) => (
+                    <optgroup key={p.id} label={p.label}>
+                      {p.stages.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))
+                )}
+              </select>
+
+              <select
+                value={mode}
+                onChange={(e) => setMode(e.target.value as 'passed' | 'current')}
                 className="px-3.5 py-2 text-sm border border-zinc-200 rounded-xl bg-white text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-              />
+              >
+                <option value="passed">Прошли этот этап</option>
+                <option value="current">Сейчас на этом этапе</option>
+              </select>
+
               <button
                 onClick={handleAnalyze}
-                disabled={loading}
+                disabled={loading || loadingPipelines}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 {loading ? (
